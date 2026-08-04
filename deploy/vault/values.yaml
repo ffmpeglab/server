@@ -1,0 +1,56 @@
+# Values for the upstream hashicorp/vault chart.
+#
+#   helm repo add hashicorp https://helm.releases.hashicorp.com
+#   helm install vault hashicorp/vault -n vault --create-namespace \
+#     -f deploy/vault/values.yaml
+#
+# Vault holds the tenant registry: one entry per Supabase instance, written
+# after the owner signs in through OIDC. The reconciler reads that registry and
+# keeps one Helm release of deploy/helm/ffmpeglab alive per tenant.
+
+global:
+  tlsDisable: true
+
+# The sidecar injector is not used: credentials reach pods as Kubernetes
+# Secrets, produced by an external controller from the paths below.
+injector:
+  enabled: false
+
+server:
+  # Dev mode keeps everything in memory and starts unsealed — fine for a
+  # demo cluster, never for anything that must survive a restart.
+  dev:
+    enabled: true
+    devRootToken: "root"
+
+  logLevel: info
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+  # The UI is the whole point of this design: tenants sign in themselves
+  # instead of anyone handing out credentials by side channel.
+  service:
+    enabled: true
+    type: ClusterIP
+
+  standalone:
+    enabled: false
+  ha:
+    enabled: false
+
+  dataStorage:
+    enabled: false
+  auditStorage:
+    enabled: false
+
+ui:
+  enabled: true
+  serviceType: ClusterIP
+
+csi:
+  enabled: false
