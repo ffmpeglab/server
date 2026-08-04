@@ -1,0 +1,3 @@
+{{- if .Values.worker.enabled }}
+{{- include "ffmpeglab.deployment" (dict "ctx" $ "component" "worker" "cfg" .Values.worker) }}
+{{- end }}
