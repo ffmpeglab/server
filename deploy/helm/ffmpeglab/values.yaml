@@ -1,0 +1,155 @@
+# One release of this chart == one tenant == one Supabase project.
+# Supabase itself is never deployed here: every tenant runs its own instance
+# elsewhere, and this chart only receives its connection details.
+
+# Free-form label used in resource names and labels. Defaults to the release name.
+tenant:
+  name: ""
+
+image:
+  repository: ffmpeglab/server
+  # Prefer an immutable tag or a digest — `main` moves under you.
+  tag: "0.3.14"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Non-secret environment shared by every component.
+# Variable names are never hardcoded in the templates: whatever you put here is
+# what the containers get, so renaming a variable in the application is a change
+# to this file only.
+env: {}
+  # DB_PORT: "5432"
+  # S3_REGION: "us-east-1"
+  # DOCUMENT_DIRECTORY: /tmp/ffmpeglab
+
+# Secret holding the tenant's Supabase credentials (database and S3).
+# Default expectation: the Secret is produced from Vault by an external
+# controller (External Secrets Operator, Vault Agent, sealed-secrets, ...) and
+# this chart only references it.
+existingSecret: ""
+
+# Escape hatch for local testing. Never commit real credentials here.
+secret:
+  create: false
+  data: {}
+    # DB_HOST: db.example.internal
+    # DB_PASSWORD: change-me
+
+# Every pod opens several connections to the tenant's database — one pool for
+# TypeORM and one per registered queue. Supabase caps a project's pooler at
+# pool_size 15 in session mode, so a rollout that briefly runs the old and the
+# new pod side by side can exhaust it and crash-loop the tenant. Replacing
+# before creating keeps the connection count flat across upgrades.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
+# Scratch space for renders. Deliberately ephemeral — no PersistentVolume.
+# The path must match whatever the application reads as its document directory.
+documentDir:
+  mountPath: /tmp/ffmpeglab
+  sizeLimit: 10Gi
+  medium: ""
+
+api:
+  enabled: true
+  replicaCount: 1
+  env: {}
+  containerPort: 3000
+  service:
+    type: ClusterIP
+    port: 3000
+    annotations: {}
+  # Probes hit the unauthenticated root endpoint, the one part of the
+  # application contract that is expected to stay stable.
+  probes:
+    enabled: true
+    path: /
+    initialDelaySeconds: 20
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 6
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# Render and file handling run in one process on purpose: the render step writes
+# the output to local disk and the file step reads it back from the same path.
+# Splitting them across pods would need shared storage, which this chart does not
+# provision. Set worker.env to run only part of the work and enable `file` below
+# if the application ever moves the handoff off the filesystem.
+worker:
+  enabled: true
+  replicaCount: 1
+  env:
+    IS_RENDER_RUNNER: "true"
+    IS_FILE_RUNNER: "true"
+  mountDocumentDir: true
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# Optional standalone file runner. Only useful once the render output is handed
+# over through object storage instead of the local filesystem.
+file:
+  enabled: false
+  replicaCount: 1
+  env:
+    IS_FILE_RUNNER: "true"
+  mountDocumentDir: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+logs:
+  enabled: true
+  replicaCount: 1
+  env:
+    IS_LOGS_RUNNER: "true"
+  mountDocumentDir: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}

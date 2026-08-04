@@ -1,0 +1,14 @@
+apiVersion: v2
+name: ffmpeglab
+description: One FFmpegLab tenant — API plus render, file and logs runners, bound to a single Supabase project
+type: application
+version: 0.1.0
+appVersion: "0.3.14"
+keywords:
+  - ffmpeg
+  - video
+  - supabase
+  - pgmq
+home: https://ffmpeglab.com
+sources:
+  - https://github.com/ffmpeglab/server
