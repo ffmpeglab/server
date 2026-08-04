@@ -27,9 +27,9 @@ variable "kube_context" {
 }
 
 variable "chart_path" {
-  description = "Path to the tenant chart."
+  description = "Path to the tenant chart. Empty means the chart next to this module."
   type        = string
-  default     = "../helm/ffmpeglab"
+  default     = ""
 }
 
 variable "namespace_prefix" {

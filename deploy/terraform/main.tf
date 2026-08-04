@@ -1,14 +1,9 @@
-# Turns the Vault tenant registry into running tenants.
-#
-# The registry is the input and the cluster is the output: whatever is under
-# tenants/ gets a namespace, a Secret and a Helm release; whatever is removed
-# from it gets torn down on the next apply. Adding a Supabase instance is
-# writing one Vault entry, nothing else.
+# Vault registry in, running tenants out: an entry becomes a namespace, a
+# Secret and a release; removing it tears all three down.
 
-# Listed over the raw API rather than with vault_kv_secrets_list_v2, which
-# errors instead of returning nothing when the registry is empty — that would
-# make removing the last tenant impossible. A 404 here is a legitimate state:
-# no tenants registered yet, or all of them removed.
+# Not vault_kv_secrets_list_v2: it errors on an empty registry, which would
+# make removing the last tenant impossible. Use a list-only token here — the
+# http data source keeps request headers in state.
 data "http" "tenant_list" {
   url = "${trimsuffix(var.vault_address, "/")}/v1/${var.tenant_mount}/metadata?list=true"
 
@@ -29,9 +24,7 @@ data "vault_kv_secret_v2" "tenant" {
 }
 
 locals {
-  # Vault subjects are opaque and may contain characters Kubernetes rejects in
-  # object names, so the label is normalised while the Vault path keeps the
-  # original.
+  # Vault subjects may contain characters Kubernetes rejects in object names.
   tenants = {
     for name in local.tenant_names :
     name => {
@@ -54,9 +47,7 @@ resource "kubernetes_namespace" "tenant" {
   }
 }
 
-# Everything the tenant entry holds is handed over as-is. Terraform never needs
-# to know which keys exist, so a new variable in the application is a change to
-# the Vault entry alone.
+# Passed through as-is, so a new variable in the app means editing Vault only.
 resource "kubernetes_secret" "tenant" {
   for_each = var.manage_secrets ? local.tenants : {}
 
@@ -73,11 +64,10 @@ resource "helm_release" "tenant" {
   for_each = local.tenants
 
   name      = each.value.slug
-  chart     = var.chart_path
+  chart     = var.chart_path != "" ? var.chart_path : "${path.module}/../helm/ffmpeglab"
   namespace = kubernetes_namespace.tenant[each.key].metadata[0].name
 
-  # A tenant that cannot reach its Supabase is a broken tenant, not a slow one:
-  # fail the apply instead of leaving a crash-looping release behind.
+  # Fail the apply rather than leave a crash-looping release behind.
   atomic          = true
   cleanup_on_fail = true
   timeout         = 300
