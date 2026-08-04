@@ -1,0 +1,15 @@
+# Downloaded provider binaries.
+.terraform/
+
+# State holds tenant credentials when manage_secrets is on — it never belongs
+# in the repository. Use a remote backend with encryption.
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Local overrides.
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
