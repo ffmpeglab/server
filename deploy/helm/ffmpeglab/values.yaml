@@ -1,14 +1,10 @@
-# One release of this chart == one tenant == one Supabase project.
-# Supabase itself is never deployed here: every tenant runs its own instance
-# elsewhere, and this chart only receives its connection details.
+# One release == one tenant == one Supabase project. Supabase is not deployed here.
 
-# Free-form label used in resource names and labels. Defaults to the release name.
 tenant:
   name: ""
 
 image:
   repository: ffmpeglab/server
-  # Prefer an immutable tag or a digest — `main` moves under you.
   tag: "0.3.14"
   digest: ""
   pullPolicy: IfNotPresent
@@ -17,41 +13,31 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# Non-secret environment shared by every component.
-# Variable names are never hardcoded in the templates: whatever you put here is
-# what the containers get, so renaming a variable in the application is a change
-# to this file only.
+# Passed through verbatim; no variable name is hardcoded in the templates.
 env: {}
   # DB_PORT: "5432"
   # S3_REGION: "us-east-1"
   # DOCUMENT_DIRECTORY: /tmp/ffmpeglab
 
-# Secret holding the tenant's Supabase credentials (database and S3).
-# Default expectation: the Secret is produced from Vault by an external
-# controller (External Secrets Operator, Vault Agent, sealed-secrets, ...) and
-# this chart only references it.
+# Secret with the tenant's credentials, normally produced from Vault.
 existingSecret: ""
 
-# Escape hatch for local testing. Never commit real credentials here.
+# Local testing only.
 secret:
   create: false
   data: {}
     # DB_HOST: db.example.internal
     # DB_PASSWORD: change-me
 
-# Every pod opens several connections to the tenant's database — one pool for
-# TypeORM and one per registered queue. Supabase caps a project's pooler at
-# pool_size 15 in session mode, so a rollout that briefly runs the old and the
-# new pod side by side can exhaust it and crash-loop the tenant. Replacing
-# before creating keeps the connection count flat across upgrades.
+# Each pod opens ~4 DB connections and the pooler caps a project at 15 in
+# session mode, so old+new side by side during a rollout exhausts it.
 updateStrategy:
   type: RollingUpdate
   rollingUpdate:
     maxSurge: 0
     maxUnavailable: 1
 
-# Scratch space for renders. Deliberately ephemeral — no PersistentVolume.
-# The path must match whatever the application reads as its document directory.
+# Ephemeral by design. Must match the app's document directory.
 documentDir:
   mountPath: /tmp/ffmpeglab
   sizeLimit: 10Gi
@@ -66,8 +52,6 @@ api:
     type: ClusterIP
     port: 3000
     annotations: {}
-  # Probes hit the unauthenticated root endpoint, the one part of the
-  # application contract that is expected to stay stable.
   probes:
     enabled: true
     path: /
@@ -86,11 +70,8 @@ api:
   affinity: {}
   podAnnotations: {}
 
-# Render and file handling run in one process on purpose: the render step writes
-# the output to local disk and the file step reads it back from the same path.
-# Splitting them across pods would need shared storage, which this chart does not
-# provision. Set worker.env to run only part of the work and enable `file` below
-# if the application ever moves the handoff off the filesystem.
+# Render and file share a process: render writes to local disk, file reads the
+# same path, so splitting them across pods would need shared storage.
 worker:
   enabled: true
   replicaCount: 1
@@ -110,8 +91,7 @@ worker:
   affinity: {}
   podAnnotations: {}
 
-# Optional standalone file runner. Only useful once the render output is handed
-# over through object storage instead of the local filesystem.
+# Only useful once the render output is handed over through object storage.
 file:
   enabled: false
   replicaCount: 1
