@@ -38,6 +38,47 @@ provisions none: the document directory is an `emptyDir`, sized by
 `documentDir.sizeLimit`. Enable the standalone `file` component only if the
 handoff stops going through the local filesystem.
 
+## Running it locally
+
+On minikube, end to end, against a real Supabase project:
+
+```bash
+minikube start
+
+helm repo add hashicorp https://helm.releases.hashicorp.com
+helm install vault hashicorp/vault -n vault --create-namespace -f deploy/vault/values.yaml
+kubectl -n vault port-forward svc/vault 8200:8200 &
+
+export VAULT_ADDR=http://127.0.0.1:8200
+export VAULT_TOKEN=root
+export TF_VAR_vault_token=$VAULT_TOKEN
+vault secrets enable -path=tenants -version=2 kv
+
+# one entry per tenant — see deploy/vault/README.md for the keys
+vault kv put tenants/<project-ref> DB_HOST=... DB_PORT=6543 ...
+
+terraform -chdir=deploy/terraform init
+terraform -chdir=deploy/terraform apply -var-file=demo.tfvars
+```
+
+`demo.tfvars` shrinks the resource requests: the chart sizes a render worker for
+real footage, which will not schedule on a two-core Docker next to Vault.
+
+Four things that will otherwise cost you an hour:
+
+- **Use the pooler host**, not `db.<ref>.supabase.co` — the direct one resolves to
+  IPv6 only and is unreachable from the cluster. Port `6543` is transaction mode,
+  `5432` session mode, and session mode caps a project at 15 connections.
+- **The queues must not already exist.** `nestjs-pgmq` calls `pgmq.create` on
+  every boot and pgmq answers `sequence pgmq.q_render_msg_id_seq is already a
+  member of extension "pgmq"`, so the pods crash-loop. Against a project that has
+  been used before, drop them first:
+  `select pgmq.drop_queue('render'), pgmq.drop_queue('logs'), pgmq.drop_queue('file');`
+- **Set `DB_MIGRATION_ENABLED=true`** in the entry on first run so the tables get
+  created.
+- Vault here is dev mode — restarting the pod empties the registry, and the next
+  apply will want to destroy every tenant.
+
 ## Configuration
 
 Environment variable names are not hardcoded in the templates. Everything under
