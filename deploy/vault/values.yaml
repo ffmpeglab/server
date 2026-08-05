@@ -4,15 +4,12 @@
 #   helm install vault hashicorp/vault -n vault --create-namespace \
 #     -f deploy/vault/values.yaml
 #
-# Vault holds the tenant registry: one entry per Supabase instance, written
-# after the owner signs in through OIDC. The reconciler reads that registry and
-# keeps one Helm release of deploy/helm/ffmpeglab alive per tenant.
+# Vault holds the tenant registry the reconciler reads. Reached from inside the
+# cluster; nothing here exposes it.
 
 global:
   tlsDisable: true
 
-# The sidecar injector is not used: credentials reach pods as Kubernetes
-# Secrets, produced by an external controller from the paths below.
 injector:
   enabled: false
 
@@ -32,8 +29,6 @@ server:
     limits:
       memory: 512Mi
 
-  # The UI is the whole point of this design: tenants sign in themselves
-  # instead of anyone handing out credentials by side channel.
   service:
     enabled: true
     type: ClusterIP

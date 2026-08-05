@@ -75,6 +75,6 @@ helm template <tenant> deploy/helm/ffmpeglab --set tenant.name=<tenant>
 
 ## Not covered yet
 
-Ingress, the Vault-to-Secret controller, the Consul-driven reconciliation of the
-tenant list, and scale-to-zero for idle runners. Tracked in
+Ingress, scale-to-zero for idle runners, and how tenant entries get written to
+Vault in the first place. Tracked in
 [#2](https://github.com/ffmpeglab/server/issues/2).
