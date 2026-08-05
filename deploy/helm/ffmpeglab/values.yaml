@@ -37,6 +37,15 @@ updateStrategy:
     maxSurge: 0
     maxUnavailable: 1
 
+# The app exits rather than retries when the database hostname does not resolve,
+# so hold pods back until cluster DNS answers for it.
+dnsWait:
+  enabled: true
+  hostFrom: DB_HOST
+  image: busybox:1.36
+  attempts: 60
+  intervalSeconds: 2
+
 # Ephemeral by design. Must match the app's document directory.
 documentDir:
   mountPath: /tmp/ffmpeglab

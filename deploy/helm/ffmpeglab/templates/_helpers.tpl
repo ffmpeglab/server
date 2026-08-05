@@ -112,6 +112,49 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if $ctx.Values.dnsWait.enabled }}
+      # Cluster DNS is not always answering for external names by the time pods
+      # start, and the application exits instead of retrying — which turns every
+      # cluster restart into a crash-loop backoff.
+      initContainers:
+        - name: wait-for-dns
+          image: {{ $ctx.Values.dnsWait.image }}
+          command:
+            - sh
+            - -c
+            - |
+              host=$(printenv {{ $ctx.Values.dnsWait.hostFrom }} || true)
+              if [ -z "$host" ]; then
+                echo "{{ $ctx.Values.dnsWait.hostFrom }} is empty, nothing to wait for"
+                exit 0
+              fi
+              i=0
+              until nslookup "$host" >/dev/null 2>&1; do
+                i=$((i+1))
+                if [ "$i" -ge {{ $ctx.Values.dnsWait.attempts }} ]; then
+                  echo "cannot resolve $host after $i attempts"
+                  exit 1
+                fi
+                sleep {{ $ctx.Values.dnsWait.intervalSeconds }}
+              done
+              echo "$host resolved"
+          {{- if $secretName }}
+          envFrom:
+            - secretRef:
+                name: {{ $secretName }}
+          {{- end }}
+          {{- if or $ctx.Values.env $cfg.env }}
+          env:
+            {{- range $key, $value := $ctx.Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+      {{- end }}
       containers:
         - name: {{ $component }}
           image: {{ include "ffmpeglab.image" $ctx }}

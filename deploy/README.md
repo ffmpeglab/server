@@ -40,10 +40,16 @@ handoff stops going through the local filesystem.
 
 ## Running it locally
 
+Needs `minikube`, `kubectl`, `helm`, `terraform` and the `vault` CLI, plus a
+Supabase project to point at.
+
+Give Docker at least 8 GB. A 4 GB Docker was not enough here — the minikube
+container was OOM-killed with the metrics stack, Vault and one tenant running.
+
 On minikube, end to end, against a real Supabase project:
 
 ```bash
-minikube start
+minikube start --memory=6g --cpus=4
 
 helm repo add hashicorp https://helm.releases.hashicorp.com
 helm install vault hashicorp/vault -n vault --create-namespace -f deploy/vault/values.yaml
@@ -62,9 +68,9 @@ terraform -chdir=deploy/terraform apply -var-file=demo.tfvars
 ```
 
 `demo.tfvars` shrinks the resource requests: the chart sizes a render worker for
-real footage, which will not schedule on a two-core Docker next to Vault.
+real footage, which will not schedule on a small local cluster next to Vault.
 
-Four things that will otherwise cost you an hour:
+Things that will otherwise cost you an hour:
 
 - **Use the pooler host**, not `db.<ref>.supabase.co` — the direct one resolves to
   IPv6 only and is unreachable from the cluster. Port `6543` is transaction mode,
@@ -77,7 +83,14 @@ Four things that will otherwise cost you an hour:
 - **Set `DB_MIGRATION_ENABLED=true`** in the entry on first run so the tables get
   created.
 - Vault here is dev mode — restarting the pod empties the registry, and the next
-  apply will want to destroy every tenant.
+  apply will want to destroy every tenant. Re-run `vault secrets enable` and
+  write the entries again.
+- **Editing the chart? Bump `version` in `Chart.yaml`.** `helm_release` compares
+  chart versions, so without it Terraform reports no changes and your edit never
+  reaches the cluster.
+- `minikube stop` hands out a new API server port on the next start. `kubectl`
+  follows along, GUI clients like Lens keep the old connection and show an empty
+  cluster until reconnected.
 
 ## Configuration
 
