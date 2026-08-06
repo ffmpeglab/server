@@ -27,11 +27,16 @@ jobs:
           terraform_version: 1.5.7
           terraform_wrapper: false
 
+      # Passed through the environment rather than interpolated into the script,
+      # so the kubeconfig never becomes part of a command line.
       - name: Configure cluster access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
           mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          printf '%s' "$KUBE_CONFIG" | base64 -d > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
+          echo "KUBECONFIG_PATH=$HOME/.kube/config" >> "$GITHUB_ENV"
 
       # A release deploys the image built from that release. Without this the
       # chart keeps whatever tag is pinned in values.yaml and publishing a
@@ -58,7 +63,7 @@ jobs:
           TF_VAR_vault_token: ${{ secrets.VAULT_TOKEN }}
           TF_VAR_vault_address: ${{ secrets.VAULT_ADDR }}
           TF_VAR_kube_context: ${{ vars.KUBE_CONTEXT }}
-          TF_VAR_kubeconfig_path: ${{ env.HOME }}/.kube/config
+          TF_VAR_kubeconfig_path: ${{ env.KUBECONFIG_PATH }}
           TF_VAR_chart_values: ${{ github.event.inputs.chart_values || steps.image.outputs.values }}
         run: |
           terraform init -input=false

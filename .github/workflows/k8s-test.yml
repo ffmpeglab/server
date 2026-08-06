@@ -1,0 +1,132 @@
+name: Kubernetes smoke test
+
+# Runs after the image is built, so the cluster gets the image that was just
+# pushed rather than whatever the chart happens to pin.
+on:
+  workflow_run:
+    workflows: ["DockerHub"]
+    types: [completed]
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/k8s-test.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: medyagh/setup-minikube@latest
+        with:
+          cpus: 2
+          memory: 4000mb
+
+      # Postgres with pgmq, standing in for the tenant's Supabase. Only the
+      # database side is needed: the render runner is enabled without the file
+      # runner, so nothing reaches for object storage.
+      - name: Start the database fixture
+        run: |
+          kubectl create namespace fixture
+          kubectl -n fixture apply -f - <<'EOF'
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: postgres
+          spec:
+            replicas: 1
+            selector:
+              matchLabels: {app: postgres}
+            template:
+              metadata:
+                labels: {app: postgres}
+              spec:
+                containers:
+                  - name: postgres
+                    image: ghcr.io/pgmq/pg17-pgmq:latest
+                    env:
+                      - {name: POSTGRES_PASSWORD, value: smoketest}
+                      - {name: POSTGRES_DB, value: postgres}
+                    ports:
+                      - containerPort: 5432
+                    readinessProbe:
+                      exec:
+                        command: ["pg_isready", "-U", "postgres"]
+                      initialDelaySeconds: 5
+                      periodSeconds: 3
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: postgres
+          spec:
+            selector: {app: postgres}
+            ports:
+              - port: 5432
+                targetPort: 5432
+          EOF
+          kubectl -n fixture rollout status deploy/postgres --timeout=180s
+
+      - name: Pick the image tag
+        id: image
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "tag=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install the chart
+        run: |
+          kubectl create namespace ffmpeglab-smoke
+          kubectl -n ffmpeglab-smoke create secret generic tenant-db \
+            --from-literal=DB_HOST=postgres.fixture.svc.cluster.local \
+            --from-literal=DB_USER=postgres \
+            --from-literal=DB_PASSWORD=smoketest \
+            --from-literal=DB_NAME=postgres
+
+          helm install smoke deploy/helm/ffmpeglab \
+            --namespace ffmpeglab-smoke \
+            --set tenant.name=smoke \
+            --set existingSecret=tenant-db \
+            --set env.DB_PORT=5432 \
+            --set env.DB_MIGRATION_ENABLED=true \
+            --set env.DOCUMENT_DIRECTORY=/tmp/ffmpeglab \
+            --set worker.env.IS_FILE_RUNNER=false \
+            --set api.resources.requests.cpu=50m \
+            --set worker.resources.requests.cpu=100m \
+            --set logs.resources.requests.cpu=50m \
+            ${{ steps.image.outputs.tag && format('--set image.tag={0}', steps.image.outputs.tag) || '' }} \
+            --wait --timeout 5m
+
+      - name: The API answers
+        run: |
+          kubectl -n ffmpeglab-smoke run curl --rm -i --restart=Never \
+            --image=curlimages/curl:8.11.1 -- \
+            curl -sS --fail --max-time 20 http://smoke-ffmpeglab-api:3000/
+
+      # The point of the fixture: prove the application created its own schema
+      # and queues rather than just starting.
+      - name: The schema and queues exist
+        run: |
+          POD=$(kubectl -n fixture get pod -l app=postgres -o name | head -1)
+          kubectl -n fixture exec "$POD" -- psql -U postgres -d postgres -tAc \
+            "select string_agg(tablename, ',' order by tablename) from pg_tables where schemaname='public';" | tee /tmp/tables
+          grep -q 'api_key' /tmp/tables && grep -q 'log_piece' /tmp/tables && grep -q 'render' /tmp/tables
+          kubectl -n fixture exec "$POD" -- psql -U postgres -d postgres -tAc \
+            "select string_agg(queue_name, ',' order by queue_name) from pgmq.list_queues();" | tee /tmp/queues
+          grep -q 'file' /tmp/queues && grep -q 'logs' /tmp/queues && grep -q 'render' /tmp/queues
+
+      - name: Diagnostics
+        if: failure()
+        run: |
+          kubectl -n ffmpeglab-smoke get pods -o wide || true
+          kubectl -n ffmpeglab-smoke describe pods || true
+          for c in api worker logs; do
+            echo "----- $c -----"
+            kubectl -n ffmpeglab-smoke logs "deploy/smoke-ffmpeglab-$c" --all-containers --tail=80 || true
+          done
+          kubectl -n fixture logs deploy/postgres --tail=40 || true
