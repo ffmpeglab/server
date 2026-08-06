@@ -215,6 +215,10 @@ spec:
       {{- if $cfg.mountDocumentDir }}
       volumes:
         - name: document-dir
+          {{- if $ctx.Values.documentDir.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $ctx.Values.documentDir.persistence.existingClaim | default (printf "%s-documents" (include "ffmpeglab.fullname" $ctx)) }}
+          {{- else }}
           emptyDir:
             {{- with $ctx.Values.documentDir.medium }}
             medium: {{ . }}
@@ -222,6 +226,7 @@ spec:
             {{- with $ctx.Values.documentDir.sizeLimit }}
             sizeLimit: {{ . }}
             {{- end }}
+          {{- end }}
       {{- end }}
       {{- with $cfg.nodeSelector }}
       nodeSelector:
