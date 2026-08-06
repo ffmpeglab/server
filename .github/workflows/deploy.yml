@@ -3,6 +3,21 @@ name: Deploy
 on:
   release:
     types: [published]
+
+  # Whatever writes a tenant into Vault should fire this so the cluster follows
+  # immediately:
+  #   curl -X POST -H "Authorization: Bearer <token>" \
+  #     -H "Accept: application/vnd.github+json" \
+  #     https://api.github.com/repos/ffmpeglab/server/dispatches \
+  #     -d '{"event_type":"tenants-changed"}'
+  repository_dispatch:
+    types: [tenants-changed]
+
+  # Safety net for changes that arrive without firing the dispatch. The apply is
+  # idempotent, so a run with nothing to do reports no changes and stops.
+  schedule:
+    - cron: '0 * * * *'
+
   workflow_dispatch:
     inputs:
       chart_values:
@@ -15,7 +30,7 @@ jobs:
     # Prereleases are not production. The environment carries the secrets and
     # any approval rules, so who can deploy is a repository setting rather than
     # something encoded here.
-    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    if: github.event_name != 'release' || github.event.release.prerelease == false
     runs-on: ubuntu-latest
     environment: production
 
