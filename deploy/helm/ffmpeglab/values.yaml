@@ -46,9 +46,27 @@ dnsWait:
   attempts: 60
   intervalSeconds: 2
 
-# Ephemeral by design. Must match the app's document directory.
+# Where renders are written. Must match the app's document directory.
+#
+# The render step writes its output here and the file step reads it back from
+# the same path — the `./tmp` bind mount shared by both runners in
+# docker-compose. Splitting them across pods needs the same directory in both,
+# so the claim has to be ReadWriteMany; a single-node cluster will also accept
+# ReadWriteOnce.
+#
+# With persistence off the directory is an emptyDir, which is private to each
+# pod. That only works when one process does both steps — see the `worker`
+# component below.
 documentDir:
   mountPath: /tmp/ffmpeglab
+  persistence:
+    enabled: true
+    existingClaim: ""
+    accessModes:
+      - ReadWriteMany
+    size: 10Gi
+    storageClass: ""
+  # emptyDir settings, used when persistence is off
   sizeLimit: 10Gi
   medium: ""
 
@@ -79,14 +97,13 @@ api:
   affinity: {}
   podAnnotations: {}
 
-# Render and file share a process: render writes to local disk, file reads the
-# same path, so splitting them across pods would need shared storage.
-worker:
+# Separate runners, as in docker-compose. Both mount the document directory:
+# render writes the output there, file picks it up and uploads it.
+render:
   enabled: true
   replicaCount: 1
   env:
     IS_RENDER_RUNNER: "true"
-    IS_FILE_RUNNER: "true"
   mountDocumentDir: true
   resources:
     requests:
@@ -100,9 +117,8 @@ worker:
   affinity: {}
   podAnnotations: {}
 
-# Only useful once the render output is handed over through object storage.
 file:
-  enabled: false
+  enabled: true
   replicaCount: 1
   env:
     IS_FILE_RUNNER: "true"
@@ -113,6 +129,28 @@ file:
       memory: 256Mi
     limits:
       memory: 1Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# Render and file in one process, sharing an emptyDir instead of a claim. For
+# clusters with no ReadWriteMany storage. Turn `render` and `file` off if you
+# enable this.
+worker:
+  enabled: false
+  replicaCount: 1
+  env:
+    IS_RENDER_RUNNER: "true"
+    IS_FILE_RUNNER: "true"
+  mountDocumentDir: true
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}

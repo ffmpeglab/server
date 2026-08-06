@@ -1,16 +1,18 @@
 name: Kubernetes smoke test
 
-# Runs after the image is built, so the cluster gets the image that was just
-# pushed rather than whatever the chart happens to pin.
+# Runs after the image is built, so it exercises the image that was just pushed
+# and pulls it exactly once. Not on pull requests: chart and docs edits do not
+# need a cluster, and Docker Hub pulls are limited.
 on:
   workflow_run:
     workflows: ["DockerHub"]
     types: [completed]
-  pull_request:
-    paths:
-      - 'deploy/**'
-      - '.github/workflows/k8s-test.yml'
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to test'
+        required: false
+        default: 'main'
 
 jobs:
   smoke:
@@ -25,9 +27,9 @@ jobs:
           cpus: 2
           memory: 4000mb
 
-      # Postgres with pgmq, standing in for the tenant's Supabase. Only the
-      # database side is needed: the render runner is enabled without the file
-      # runner, so nothing reaches for object storage.
+      # Postgres with pgmq, standing in for the tenant's Supabase. From GHCR, so
+      # it costs no Docker Hub pull. The file runner stays off: there is no
+      # object storage here, and a render still reaches `done` without it.
       - name: Start the database fixture
         run: |
           kubectl create namespace fixture
@@ -57,27 +59,9 @@ jobs:
                         command: ["pg_isready", "-U", "postgres"]
                       initialDelaySeconds: 5
                       periodSeconds: 3
-          ---
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: postgres
-          spec:
-            selector: {app: postgres}
-            ports:
-              - port: 5432
-                targetPort: 5432
           EOF
+          kubectl -n fixture expose deployment postgres --port=5432 --target-port=5432
           kubectl -n fixture rollout status deploy/postgres --timeout=180s
-
-      - name: Pick the image tag
-        id: image
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "tag=main" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Install the chart
         run: |
@@ -92,33 +76,62 @@ jobs:
             --namespace ffmpeglab-smoke \
             --set tenant.name=smoke \
             --set existingSecret=tenant-db \
+            --set image.tag=${{ github.event.inputs.image_tag || 'main' }} \
             --set env.DB_PORT=5432 \
             --set env.DB_MIGRATION_ENABLED=true \
             --set env.DOCUMENT_DIRECTORY=/tmp/ffmpeglab \
             --set worker.env.IS_FILE_RUNNER=false \
             --set api.resources.requests.cpu=50m \
             --set worker.resources.requests.cpu=100m \
-            --set logs.resources.requests.cpu=50m \
-            ${{ steps.image.outputs.tag && format('--set image.tag={0}', steps.image.outputs.tag) || '' }} \
-            --wait --timeout 5m
+            --set logs.resources.requests.cpu=50m
 
-      - name: The API answers
+      # Not helm --wait: the chart sets maxUnavailable to 1, which with a single
+      # replica satisfies helm's readiness check with zero ready pods, so it
+      # returns in seconds while the pods are still initializing.
+      - name: Wait for the pods
         run: |
-          kubectl -n ffmpeglab-smoke run curl --rm -i --restart=Never \
-            --image=curlimages/curl:8.11.1 -- \
-            curl -sS --fail --max-time 20 http://smoke-ffmpeglab-api:3000/
+          for c in api worker logs; do
+            kubectl -n ffmpeglab-smoke rollout status "deploy/smoke-ffmpeglab-$c" --timeout=300s
+          done
 
-      # The point of the fixture: prove the application created its own schema
-      # and queues rather than just starting.
-      - name: The schema and queues exist
+      - name: The application created its schema and queues
         run: |
           POD=$(kubectl -n fixture get pod -l app=postgres -o name | head -1)
+          echo "POSTGRES_POD=$POD" >> "$GITHUB_ENV"
           kubectl -n fixture exec "$POD" -- psql -U postgres -d postgres -tAc \
             "select string_agg(tablename, ',' order by tablename) from pg_tables where schemaname='public';" | tee /tmp/tables
           grep -q 'api_key' /tmp/tables && grep -q 'log_piece' /tmp/tables && grep -q 'render' /tmp/tables
           kubectl -n fixture exec "$POD" -- psql -U postgres -d postgres -tAc \
             "select string_agg(queue_name, ',' order by queue_name) from pgmq.list_queues();" | tee /tmp/queues
           grep -q 'file' /tmp/queues && grep -q 'logs' /tmp/queues && grep -q 'render' /tmp/queues
+
+      # example.sh is the project's own client, so this covers the path a user
+      # actually takes: create a render, queue it, let the runner encode it.
+      - name: A render completes
+        run: |
+          kubectl -n fixture exec "$POSTGRES_POD" -- psql -U postgres -d postgres -v ON_ERROR_STOP=1 -tAc \
+            "insert into api_key (title, apikey, user_id, data) values ('smoke', 'ffmpeglab_sk_smoketest', '00000000-0000-0000-0000-000000000001', '{}');"
+
+          kubectl -n ffmpeglab-smoke port-forward svc/smoke-ffmpeglab-api 3000:3000 &
+          for _ in $(seq 1 30); do curl -sf -m 2 http://localhost:3000/ >/dev/null && break; sleep 2; done
+
+          sed 's|^API_HOST=.*|API_HOST=http://localhost:3000|' example.sh > /tmp/example.sh
+          API_KEY=ffmpeglab_sk_smoketest bash /tmp/example.sh | tee /tmp/example.out
+
+          ID=$(grep -oE '"id":"[a-f0-9-]{36}"' /tmp/example.out | head -1 | cut -d'"' -f4)
+          [ -n "$ID" ] || { echo "no render id in the response"; exit 1; }
+          echo "render $ID"
+
+          for _ in $(seq 1 40); do
+            STATUS=$(curl -s -m 10 -H "Authorization: Bearer ffmpeglab_sk_smoketest" \
+              "http://localhost:3000/renders/$ID" | sed -n 's/.*"status":"\([a-z]*\)".*/\1/p')
+            echo "status: $STATUS"
+            [ "$STATUS" = "done" ] && exit 0
+            [ "$STATUS" = "error" ] && { echo "render failed"; exit 1; }
+            sleep 5
+          done
+          echo "render did not finish in time"
+          exit 1
 
       - name: Diagnostics
         if: failure()

@@ -1,0 +1,17 @@
+{{- if and .Values.documentDir.persistence.enabled (not .Values.documentDir.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ffmpeglab.fullname" . }}-documents
+  labels:
+    {{- include "ffmpeglab.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.documentDir.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.documentDir.persistence.size }}
+  {{- with .Values.documentDir.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+{{- end }}
