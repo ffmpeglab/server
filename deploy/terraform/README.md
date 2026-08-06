@@ -31,6 +31,30 @@ the chart consumes it with `envFrom`. Terraform never needs to know which keys
 exist, so a new variable in the application means editing the Vault entry and
 nothing here.
 
+## From CI
+
+`.github/workflows/deploy.yml` runs the same apply on a published release that
+is not a prerelease, and on manual dispatch. The job is bound to the
+`production` environment, so approval rules and the secrets below are repository
+settings rather than anything encoded in the workflow.
+
+Repository settings → Environments → `production`:
+
+| Secret | What it is |
+|--------|------------|
+| `KUBE_CONFIG` | base64 of a kubeconfig for the target cluster, scoped to a service account that can manage the tenant namespaces |
+| `VAULT_ADDR` | Vault address reachable from the runner |
+| `VAULT_TOKEN` | token allowed to list `tenants/metadata` and read `tenants/data/*`, nothing more |
+
+One variable, not a secret: `KUBE_CONTEXT`, the context name inside that
+kubeconfig.
+
+`base64 -w0 ~/.kube/config` produces the value for `KUBE_CONFIG`; on macOS it is
+`base64 -i ~/.kube/config`.
+
+The `VAULT_TOKEN` should not be root. It ends up in the Terraform state, so
+scope it to the registry and rotate it like any other deploy credential.
+
 ## Notes
 
 `manage_secrets = true` copies credentials from Vault into Kubernetes Secrets,

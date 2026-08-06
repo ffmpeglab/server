@@ -1,0 +1,53 @@
+name: Deploy
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      chart_values:
+        description: 'Extra chart values as JSON'
+        required: false
+        default: '{}'
+
+jobs:
+  deploy:
+    # Prereleases are not production. The environment carries the secrets and
+    # any approval rules, so who can deploy is a repository setting rather than
+    # something encoded here.
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+          terraform_wrapper: false
+
+      - name: Configure cluster access
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Apply the tenant registry
+        working-directory: deploy/terraform
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          TF_VAR_vault_token: ${{ secrets.VAULT_TOKEN }}
+          TF_VAR_vault_address: ${{ secrets.VAULT_ADDR }}
+          TF_VAR_kube_context: ${{ vars.KUBE_CONTEXT }}
+          TF_VAR_kubeconfig_path: ${{ env.HOME }}/.kube/config
+          TF_VAR_chart_values: ${{ github.event.inputs.chart_values || '{}' }}
+        run: |
+          terraform init -input=false
+          terraform apply -input=false -auto-approve
+
+      - name: Report tenants
+        if: always()
+        working-directory: deploy/terraform
+        run: terraform output -json tenants || true
