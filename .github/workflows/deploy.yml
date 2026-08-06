@@ -33,6 +33,23 @@ jobs:
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
 
+      # A release deploys the image built from that release. Without this the
+      # chart keeps whatever tag is pinned in values.yaml and publishing a
+      # release changes nothing in the cluster.
+      - name: Pick the image tag
+        id: image
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag="${{ github.event.release.tag_name }}"
+          else
+            tag="${{ vars.DEPLOY_IMAGE_TAG }}"
+          fi
+          if [ -n "$tag" ]; then
+            echo "values={\"image\":{\"tag\":\"${tag#v}\"}}" >> "$GITHUB_OUTPUT"
+          else
+            echo 'values={}' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Apply the tenant registry
         working-directory: deploy/terraform
         env:
@@ -42,7 +59,7 @@ jobs:
           TF_VAR_vault_address: ${{ secrets.VAULT_ADDR }}
           TF_VAR_kube_context: ${{ vars.KUBE_CONTEXT }}
           TF_VAR_kubeconfig_path: ${{ env.HOME }}/.kube/config
-          TF_VAR_chart_values: ${{ github.event.inputs.chart_values || '{}' }}
+          TF_VAR_chart_values: ${{ github.event.inputs.chart_values || steps.image.outputs.values }}
         run: |
           terraform init -input=false
           terraform apply -input=false -auto-approve
