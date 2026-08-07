@@ -127,6 +127,51 @@ Render the manifests without installing:
 helm template <tenant> deploy/helm/ffmpeglab --set tenant.name=<tenant>
 ```
 
+## Running a real render
+
+`example.sh` in the repository root creates a render, queues it and polls for the
+result. Two things it needs first.
+
+An API key — there is no signup endpoint, so insert one into the tenant's
+database:
+
+```sql
+insert into api_key (title, apikey, user_id, data)
+values ('local', 'ffmpeglab_sk_...', gen_random_uuid(), '{}');
+```
+
+And a different `API_HOST`: the script assigns it on its first line, so an
+environment variable will not override it.
+
+From inside the cluster, reaching the API by service name. The server image
+already carries `curl`, so no extra image is pulled:
+
+```bash
+sed 's|^API_HOST=.*|API_HOST=http://<tenant>-ffmpeglab-api:3000|' example.sh | \
+kubectl -n ffmpeglab-<tenant> run example --rm -i --restart=Never \
+  --image=ffmpeglab/server:<tag> --env="API_KEY=<key>" --command -- sh -s
+```
+
+Or from your machine, through a forwarded port:
+
+```bash
+kubectl -n ffmpeglab-<tenant> port-forward svc/<tenant>-ffmpeglab-api 3000:3000 &
+sed 's|^API_HOST=.*|API_HOST=http://localhost:3000|' example.sh > /tmp/example.sh
+API_KEY=<key> bash /tmp/example.sh
+```
+
+A render takes around half a minute, and the script only sleeps 3 and 5 seconds
+between polls — its last line usually still says `rendering`. Read the status
+again to see it finish:
+
+```bash
+curl -s -H "Authorization: Bearer <key>" http://localhost:3000/renders/<id>
+```
+
+`status` reaching `done` means the render ran. `result` is filled in by the file
+runner after it uploads, so an empty `result` with `done` means the upload has
+not happened — check the `file` pod and the S3 settings in the tenant's entry.
+
 ## Not covered yet
 
 Ingress, scale-to-zero for idle runners, and how tenant entries get written to
