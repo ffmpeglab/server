@@ -6,7 +6,7 @@ variable "project_id" {
 variable "region" {
   description = "Region for regional resources."
   type        = string
-  default     = "europe-west1"
+  default     = "europe-west10"
 }
 
 variable "zone" {
@@ -15,7 +15,7 @@ variable "zone" {
     three, which is what the per-account free control plane covers.
   EOT
   type        = string
-  default     = "europe-west1-b"
+  default     = "europe-west10-a"
 }
 
 variable "cluster_name" {
@@ -30,13 +30,13 @@ variable "machine_type" {
     technically run the pods and then take a very long time over any real file.
   EOT
   type        = string
-  default     = "e2-standard-2"
+  default     = "n2d-standard-2"
 }
 
 variable "disk_size_gb" {
   description = "Node disk. Renders are written to it through emptyDir."
   type        = number
-  default     = 50
+  default     = 20
 }
 
 variable "spot" {
@@ -55,7 +55,7 @@ variable "min_nodes" {
 
 variable "max_nodes" {
   type    = number
-  default = 3
+  default = 1
 }
 
 variable "release_channel" {
