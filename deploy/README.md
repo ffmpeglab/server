@@ -40,25 +40,18 @@ handoff stops going through the local filesystem.
 
 ## Running it locally
 
-Needs `minikube`, `kubectl`, `helm`, `terraform` and the `vault` CLI, plus a
-Supabase project to point at.
+Needs `minikube`, `kubectl`, `helm`, `terraform` and the `vault` CLI, a Vault to
+read the registry from, and a Supabase project to point at.
 
 Give Docker at least 8 GB. A 4 GB Docker was not enough here — the minikube
-container was OOM-killed with the metrics stack, Vault and one tenant running.
-
-On minikube, end to end, against a real Supabase project:
+container was OOM-killed with the metrics stack and one tenant running.
 
 ```bash
 minikube start --memory=6g --cpus=4
 
-helm repo add hashicorp https://helm.releases.hashicorp.com
-helm install vault hashicorp/vault -n vault --create-namespace -f deploy/vault/values.yaml
-kubectl -n vault port-forward svc/vault 8200:8200 &
-
-export VAULT_ADDR=http://127.0.0.1:8200
-export VAULT_TOKEN=root
+export VAULT_ADDR=https://<your-vault>
+export VAULT_TOKEN=<token that can read tenants/>
 export TF_VAR_vault_token=$VAULT_TOKEN
-vault secrets enable -path=tenants -version=2 kv
 
 # one entry per tenant — see deploy/vault/README.md for the keys
 vault kv put tenants/<project-ref> DB_HOST=... DB_PORT=6543 ...
@@ -66,6 +59,10 @@ vault kv put tenants/<project-ref> DB_HOST=... DB_PORT=6543 ...
 terraform -chdir=deploy/terraform init
 terraform -chdir=deploy/terraform apply -var-file=demo.tfvars
 ```
+
+For a cluster in Google Cloud rather than minikube, see
+[terraform/gke/](terraform/gke/README.md) — including why the chart runs the
+combined worker there instead of split runners.
 
 `demo.tfvars` shrinks the resource requests: the chart sizes a render worker for
 real footage, which will not schedule on a small local cluster next to Vault.
