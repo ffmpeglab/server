@@ -79,9 +79,6 @@ Things that will otherwise cost you an hour:
   `select pgmq.drop_queue('render'), pgmq.drop_queue('logs'), pgmq.drop_queue('file');`
 - **Set `DB_MIGRATION_ENABLED=true`** in the entry on first run so the tables get
   created.
-- Vault here is dev mode — restarting the pod empties the registry, and the next
-  apply will want to destroy every tenant. Re-run `vault secrets enable` and
-  write the entries again.
 - **Editing the chart? Bump `version` in `Chart.yaml`.** `helm_release` compares
   chart versions, so without it Terraform reports no changes and your edit never
   reaches the cluster.
