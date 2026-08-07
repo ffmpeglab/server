@@ -33,27 +33,44 @@ nothing here.
 
 ## From CI
 
-`.github/workflows/deploy.yml` runs the same apply on a published release that
-is not a prerelease, and on manual dispatch. The job is bound to the
-`production` environment, so approval rules and the secrets below are repository
-settings rather than anything encoded in the workflow.
+`.github/workflows/deploy.yml` runs this apply on a published release that is not
+a prerelease, on `repository_dispatch` with type `tenants-changed`, hourly, and
+on manual dispatch. The job is bound to the `production` environment, so approval
+rules and the values below are repository settings rather than anything encoded
+in the workflow.
 
-Repository settings → Environments → `production`:
+Set under Settings → Environments → `production`:
 
-| Secret | What it is |
-|--------|------------|
-| `KUBE_CONFIG` | base64 of a kubeconfig for the target cluster, scoped to a service account that can manage the tenant namespaces |
-| `VAULT_ADDR` | Vault address reachable from the runner |
-| `VAULT_TOKEN` | token allowed to list `tenants/metadata` and read `tenants/data/*`, nothing more |
-
-One variable, not a secret: `KUBE_CONTEXT`, the context name inside that
-kubeconfig.
+| Name | Kind | Required | What it is |
+|------|------|----------|------------|
+| `KUBE_CONFIG` | secret | yes | base64 of a kubeconfig for the target cluster, scoped to a service account that can manage the tenant namespaces |
+| `VAULT_ADDR` | secret | yes | Vault address reachable from the runner |
+| `VAULT_TOKEN` | secret | yes | token that can list `tenants/metadata` and read `tenants/data/*`, nothing more |
+| `KUBE_CONTEXT` | variable | yes | context name inside that kubeconfig |
+| `DEPLOY_IMAGE_TAG` | variable | no | image tag for runs that are not releases; a release deploys its own tag |
 
 `base64 -w0 ~/.kube/config` produces the value for `KUBE_CONFIG`; on macOS it is
 `base64 -i ~/.kube/config`.
 
-The `VAULT_TOKEN` should not be root. It ends up in the Terraform state, so
-scope it to the registry and rotate it like any other deploy credential.
+Nothing about a tenant belongs here. Tenant credentials live in Vault, one entry
+per Supabase instance — see [../vault/README.md](../vault/README.md) — and the
+only thing CI needs is the ability to read that registry.
+
+`VAULT_TOKEN` should not be root. It ends up in the Terraform state, so scope it
+to the registry and rotate it like any other deploy credential.
+
+### Triggering a deploy when a tenant changes
+
+Whatever writes an entry into Vault should fire the dispatch, so the cluster
+follows immediately rather than at the next hourly run:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <token with actions:write>" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/ffmpeglab/server/dispatches \
+  -d '{"event_type":"tenants-changed"}'
+```
 
 ## Notes
 
