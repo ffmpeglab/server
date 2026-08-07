@@ -59,20 +59,14 @@ vault kv put tenants/abcdefghijklmnopqrst \
 Writing that entry brings the tenant up on the next apply. Deleting it tears the
 namespace, the Secret and the release down. An empty registry is a valid state.
 
-## Running Vault in the cluster
+## Where Vault runs
 
-Only needed if there is no Vault already.
+Outside the cluster. Nothing here installs or manages it — the deployment only
+needs an address and a token that can read the registry, both supplied as
+secrets to the deploy workflow.
+
+Mount `tenants` as kv v2 if it does not exist yet:
 
 ```bash
-helm repo add hashicorp https://helm.releases.hashicorp.com
-helm install vault hashicorp/vault -n vault --create-namespace \
-  -f deploy/vault/values.yaml
-
 vault secrets enable -path=tenants -version=2 kv
 ```
-
-These values run Vault in dev mode: in-memory storage, auto-unsealed, root
-token. Right for a demo cluster, wrong for anything that has to survive a
-restart — switch to `server.ha` with real storage before it matters.
-
-Vault is reached from inside the cluster; nothing here exposes it.
