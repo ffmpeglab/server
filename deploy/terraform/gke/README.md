@@ -24,10 +24,20 @@ before assuming it still applies, and note that nodes are billed separately
 either way.
 
 **Spot nodes by default.** A fraction of the on-demand price, reclaimable at any
-time. Runners tolerate that: an interrupted render returns to the queue. Set
-`spot = false` if you would rather not lose renders in flight.
+time and restarted at least once a day regardless. Runners tolerate that: an
+interrupted render returns to the queue. Set `spot = false` if you would rather
+not lose renders in flight.
 
-**`e2-standard-2` by default.** Rendering is CPU bound, so this is the knob that
+**One node, no autoscaling.** `min_nodes` and `max_nodes` are both 1 — there is
+nothing to gain from spare capacity while this is being tried out, and an idle
+node is billed like a busy one. Raise `max_nodes` when more than one tenant
+renders at a time.
+
+**20 GB disk.** The image alone is 1.1 GB and the node OS takes a few more, so
+this leaves somewhere around 15 GB for renders. A render holds both the source
+and the output at once, so long footage will want more.
+
+**`n2d-standard-2` by default.** Rendering is CPU bound, so this is the knob that
 decides how many concurrent renders a node handles. Shared-core machines will
 start the pods and then crawl through any real file.
 
