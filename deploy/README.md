@@ -5,7 +5,10 @@ nothing here is required to run the project with Docker Compose.
 
 ```
 deploy/
-└── helm/ffmpeglab/   one release == one tenant
+├── helm/ffmpeglab/     one release == one tenant
+├── terraform/          reads the Vault registry, keeps one release per tenant
+├── terraform/gke/      the cluster itself
+└── vault/              the registry format
 ```
 
 ## Model
@@ -27,16 +30,18 @@ Vault (tenant list)  ->  one Helm release per tenant  ->  that tenant's Supabase
 | Component | Enabled by default | Notes |
 |-----------|--------------------|-------|
 | `api` | yes | HTTP service, the only component with a port |
-| `worker` | yes | render and file handling in one process |
-| `file` | no | standalone file runner, see below |
+| `render` | yes | runs ffmpeg, writes to the document directory |
+| `file` | yes | reads from the same directory, uploads to storage |
 | `logs` | yes | no filesystem access |
+| `worker` | no | render and file in one process, for clusters without shared storage |
 
-Render and file handling share a process on purpose. The render step writes its
-output to the document directory and the file step reads it back from the same
-path, so splitting them across pods would require shared storage. This chart
-provisions none: the document directory is an `emptyDir`, sized by
-`documentDir.sizeLimit`. Enable the standalone `file` component only if the
-handoff stops going through the local filesystem.
+Render and file are separate deployments, as in docker-compose, and they hand
+the output over through the document directory. That means both mount the same
+volume, so it has to be `ReadWriteMany`.
+
+Where no such storage exists — GKE's default class is `ReadWriteOnce` — use the
+combined `worker` instead and turn `render` and `file` off. One process does both
+steps and the directory becomes a private `emptyDir`.
 
 ## Running it locally
 
@@ -65,7 +70,7 @@ For a cluster in Google Cloud rather than minikube, see
 combined worker there instead of split runners.
 
 `demo.tfvars` shrinks the resource requests: the chart sizes a render worker for
-real footage, which will not schedule on a small local cluster next to Vault.
+real footage, which will not schedule on a small local cluster.
 
 Things that will otherwise cost you an hour:
 
