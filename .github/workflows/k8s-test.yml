@@ -27,98 +27,41 @@ jobs:
           cpus: 2
           memory: 4000mb
 
-      # Postgres with pgmq and MinIO, standing in for the tenant's Supabase.
-      # Both come from GHCR and quay, so neither spends a Docker Hub pull. CI has
-      # no Supabase credentials, hence the local stand-in for
-      # object storage, so the file runner has somewhere to upload to.
-      - name: Start the database fixture
+      # The test project's queues must not exist when the application starts:
+      # it calls pgmq.create on every boot and that fails once they are there.
+      - name: Reset the queues
+        env:
+          PGPASSWORD: ${{ secrets.CI_SUPABASE_DB_PASSWORD }}
         run: |
-          kubectl create namespace fixture
-          kubectl -n fixture apply -f - <<'EOF'
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: postgres
-          spec:
-            replicas: 1
-            selector:
-              matchLabels: {app: postgres}
-            template:
-              metadata:
-                labels: {app: postgres}
-              spec:
-                containers:
-                  - name: postgres
-                    image: ghcr.io/pgmq/pg17-pgmq:latest
-                    env:
-                      - {name: POSTGRES_PASSWORD, value: smoketest}
-                      - {name: POSTGRES_DB, value: postgres}
-                    ports:
-                      - containerPort: 5432
-                    readinessProbe:
-                      exec:
-                        command: ["pg_isready", "-U", "postgres"]
-                      initialDelaySeconds: 5
-                      periodSeconds: 3
-          ---
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: minio
-          spec:
-            replicas: 1
-            selector:
-              matchLabels: {app: minio}
-            template:
-              metadata:
-                labels: {app: minio}
-              spec:
-                containers:
-                  - name: minio
-                    image: quay.io/minio/minio:latest
-                    args: ["server", "/data"]
-                    env:
-                      - {name: MINIO_ROOT_USER, value: smokekey}
-                      - {name: MINIO_ROOT_PASSWORD, value: smokesecret}
-                    ports:
-                      - containerPort: 9000
-                    readinessProbe:
-                      httpGet: {path: /minio/health/ready, port: 9000}
-                      initialDelaySeconds: 5
-                      periodSeconds: 3
-          EOF
-          kubectl -n fixture expose deployment postgres --port=5432 --target-port=5432
-          kubectl -n fixture expose deployment minio --port=9000 --target-port=9000
-          kubectl -n fixture rollout status deploy/postgres --timeout=180s
-          kubectl -n fixture rollout status deploy/minio --timeout=240s
-
-          # The application expects the bucket to exist — on Supabase it is
-          # created from the dashboard, so nothing creates it here either.
-          kubectl -n fixture run mc --rm -i --restart=Never --image=quay.io/minio/mc:latest --command -- \
-            sh -c "mc alias set m http://minio.fixture.svc.cluster.local:9000 smokekey smokesecret && mc mb --ignore-existing m/smoke"
+          kubectl run psql --rm -i --restart=Never --image=ghcr.io/pgmq/pg17-pgmq:latest \
+            --env="PGPASSWORD=$PGPASSWORD" --command -- \
+            psql -h '${{ secrets.CI_SUPABASE_DB_HOST }}' -p '${{ vars.CI_SUPABASE_DB_PORT }}' \
+                 -U '${{ secrets.CI_SUPABASE_DB_USER }}' -d '${{ secrets.CI_SUPABASE_DB_NAME }}' -tAc \
+            "select pgmq.drop_queue(q) from unnest(array['render','logs','file']) q
+             where exists (select 1 from pgmq.list_queues() where queue_name = q);"
 
       - name: Install the chart
         run: |
           kubectl create namespace ffmpeglab-smoke
           kubectl -n ffmpeglab-smoke create secret generic tenant-db \
-            --from-literal=DB_HOST=postgres.fixture.svc.cluster.local \
-            --from-literal=DB_USER=postgres \
-            --from-literal=DB_PASSWORD=smoketest \
-            --from-literal=DB_NAME=postgres \
-            --from-literal=S3_ENDPOINT=http://minio.fixture.svc.cluster.local:9000 \
-            --from-literal=S3_ACCESS_KEY=smokekey \
-            --from-literal=S3_SECRET_KEY=smokesecret \
-            --from-literal=S3_BUCKET_ID=smoke
+            --from-literal=DB_HOST='${{ secrets.CI_SUPABASE_DB_HOST }}' \
+            --from-literal=DB_USER='${{ secrets.CI_SUPABASE_DB_USER }}' \
+            --from-literal=DB_PASSWORD='${{ secrets.CI_SUPABASE_DB_PASSWORD }}' \
+            --from-literal=DB_NAME='${{ secrets.CI_SUPABASE_DB_NAME }}' \
+            --from-literal=S3_ENDPOINT='${{ secrets.CI_SUPABASE_S3_ENDPOINT }}' \
+            --from-literal=S3_ACCESS_KEY='${{ secrets.CI_SUPABASE_S3_ACCESS_KEY }}' \
+            --from-literal=S3_SECRET_KEY='${{ secrets.CI_SUPABASE_S3_SECRET_KEY }}' \
+            --from-literal=S3_BUCKET_ID='${{ secrets.CI_SUPABASE_S3_BUCKET_ID }}'
 
           helm install smoke deploy/helm/ffmpeglab \
             --namespace ffmpeglab-smoke \
             --set tenant.name=smoke \
             --set existingSecret=tenant-db \
             --set image.tag=${{ github.event.inputs.image_tag || 'main' }} \
-            --set env.DB_PORT=5432 \
+            --set env.DB_PORT='${{ vars.CI_SUPABASE_DB_PORT }}' \
             --set env.DB_MIGRATION_ENABLED=true \
             --set env.DOCUMENT_DIRECTORY=/tmp/ffmpeglab \
-            --set env.S3_REGION=us-east-1 \
+            --set env.S3_REGION='${{ vars.CI_SUPABASE_S3_REGION }}' \
             --set api.resources.requests.cpu=50m \
             --set render.resources.requests.cpu=100m \
             --set file.resources.requests.cpu=50m \
@@ -134,13 +77,13 @@ jobs:
           done
 
       - name: The application created its schema and queues
+        env:
+          PGPASSWORD: ${{ secrets.CI_SUPABASE_DB_PASSWORD }}
         run: |
-          POD=$(kubectl -n fixture get pod -l app=postgres -o name | head -1)
-          echo "POSTGRES_POD=$POD" >> "$GITHUB_ENV"
-          kubectl -n fixture exec "$POD" -- psql -U postgres -d postgres -tAc \
-            "select string_agg(tablename, ',' order by tablename) from pg_tables where schemaname='public';" | tee /tmp/tables
-          grep -q 'api_key' /tmp/tables && grep -q 'log_piece' /tmp/tables && grep -q 'render' /tmp/tables
-          kubectl -n fixture exec "$POD" -- psql -U postgres -d postgres -tAc \
+          kubectl run psql --rm -i --restart=Never --image=ghcr.io/pgmq/pg17-pgmq:latest \
+            --env="PGPASSWORD=$PGPASSWORD" --command -- \
+            psql -h '${{ secrets.CI_SUPABASE_DB_HOST }}' -p '${{ vars.CI_SUPABASE_DB_PORT }}' \
+                 -U '${{ secrets.CI_SUPABASE_DB_USER }}' -d '${{ secrets.CI_SUPABASE_DB_NAME }}' -tAc \
             "select string_agg(queue_name, ',' order by queue_name) from pgmq.list_queues();" | tee /tmp/queues
           grep -q 'file' /tmp/queues && grep -q 'logs' /tmp/queues && grep -q 'render' /tmp/queues
 
@@ -148,7 +91,10 @@ jobs:
       # actually takes: create a render, queue it, let the runner encode it.
       - name: A render completes
         run: |
-          kubectl -n fixture exec "$POSTGRES_POD" -- psql -U postgres -d postgres -v ON_ERROR_STOP=1 -tAc \
+          kubectl run psql --rm -i --restart=Never --image=ghcr.io/pgmq/pg17-pgmq:latest \
+            --env="PGPASSWORD=${{ secrets.CI_SUPABASE_DB_PASSWORD }}" --command -- \
+            psql -h '${{ secrets.CI_SUPABASE_DB_HOST }}' -p '${{ vars.CI_SUPABASE_DB_PORT }}' \
+                 -U '${{ secrets.CI_SUPABASE_DB_USER }}' -d '${{ secrets.CI_SUPABASE_DB_NAME }}' -v ON_ERROR_STOP=1 -tAc \
             "insert into api_key (title, apikey, user_id, data) values ('smoke', 'ffmpeglab_sk_smoketest', '00000000-0000-0000-0000-000000000001', '{}');"
 
           kubectl -n ffmpeglab-smoke port-forward svc/smoke-ffmpeglab-api 3000:3000 &
@@ -181,4 +127,3 @@ jobs:
             echo "----- $c -----"
             kubectl -n ffmpeglab-smoke logs "deploy/smoke-ffmpeglab-$c" --all-containers --tail=80 || true
           done
-          kubectl -n fixture logs deploy/postgres --tail=40 || true
