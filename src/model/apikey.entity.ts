@@ -9,7 +9,7 @@ export class ApiKey {
   @Column()
   title: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 200, unique: true })
   apikey: string;
 
   @Column({ type: 'uuid' })
@@ -17,4 +17,7 @@ export class ApiKey {
 
   @Column('simple-json')
   data: APIKeyData;
+
+  @Column()
+  date?: Date;
 }

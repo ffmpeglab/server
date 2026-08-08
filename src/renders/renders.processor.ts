@@ -35,8 +35,19 @@ export class RenderProcessor {
         render!.data.layers,
         false,
         (progress) =>
-          this.logsQueue.add('logs', { renderId, progress, userId }),
-        (logs) => this.logsQueue.add('logs', { renderId, logs, userId }),
+          this.logsQueue.add('logs', {
+            renderId,
+            progress,
+            userId,
+            date: new Date().toISOString(),
+          }),
+        (logs) =>
+          this.logsQueue.add('logs', {
+            renderId,
+            logs,
+            userId,
+            date: new Date().toISOString(),
+          }),
       );
       this.fileQueue.add('file', {
         renderId,

@@ -13,14 +13,15 @@ export class LogsProcessor {
       logs: string;
       progress: number;
       userId: string;
+      date: string;
     }>,
   ) {
     // console.log('new logs ', job);
     try {
-      const { renderId, logs, progress, userId } = job.message.data;
+      const { renderId, logs, progress, userId, date } = job.message.data;
       if (renderId && logs?.length) {
         console.log('renderId:' + renderId, logs);
-        await this.renderService.appendLogs(renderId, logs, userId);
+        await this.renderService.appendLogs(renderId, logs, userId, date);
       }
       if (renderId && progress) {
         console.log('progress', progress);

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { Render } from '../model/render.entity';
 import { MinimalMedia, RenderData } from '../types';
 import { config } from '../config';
@@ -41,6 +41,7 @@ export class RendersService {
       user_id: userId,
       progress: 0,
       logs: '',
+      date: new Date().toISOString(),
       result: {},
     });
     return await this.findOne(n.identifiers[0].id, userId);
@@ -59,12 +60,32 @@ export class RendersService {
     return await this.rendersRepository.findOneBy({ id: renderId });
   }
 
-  async appendLogs(renderId: string, logs: string, userId: string) {
+  async findAllRendersForProject(
+    projectId: string,
+    userId: string,
+  ): Promise<Render[]> {
+    return (
+      await this.rendersRepository.findBy({
+        user_id: userId,
+        project: projectId,
+      })
+    ).map((render) => {
+      render.data = {} as any;
+      return render;
+    });
+  }
+
+  async appendLogs(
+    renderId: string,
+    logs: string,
+    userId: string,
+    date: string,
+  ) {
     return await this.logRepository.insert({
       logs,
       render: renderId,
       user_id: userId,
-      date: new Date().toISOString(),
+      date,
     });
   }
 
@@ -80,5 +101,22 @@ export class RendersService {
     );
     await this.updateRenderStatus(renderId, 'queue');
     return queueItem;
+  }
+
+  async getRenderLogs(
+    renderId: string,
+    userId: string,
+    from: string,
+    direction: 'ASC' | 'DESC',
+  ) {
+    const logs = await this.logRepository.find({
+      where: {
+        render: renderId,
+        user_id: userId,
+        date: MoreThan(new Date(from)),
+      },
+      order: { date: { direction: direction || 'ASC' } },
+    });
+    return { logs };
   }
 }

@@ -5,13 +5,19 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
 
 import { RendersService } from './renders.service';
-import { RenderDto, RunDto } from './renders.dto';
-import { ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { LogsResponse, RenderDto, RunDto } from './renders.dto';
+import {
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { RenderResponse } from '../types';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -37,6 +43,57 @@ export class RendersController {
   })
   async findOne(@Param() params: { id: string }, @Request() req) {
     return await this.renderService.findOne(params.id, req.user);
+  }
+
+  @Get('project/:id')
+  @ApiResponse({ type: RenderResponse, isArray: true })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the render',
+    required: true,
+    type: String,
+  })
+  async findAllRendersForProject(
+    @Param() params: { id: string },
+    @Request() req,
+  ) {
+    return await this.renderService.findAllRendersForProject(
+      params.id,
+      req.user,
+    );
+  }
+
+  @Get('logs/:id')
+  @ApiResponse({ type: LogsResponse })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the render',
+    required: true,
+    type: String,
+  })
+  @ApiQuery({
+    name: 'from',
+    description: 'The date from which to start filtering the logs',
+    required: true,
+    type: String,
+  })
+  @ApiQuery({
+    name: 'direction',
+    description: 'Order by direction',
+    required: true,
+    enum: ['ASC', 'DESC'],
+  })
+  async renderLogs(
+    @Param() params: { id: string },
+    @Query() query: { from: string; direction: 'ASC' | 'DESC' },
+    @Request() req,
+  ) {
+    return await this.renderService.getRenderLogs(
+      params.id,
+      req.user,
+      query.from,
+      query.direction,
+    );
   }
 
   @Post()

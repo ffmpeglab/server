@@ -1,8 +1,8 @@
 // transpiler.ts – FFmpegLab YAML → Supabase Migration (runId in render.project, no created_at)
 // Deno ready: deno run --allow-read --allow-write transpiler.ts <yaml> [output-dir]
 
-import { parse as parseYaml } from "yaml";
-import { pipelineToSVG } from "./svg.ts";
+import { parse as parseYaml } from 'yaml';
+import { pipelineToSVG } from './svg.ts';
 
 // ----------------------------------------------------------------------------
 // TYPES
@@ -17,8 +17,8 @@ interface Bucket {
 
 interface RlsPolicy {
   name: string;
-  operation: "SELECT" | "INSERT" | "UPDATE" | "DELETE" | "ALL";
-  role: "authenticated" | "anon" | "service_role" | string;
+  operation: 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'ALL';
+  role: 'authenticated' | 'anon' | 'service_role' | string;
   condition: string;
 }
 
@@ -41,7 +41,7 @@ interface EditorConfig {
 
 interface StepTrigger {
   name: string;
-  event: "INSERT" | "UPDATE" | "DELETE" | "TRUNCATE";
+  event: 'INSERT' | 'UPDATE' | 'DELETE' | 'TRUNCATE';
   table: string;
   condition: string;
 }
@@ -74,7 +74,7 @@ interface RenderConfig {
 }
 
 interface RunIdConfig {
-  mode?: "random" | "deterministic";
+  mode?: 'random' | 'deterministic';
   template?: string;
 }
 
@@ -97,10 +97,12 @@ interface Config {
 function parseYAML(text: string): Config {
   const data = parseYaml(text) as any;
   if (!data.storage || !data.steps || !data.render) {
-    throw new Error("Invalid YAML: missing required fields (storage, steps, render)");
+    throw new Error(
+      'Invalid YAML: missing required fields (storage, steps, render)',
+    );
   }
   if (!data.storage.output_bucket) {
-    throw new Error("Invalid YAML: missing storage.output_bucket");
+    throw new Error('Invalid YAML: missing storage.output_bucket');
   }
   if (!data.pipelineId) {
     data.pipelineId = data.name
@@ -109,8 +111,8 @@ function parseYAML(text: string): Config {
       .replace(/[^a-z0-9-]/g, '');
   }
   if (!data.runId) data.runId = {};
-  if (!data.runId.mode) data.runId.mode = "random";
-  if (!data.runId.template) data.runId.template = "{uuid}";
+  if (!data.runId.mode) data.runId.mode = 'random';
+  if (!data.runId.template) data.runId.template = '{uuid}';
 
   for (const step of data.steps) {
     if (!step.trigger || !step.trigger.name || !step.trigger.condition) {
@@ -135,7 +137,7 @@ function escapeSqlString(str: string): string {
 }
 
 function buildPipelineJson(config: Config): string {
-  const steps = config.steps.map(s => {
+  const steps = config.steps.map((s) => {
     const step: any = {
       id: s.id,
       command: s.command.trim(),
@@ -162,34 +164,41 @@ function buildGlobalEditorJson(config: Config): string {
   return `'${jsonStr.replace(/'/g, "''")}'::jsonb`;
 }
 
-function buildStepEditorJson(step: Step, globalEditor: EditorConfig | undefined): string {
+function buildStepEditorJson(
+  step: Step,
+  globalEditor: EditorConfig | undefined,
+): string {
   const merged = {
     width: step.editor?.width ?? globalEditor?.width ?? 0,
     height: step.editor?.height ?? globalEditor?.height ?? 0,
     length: step.editor?.length ?? globalEditor?.length ?? 0,
-    compressionLevel: step.editor?.compressionLevel ?? globalEditor?.compressionLevel ?? 23,
-    preset: step.editor?.preset ?? globalEditor?.preset ?? "medium",
-    output: step.editor?.output ?? globalEditor?.output ?? "mp4",
-    selectedCode: step.editor?.selectedCode ?? globalEditor?.selectedCode ?? "custom",
+    compressionLevel:
+      step.editor?.compressionLevel ?? globalEditor?.compressionLevel ?? 23,
+    preset: step.editor?.preset ?? globalEditor?.preset ?? 'medium',
+    output: step.editor?.output ?? globalEditor?.output ?? 'mp4',
+    selectedCode:
+      step.editor?.selectedCode ?? globalEditor?.selectedCode ?? 'custom',
     code: step.command.trim(),
     framerate: step.editor?.framerate ?? globalEditor?.framerate ?? 30,
-    aspectRatio: step.editor?.aspectRatio ?? globalEditor?.aspectRatio ?? "16:9",
+    aspectRatio:
+      step.editor?.aspectRatio ?? globalEditor?.aspectRatio ?? '16:9',
     opacity: step.editor?.opacity ?? globalEditor?.opacity ?? 1.0,
     start: step.editor?.start ?? globalEditor?.start ?? 0,
     end: step.editor?.end ?? globalEditor?.end ?? 0,
-    outputFilePath: step.editor?.outputFilePath ?? globalEditor?.outputFilePath ?? null,
+    outputFilePath:
+      step.editor?.outputFilePath ?? globalEditor?.outputFilePath ?? null,
   };
   const jsonStr = JSON.stringify(merged);
   return `'${jsonStr.replace(/'/g, "''")}'::jsonb`;
 }
 
 function buildRunIdExpression(config: Config): string {
-  const mode = config.runId?.mode || "random";
-  const template = config.runId?.template || "{uuid}";
+  const mode = config.runId?.mode || 'random';
+  const template = config.runId?.template || '{uuid}';
   const escapedTemplate = template.replace(/'/g, "''");
   let expr = `'${escapedTemplate}'`;
 
-  if (mode === "deterministic") {
+  if (mode === 'deterministic') {
     const hashExpr = `md5(NEW.bucket_id || ':' || NEW.name)`;
     expr = `replace(${expr}, '{uuid}', ${hashExpr})`;
     expr = `replace(${expr}, '{hash}', ${hashExpr})`;
@@ -204,8 +213,8 @@ function buildRunIdExpression(config: Config): string {
 }
 
 function buildWaitForCondition(step: Step): string {
-  if (!step.wait_for || step.wait_for.length === 0) return "";
-  const conditions = step.wait_for.map(pattern => {
+  if (!step.wait_for || step.wait_for.length === 0) return '';
+  const conditions = step.wait_for.map((pattern) => {
     const sqlPattern = pattern.replace(/\*/g, '%').replace(/\?/g, '_');
     return `EXISTS (SELECT 1 FROM storage.objects WHERE bucket_id = NEW.bucket_id AND name LIKE '${sqlPattern}')`;
   });
@@ -217,51 +226,62 @@ function buildWaitForCondition(step: Step): string {
 // ----------------------------------------------------------------------------
 
 function generateUpMigration(config: Config): string {
-  const { storage, steps, render, name, description, editor: globalEditor, pipelineId } = config;
+  const {
+    storage,
+    steps,
+    render,
+    name,
+    description,
+    editor: globalEditor,
+    pipelineId,
+  } = config;
   const outputBucket = storage.output_bucket;
   const runIdExpression = buildRunIdExpression(config);
   const firstStepId = steps[0]?.id;
 
   const lines: string[] = [];
 
-  lines.push("-- ============================================================");
+  lines.push('-- ============================================================');
   lines.push(`-- MIGRATION UP: ${name}`);
   if (description) lines.push(`-- ${description}`);
-  lines.push("-- ============================================================");
-  lines.push("");
-  lines.push("BEGIN;");
+  lines.push('-- ============================================================');
+  lines.push('');
+  lines.push('BEGIN;');
 
   if (storage.buckets.length > 0) {
-    lines.push("-- Create storage buckets (idempotent)");
+    lines.push('-- Create storage buckets (idempotent)');
     const bucketValues = storage.buckets
       .map((b) => {
         const mimeTypes = b.allowed_mime_types
-          ? `ARRAY[${b.allowed_mime_types.map((m) => `'${m}'`).join(", ")}]`
-          : "NULL";
-        return `('${b.name}', '${b.name}', ${b.public}, ${b.file_size_limit ?? "NULL"}, ${mimeTypes})`;
+          ? `ARRAY[${b.allowed_mime_types.map((m) => `'${m}'`).join(', ')}]`
+          : 'NULL';
+        return `('${b.name}', '${b.name}', ${b.public}, ${b.file_size_limit ?? 'NULL'}, ${mimeTypes})`;
       })
-      .join(",\n  ");
+      .join(',\n  ');
     lines.push(`INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
   VALUES
   ${bucketValues}
 ON CONFLICT (id) DO NOTHING;`);
-    lines.push("");
+    lines.push('');
   }
 
   if (storage.rls_policies.length > 0) {
-    lines.push("-- RLS policies for storage.objects");
+    lines.push('-- RLS policies for storage.objects');
     for (const policy of storage.rls_policies) {
       lines.push(`DROP POLICY IF EXISTS "${policy.name}" ON storage.objects;`);
-      const command = policy.operation === "ALL" ? "ALL" : policy.operation;
+      const command = policy.operation === 'ALL' ? 'ALL' : policy.operation;
 
-      let usingPart = "";
-      let checkPart = "";
+      let usingPart = '';
+      let checkPart = '';
 
-      if (policy.operation === "INSERT") {
+      if (policy.operation === 'INSERT') {
         if (policy.condition) {
           checkPart = `WITH CHECK (${policy.condition})`;
         }
-      } else if (policy.operation === "SELECT" || policy.operation === "DELETE") {
+      } else if (
+        policy.operation === 'SELECT' ||
+        policy.operation === 'DELETE'
+      ) {
         if (policy.condition) {
           usingPart = `USING (${policy.condition})`;
         }
@@ -279,9 +299,9 @@ ON CONFLICT (id) DO NOTHING;`);
       ];
       if (usingPart) parts.push(`  ${usingPart}`);
       if (checkPart) parts.push(`  ${checkPart}`);
-      lines.push(parts.join("\n") + ";");
+      lines.push(parts.join('\n') + ';');
     }
-    lines.push("");
+    lines.push('');
   }
 
   const pipelineJson = buildPipelineJson(config);
@@ -292,8 +312,8 @@ ON CONFLICT (id) DO NOTHING;`);
   for (const step of steps) {
     const triggerName = step.trigger.name;
     let condition = step.trigger.condition;
-    const event = step.trigger.event || "INSERT";
-    const table = step.trigger.table || "storage.objects";
+    const event = step.trigger.event || 'INSERT';
+    const table = step.trigger.table || 'storage.objects';
     const outputPath = step.output_path;
     const stepEditorJson = buildStepEditorJson(step, globalEditor);
     const isFirstStep = step.id === firstStepId;
@@ -311,7 +331,7 @@ ON CONFLICT (id) DO NOTHING;`);
     lines.push(`-- Trigger function: ${triggerName}`);
     lines.push(`DROP FUNCTION IF EXISTS ${triggerName}() CASCADE;`);
 
-    let runIdRetrievalSql = "";
+    let runIdRetrievalSql = '';
     if (isFirstStep) {
       runIdRetrievalSql = `v_run_id := ${runIdExpression};`;
     } else {
@@ -387,7 +407,9 @@ BEGIN
     'runId', v_run_id
   );
 
-  ${step.template ? `
+  ${
+    step.template
+      ? `
   SELECT data::jsonb INTO v_template_data FROM render WHERE id = '${step.template}'::uuid;
   IF v_template_data IS NOT NULL THEN
     v_data := jsonb_build_object(
@@ -396,16 +418,22 @@ BEGIN
       'runId', COALESCE(v_template_data->>'runId', v_run_id)
     );
   END IF;
-  ` : ''}
+  `
+      : ''
+  }
 
-  ${step.source ? `
+  ${
+    step.source
+      ? `
   v_source_data := jsonb_build_object(
     'bucket', '${step.source.bucket || ''}',
     'key', '${step.source.key || ''}',
     'renderId', '${step.source.renderId || ''}'
   );
   v_data := jsonb_set(v_data, '{layers,0,media,0}', v_source_data || v_data->'layers'->0->'media'->0);
-  ` : ''}
+  `
+      : ''
+  }
 
   INSERT INTO render (id, title, project, status, public, user_id, progress, logs, data, result)
   VALUES (
@@ -445,7 +473,7 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, storage;`);
-    lines.push("");
+    lines.push('');
 
     lines.push(`-- Trigger on ${table}`);
     lines.push(`DROP TRIGGER IF EXISTS ${triggerName}_trigger ON ${table};`);
@@ -453,13 +481,13 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, storage;`);
   AFTER ${event} ON ${table}
   FOR EACH ROW
   EXECUTE FUNCTION ${triggerName}();`);
-    lines.push("");
+    lines.push('');
   }
 
-  lines.push("COMMIT;");
-  lines.push("");
+  lines.push('COMMIT;');
+  lines.push('');
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 function generateDownMigration(config: Config): string {
@@ -467,39 +495,46 @@ function generateDownMigration(config: Config): string {
 
   const lines: string[] = [];
 
-  lines.push("-- ============================================================");
+  lines.push('-- ============================================================');
   lines.push(`-- MIGRATION DOWN: ${name}`);
-  lines.push("-- ============================================================");
-  lines.push("");
-  lines.push("BEGIN;");
+  lines.push('-- ============================================================');
+  lines.push('');
+  lines.push('BEGIN;');
 
   for (const step of steps) {
     const triggerName = step.trigger.name;
-    const table = step.trigger.table || "storage.objects";
+    const table = step.trigger.table || 'storage.objects';
     lines.push(`DROP TRIGGER IF EXISTS ${triggerName}_trigger ON ${table};`);
     lines.push(`DROP FUNCTION IF EXISTS ${triggerName}() CASCADE;`);
   }
 
   if (storage.rls_policies.length > 0) {
-    lines.push("-- Drop RLS policies");
+    lines.push('-- Drop RLS policies');
     for (const policy of storage.rls_policies) {
       lines.push(`DROP POLICY IF EXISTS "${policy.name}" ON storage.objects;`);
     }
   }
 
-  lines.push("-- Buckets are preserved to avoid data loss. Delete them manually if needed.");
-  lines.push("-- render table and queue are managed by FFmpegLab server, not dropped here");
-  lines.push("");
-  lines.push("COMMIT;");
+  lines.push(
+    '-- Buckets are preserved to avoid data loss. Delete them manually if needed.',
+  );
+  lines.push(
+    '-- render table and queue are managed by FFmpegLab server, not dropped here',
+  );
+  lines.push('');
+  lines.push('COMMIT;');
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 // ----------------------------------------------------------------------------
 // PUBLIC API
 // ----------------------------------------------------------------------------
 
-export function generateMigrationsFromYaml(yamlText: string): { up: string; down: string } {
+export function generateMigrationsFromYaml(yamlText: string): {
+  up: string;
+  down: string;
+} {
   const config = parseYAML(yamlText);
   return {
     up: generateUpMigration(config),
@@ -509,16 +544,19 @@ export function generateMigrationsFromYaml(yamlText: string): { up: string; down
 
 export async function generateMigrationsFromFile(
   yamlPath: string,
-  outputDir: string = "./supabase/migrations",
+  outputDir: string = './supabase/migrations',
 ): Promise<{ upPath: string; downPath: string }> {
   const yamlText = await Deno.readTextFile(yamlPath);
   const { up, down } = generateMigrationsFromYaml(yamlText);
 
   await Deno.mkdir(outputDir, { recursive: true });
 
-  const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 14);
+  const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 14);
   const config = parseYAML(yamlText);
-  const baseName = config.name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  const baseName = config.name
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
   const upPath = `${outputDir}/${timestamp}_${baseName}.sql`;
   const downPath = `${outputDir}/${timestamp}_${baseName}_down.sql`;
 
@@ -534,13 +572,15 @@ export async function generateMigrationsFromFile(
 if (import.meta.main) {
   const args = Deno.args;
   if (args.length < 1) {
-    console.error("Usage: deno run --allow-read --allow-write transpiler.ts <yaml-file> [output-dir] [--svg]");
+    console.error(
+      'Usage: deno run --allow-read --allow-write transpiler.ts <yaml-file> [output-dir] [--svg]',
+    );
     Deno.exit(1);
   }
 
   const yamlPath = args[0];
-  const outputDir = args[1] || "./supabase/migrations";
-  const generateSvg = args.includes("--svg");
+  const outputDir = args[1] || './supabase/migrations';
+  const generateSvg = args.includes('--svg');
 
   try {
     const yamlText = await Deno.readTextFile(yamlPath);
@@ -550,8 +590,14 @@ if (import.meta.main) {
 
     await Deno.mkdir(outputDir, { recursive: true });
 
-    const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 14);
-    const baseName = config.name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:.]/g, '')
+      .slice(0, 14);
+    const baseName = config.name
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_]/g, '');
     const upPath = `${outputDir}/${timestamp}_${baseName}.sql`;
     const downPath = `${outputDir}/${timestamp}_${baseName}_down.sql`;
 
@@ -563,13 +609,16 @@ if (import.meta.main) {
     console.log(`   DOWN: ${downPath}`);
 
     if (generateSvg) {
-      const svg = pipelineToSVG(config, {theme: 'dark', background:'transparent'});
+      const svg = pipelineToSVG(config, {
+        theme: 'dark',
+        background: 'transparent',
+      });
       const svgPath = `${outputDir}/${timestamp}_${baseName}.svg`;
       await Deno.writeTextFile(svgPath, svg);
       console.log(`   SVG:  ${svgPath}`);
     }
   } catch (err) {
-    console.error("❌ Error:", err.message);
+    console.error('❌ Error:', err.message);
     Deno.exit(1);
   }
 }
