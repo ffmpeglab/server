@@ -61,11 +61,17 @@ Split runners are the better shape when shared storage exists — see
 
 ## After the cluster exists
 
-The deploy workflow needs, under Settings → Environments → `production`:
+This module also sets up federation so the deploy workflow can reach the cluster
+without a stored kubeconfig — a stored one goes stale the moment the cluster is
+recreated, since the endpoint and CA change with it.
 
-- `KUBE_CONFIG` — base64 of a kubeconfig for this cluster
-- `KUBE_CONTEXT` — the `kube_context` output of this module
-- `VAULT_ADDR` and `VAULT_TOKEN` — the external Vault holding the tenant registry
+```bash
+terraform -chdir=deploy/terraform/gke output github_variables
+```
 
-Nothing here creates Vault. It lives outside the cluster and the deployment only
-reads the registry from it.
+Paste those into the repository's variables. The only secrets the workflow needs
+are `VAULT_ADDR` and `VAULT_TOKEN` for the external Vault holding the tenant
+registry; nothing here creates or manages Vault.
+
+Federation is scoped to `github_repository`, so no other repository can assume
+the deploy account.

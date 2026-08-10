@@ -39,22 +39,35 @@ on manual dispatch. The job is bound to the `production` environment, so approva
 rules and the values below are repository settings rather than anything encoded
 in the workflow.
 
-Set under Settings → Environments → `production`:
+Cluster access is not stored. The runner exchanges its GitHub OIDC token for a
+short-lived Google one and asks the cluster for credentials at run time, so a
+recreated cluster cannot leave a stale kubeconfig behind and there is no
+long-lived key to rotate. `deploy/terraform/gke` sets that up and prints the
+values to paste — `terraform output github_variables`.
 
-| Name | Kind | Required | What it is |
-|------|------|----------|------------|
-| `KUBE_CONFIG` | secret | yes | base64 of a kubeconfig for the target cluster, scoped to a service account that can manage the tenant namespaces |
-| `VAULT_ADDR` | secret | yes | Vault address reachable from the runner |
-| `VAULT_TOKEN` | secret | yes | token that can list `tenants/metadata` and read `tenants/data/*`, nothing more |
-| `KUBE_CONTEXT` | variable | yes | context name inside that kubeconfig |
-| `DEPLOY_IMAGE_TAG` | variable | no | image tag for runs that are not releases; a release deploys its own tag |
+Repository variables, none of them secret:
 
-`base64 -w0 ~/.kube/config` produces the value for `KUBE_CONFIG`; on macOS it is
-`base64 -i ~/.kube/config`.
+| Name | Where it comes from |
+|------|---------------------|
+| `WIF_PROVIDER` | `terraform output workload_identity_provider` |
+| `DEPLOY_SA_EMAIL` | `terraform output deploy_service_account` |
+| `GCP_PROJECT_ID` | the project holding the cluster |
+| `GKE_CLUSTER` | cluster name |
+| `GKE_LOCATION` | its zone |
+| `DEPLOY_IMAGE_TAG` | optional, for runs that are not releases |
+
+Secrets, under Settings → Environments → `production`:
+
+| Name | What it is |
+|------|------------|
+| `VAULT_ADDR` | Vault address reachable from the runner |
+| `VAULT_TOKEN` | token that can list `tenants/metadata` and read `tenants/data/*`, nothing more |
+
+Federation is scoped to one repository, so knowing the provider path buys
+nothing on its own — a workflow anywhere else cannot assume the account.
 
 Nothing about a tenant belongs here. Tenant credentials live in Vault, one entry
-per Supabase instance — see [../vault/README.md](../vault/README.md) — and the
-only thing CI needs is the ability to read that registry.
+per Supabase instance — see [../vault/README.md](../vault/README.md).
 
 `VAULT_TOKEN` should not be root. It ends up in the Terraform state, so scope it
 to the registry and rotate it like any other deploy credential.

@@ -23,6 +23,15 @@ variable "cluster_name" {
   default = "ffmpeglab"
 }
 
+variable "github_repository" {
+  description = <<-EOT
+    The only repository allowed to deploy, as `owner/name`. Federation is scoped
+    to it, so a workflow anywhere else cannot assume the deploy account.
+  EOT
+  type        = string
+  default     = "ffmpeglab/server"
+}
+
 variable "machine_type" {
   description = <<-EOT
     Node size. Rendering is CPU bound, so this is the knob that decides how many
