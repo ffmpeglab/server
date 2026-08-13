@@ -20,6 +20,7 @@ services:
       - S3_REGION=${S3_REGION}
       - S3_ENDPOINT=${S3_ENDPOINT}
       - DB_MIGRATION_ENABLED=${DB_MIGRATION_ENABLED}
+      - PIPELINES_API_ENABLED=${PIPELINES_API_ENABLED}
     networks:
       - isolated
       - public
@@ -44,7 +45,6 @@ services:
       - S3_REGION=${S3_REGION}
       - S3_ENDPOINT=${S3_ENDPOINT}
       - IS_RENDER_RUNNER=true
-      - PIPELINES_API_ENABLED=${PIPELINES_API_ENABLED}
     networks:
       - isolated
       - public
