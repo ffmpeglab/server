@@ -44,6 +44,7 @@ services:
       - S3_REGION=${S3_REGION}
       - S3_ENDPOINT=${S3_ENDPOINT}
       - IS_RENDER_RUNNER=true
+      - PIPELINES_API_ENABLED=${PIPELINES_API_ENABLED}
     networks:
       - isolated
       - public
