@@ -7,16 +7,15 @@ import { config } from '../config';
 import { RenderProcessor } from './renders.processor';
 import { AuthService } from '../auth/auth.service';
 import { ApiKey } from '../model/apikey.entity';
-import { FileProcessor } from './file.processor';
+import { ResultProcessor } from './result.processor';
 import { LogsProcessor } from './logs.processor';
 import { LogPiece } from '../model/logpiece.entity';
 
 const optionalProviders = [
   ...(config.queue.isLogsRunner ? [LogsProcessor] : []),
-  ...(config.queue.isFileRunner ? [FileProcessor] : []),
+  ...(config.queue.isFileRunner ? [ResultProcessor] : []),
   ...(config.queue.isRenderRunner ? [RenderProcessor] : []),
 ];
-console.info({ optionalProviders });
 @Module({
   imports: [
     TypeOrmModule.forFeature([Render]),

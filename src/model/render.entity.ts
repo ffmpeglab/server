@@ -1,5 +1,10 @@
 import type { Media, MinimalMedia, RenderData } from '../types';
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+} from 'typeorm';
 
 @Entity()
 export class Render {
@@ -32,4 +37,7 @@ export class Render {
 
   @Column('simple-json')
   result: MinimalMedia | Media;
+
+  @CreateDateColumn()
+  date: Date;
 }

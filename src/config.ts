@@ -1,5 +1,6 @@
 import { ApiKey } from './model/apikey.entity';
 import { LogPiece } from './model/logpiece.entity';
+import { Pipeline } from './model/pipeline.entity';
 import { Render } from './model/render.entity';
 export const config = {
   db: {
@@ -9,7 +10,7 @@ export const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    entities: [Render, ApiKey, LogPiece],
+    entities: [Render, ApiKey, LogPiece, Pipeline],
     synchronize: process.env.DB_MIGRATION_ENABLED === 'true' ? true : false,
   },
   queue: {
@@ -40,5 +41,6 @@ export const config = {
   ffmpeg: {
     path: process.env.FFMPEG_PATH as string,
   },
+  pipelinesEnabled: process.env.PIPELINES_API_ENABLED === 'true',
   documentDir: process.env.DOCUMENT_DIRECTORY || '/tmp/ffmpeglab',
 };

@@ -5,7 +5,7 @@ networks:
 services:
   api:
     restart: unless-stopped
-    image: ffmpeglab/server:main
+    image: ffmpeglab/server
     ports:
       - "3000:3000"
     environment:
@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    image: ffmpeglab/server:main
+    image: ffmpeglab/server
     deploy:
       replicas: 2
     volumes:
@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    image: ffmpeglab/server:main
+    image: ffmpeglab/server
     volumes:
       - ./tmp:/tmp/ffmpeglab
     environment:
@@ -63,7 +63,7 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    image: ffmpeglab/server:main
+    image: ffmpeglab/server
     environment:
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}

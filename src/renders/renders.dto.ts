@@ -6,6 +6,7 @@ import {
   EditorLayer as EditorLayerClass,
   EditorProject as EditorProjectClass,
 } from '../types';
+import { LogPiece } from '../model/logpiece.entity';
 
 export class RenderDto {
   @ApiProperty({ type: EditorProjectClass })
@@ -18,4 +19,9 @@ export class RenderDto {
 export class RunDto {
   @ApiProperty()
   id: string;
+}
+
+export class LogsResponse {
+  @ApiProperty({ type: LogPiece, isArray: true })
+  logs: LogPiece[];
 }

@@ -16,11 +16,17 @@ import {
 import { genRenderCmd } from './util/genRenderCmd';
 import { getTotalTime } from './util/getTotalTime';
 import { processUserCode } from './util/processUserCode';
-import { parseCommand } from './util/parseCommand';
+import { parseCommand, replaceEnv } from './util/parseCommand';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { syncMedia } from './util/syncMedia';
 
+const processCustomCode = (Code: string, ENV: typeof process.env) => {
+  const hasFilterComplex = Code.search('filter_complex') > -1;
+  if (hasFilterComplex) return processUserCode(replaceEnv(Code, ENV));
+
+  return parseCommand(processUserCode(Code).join(' '), ENV);
+};
 export const execEncode = async (cmd: {
   files: (string | undefined)[];
   encoded: string[];
@@ -47,8 +53,8 @@ export const execEncode = async (cmd: {
     const execCode =
       cmd.projectData.editor.selectedCode === CodeSelection.generated
         ? cmd.execCmd
-        : parseCommand(
-            processUserCode(cmd.projectData.editor.code).join(' '),
+        : processCustomCode(
+            cmd.projectData.editor.code as string,
             cmd.assignedMedias,
           );
     const exec = cmd.ffmpeg.exec(execCode, cmd.assignedMedias);

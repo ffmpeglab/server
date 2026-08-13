@@ -98,7 +98,9 @@ function extractBucket(condition: string): string | null {
   if (match) return match[1];
   const inMatch = condition?.match(/NEW\.bucket_id\s+IN\s*\(([^)]+)\)/);
   if (inMatch) {
-    const buckets = inMatch[1].split(',').map(s => s.trim().replace(/^'|'$/g, ''));
+    const buckets = inMatch[1]
+      .split(',')
+      .map((s) => s.trim().replace(/^'|'$/g, ''));
     return buckets[0];
   }
   return null;
@@ -137,7 +139,10 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   // --- Extract data from config ---
   const steps = config.steps || [];
   const outputBucket = config.storage?.output_bucket;
-  const pipelineId = config.pipelineId || config.name?.toLowerCase().replace(/\s+/g, '-') || 'pipeline';
+  const pipelineId =
+    config.pipelineId ||
+    config.name?.toLowerCase().replace(/\s+/g, '-') ||
+    'pipeline';
   const runIdTemplate = config.runId?.template || '{uuid}';
 
   // --- Build graph ---
@@ -178,12 +183,25 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     const hasWaitFor = !!s.wait_for && s.wait_for.length > 0;
     const outputFormat = editor.output || 'mp4';
     const preset = editor.preset || 'medium';
-    const resolution = (editor.width && editor.height) ? `${editor.width}x${editor.height}` : null;
+    const resolution =
+      editor.width && editor.height ? `${editor.width}x${editor.height}` : null;
     let outputPathPattern = s.output_path || '';
-    outputPathPattern = outputPathPattern.replace(/\{\{pipelineId\}\}/g, pipelineId);
-    outputPathPattern = outputPathPattern.replace(/\{\{runId\}\}/g, `{${runIdTemplate}}`);
-    outputPathPattern = outputPathPattern.replace(/\{\{userId\}\}/g, '{userId}');
-    outputPathPattern = outputPathPattern.replace(/\{\{baseFilename\}\}/g, '{filename}');
+    outputPathPattern = outputPathPattern.replace(
+      /\{\{pipelineId\}\}/g,
+      pipelineId,
+    );
+    outputPathPattern = outputPathPattern.replace(
+      /\{\{runId\}\}/g,
+      `{${runIdTemplate}}`,
+    );
+    outputPathPattern = outputPathPattern.replace(
+      /\{\{userId\}\}/g,
+      '{userId}',
+    );
+    outputPathPattern = outputPathPattern.replace(
+      /\{\{baseFilename\}\}/g,
+      '{filename}',
+    );
 
     return {
       id: s.id,
@@ -207,22 +225,25 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
 
   let startNodeId: string | null = null;
   if (startBuckets.length > 0) {
-    const label = startBuckets.length === 1 ? `📤 ${startBuckets[0]}` : '📤 Upload';
+    const label =
+      startBuckets.length === 1 ? `📤 ${startBuckets[0]}` : '📤 Upload';
     startNodeId = 'Start';
     nodes.unshift({ id: startNodeId, label, type: 'start', keep: false });
   }
 
   const edges: { from: string; to: string; label: string }[] = [];
   const depMap: Record<string, Set<string>> = {};
-  steps.forEach((s: any) => { depMap[s.id] = new Set(); });
+  steps.forEach((s: any) => {
+    depMap[s.id] = new Set();
+  });
 
   // Connect producers to consumers via bucket
   for (const bucket in outputToSteps) {
     if (triggerToSteps[bucket]) {
       const producers = outputToSteps[bucket];
       const consumers = triggerToSteps[bucket];
-      producers.forEach(producer => {
-        consumers.forEach(consumer => {
+      producers.forEach((producer) => {
+        consumers.forEach((consumer) => {
           if (producer !== consumer) {
             depMap[consumer].add(producer);
             // Edge label: the bucket that connects them (the output of producer, trigger of consumer)
@@ -235,9 +256,9 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
 
   // Connect start node to steps triggered by start buckets
   if (startNodeId) {
-    startBuckets.forEach(bucket => {
+    startBuckets.forEach((bucket) => {
       const consumers = triggerToSteps[bucket] || [];
-      consumers.forEach(consumer => {
+      consumers.forEach((consumer) => {
         const step = stepMap[consumer];
         if (step) {
           // For edges from start, show the destination bucket of the step
@@ -254,12 +275,16 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   // --- Level assignment (topological sort) ---
   const levels: Record<string, number> = {};
   const inDegree: Record<string, number> = {};
-  const allNodeIds = nodes.map(n => n.id);
-  allNodeIds.forEach(id => { inDegree[id] = 0; });
-  edges.forEach(e => { inDegree[e.to] = (inDegree[e.to] || 0) + 1; });
+  const allNodeIds = nodes.map((n) => n.id);
+  allNodeIds.forEach((id) => {
+    inDegree[id] = 0;
+  });
+  edges.forEach((e) => {
+    inDegree[e.to] = (inDegree[e.to] || 0) + 1;
+  });
 
   const queue: string[] = [];
-  allNodeIds.forEach(id => {
+  allNodeIds.forEach((id) => {
     if (inDegree[id] === 0) {
       queue.push(id);
       levels[id] = 0;
@@ -269,8 +294,8 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   while (queue.length > 0) {
     const current = queue.shift()!;
     const currentLevel = levels[current] || 0;
-    const outgoing = edges.filter(e => e.from === current);
-    outgoing.forEach(e => {
+    const outgoing = edges.filter((e) => e.from === current);
+    outgoing.forEach((e) => {
       const to = e.to;
       if (!levels[to] || levels[to] < currentLevel + 1) {
         levels[to] = currentLevel + 1;
@@ -282,7 +307,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     });
   }
 
-  allNodeIds.forEach(id => {
+  allNodeIds.forEach((id) => {
     if (levels[id] === undefined) levels[id] = 0;
   });
 
@@ -293,7 +318,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   const vGap = 80;
 
   const groups: Record<number, string[]> = {};
-  allNodeIds.forEach(id => {
+  allNodeIds.forEach((id) => {
     const level = levels[id] || 0;
     if (!groups[level]) groups[level] = [];
     groups[level].push(id);
@@ -305,7 +330,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   for (let level = 0; level <= maxLevel; level++) {
     const ids = groups[level] || [];
     const totalHeight = ids.length * (nodeHeight + vGap) - vGap;
-    const startY = (ids.length > 1) ? (800 - totalHeight) / 2 : 350;
+    const startY = ids.length > 1 ? (800 - totalHeight) / 2 : 350;
     ids.forEach((id, idx) => {
       const x = level * (nodeWidth + hGap) + 60;
       const y = startY + idx * (nodeHeight + vGap);
@@ -314,8 +339,11 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   }
 
   // --- Compute viewBox ---
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  nodes.forEach(node => {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  nodes.forEach((node) => {
     const pos = positions[node.id];
     if (!pos) return;
     minX = Math.min(minX, pos.x);
@@ -324,7 +352,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     maxY = Math.max(maxY, pos.y + nodeHeight);
   });
 
-  edges.forEach(e => {
+  edges.forEach((e) => {
     const from = positions[e.from];
     const to = positions[e.to];
     if (!from || !to) return;
@@ -378,7 +406,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   </defs>`;
 
   // Edges
-  edges.forEach(e => {
+  edges.forEach((e) => {
     const from = positions[e.from];
     const to = positions[e.to];
     if (!from || !to) return;
@@ -390,7 +418,8 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     const cx = (x1 + x2) / 2;
     const cy = Math.min(y1, y2) + Math.abs(y1 - y2) / 2;
 
-    const isWaitEdge = e.label && (e.label.includes('wait') || e.label.includes('temp'));
+    const isWaitEdge =
+      e.label && (e.label.includes('wait') || e.label.includes('temp'));
     svg += `<path d="M${x1},${y1} Q${cx},${cy} ${x2},${y2}" fill="none" stroke="${isWaitEdge ? t.waitBorder : t.edgeColor}" stroke-width="${isWaitEdge ? '3' : '2'}" stroke-dasharray="${isWaitEdge ? '8,4' : ''}" marker-end="url(#arrow)"/>`;
 
     // Edge label with destination bucket
@@ -403,7 +432,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   });
 
   // Nodes
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     const pos = positions[node.id];
     if (!pos) return;
     const { x, y } = pos;
@@ -459,7 +488,13 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       for (let i = badges.length - 1; i >= 0; i--) {
         const badge = badges[i];
         const isKeep = badge === 'KEEP';
-        const bgColor = isKeep ? t.keepBorder : (badge === '⏳' ? t.waitBorder : (badge === '📋' ? t.templateBorder : t.sourceBorder));
+        const bgColor = isKeep
+          ? t.keepBorder
+          : badge === '⏳'
+            ? t.waitBorder
+            : badge === '📋'
+              ? t.templateBorder
+              : t.sourceBorder;
         const width = isKeep ? 36 : 24;
         const xPos = badgeX - width;
         svg += `<rect x="${xPos}" y="${badgeY}" width="${width}" height="18" rx="4" fill="${bgColor}" opacity="0.9"/>`;
@@ -470,7 +505,10 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
 
     // Output path
     if (node.type !== 'start' && node.outputPath) {
-      const pathText = node.outputPath.length > 40 ? node.outputPath.slice(0, 38) + '…' : node.outputPath;
+      const pathText =
+        node.outputPath.length > 40
+          ? node.outputPath.slice(0, 38) + '…'
+          : node.outputPath;
       const pathColor = node.keep ? t.keepText : t.text;
       svg += `<text x="${x + nodeWidth / 2}" y="${y + 42}" text-anchor="middle" dominant-baseline="central" fill="${pathColor}" font-size="9" font-family="monospace">📁 ${pathText}</text>`;
     }
@@ -498,7 +536,8 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     // Wait_for indicator
     if (node.hasWaitFor && node.wait_for) {
       const waitText = node.wait_for.join(', ');
-      const truncated = waitText.length > 20 ? waitText.slice(0, 18) + '…' : waitText;
+      const truncated =
+        waitText.length > 20 ? waitText.slice(0, 18) + '…' : waitText;
       svg += `<text x="${x + 10}" y="${y + nodeHeight - 8}" fill="${t.waitText}" font-size="7" font-weight="bold">⌛ ${truncated}</text>`;
     }
   });
