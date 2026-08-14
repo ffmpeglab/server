@@ -12,13 +12,16 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'node:fs';
 import { getFileId } from '../ffmpeg/util/util';
 import { getMimeType } from '../files/mime-utils';
-
+import https from 'node:https';
+import http from 'node:http';
 @Processor(config.queue.file)
 export class ResultProcessor {
   s3client: S3Client;
   constructor(private readonly renderService: RendersService) {
     this.s3client = new S3Client({
       ...config.s3,
+      tls: config.s3.endpoint.search('https://') > -1 ? true : false,
+      requestHandler: config.s3.endpoint.search('https://') > -1 ? https : http,
       forcePathStyle: true,
     });
   }
