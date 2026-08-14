@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiExcludeEndpoint,
   ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
@@ -66,11 +67,12 @@ export class FilesController {
     return this.filesService.getFile(params.id, req.user);
   }
 
+  @ApiExcludeEndpoint(true)
   @All('tus/*path')
   async tusPath(@Request() req, @Response() res) {
     if (req.user !== undefined) return this.tusService.handleRequest(req, res);
   }
-
+  @ApiExcludeEndpoint(true)
   @All('tus')
   async tus(@Request() req, @Response() res) {
     if (req.user !== undefined) return this.tusService.handleRequest(req, res);
