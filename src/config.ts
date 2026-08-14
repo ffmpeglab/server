@@ -41,6 +41,7 @@ export const config = {
   ffmpeg: {
     path: process.env.FFMPEG_PATH as string,
   },
+  maxUploadSize: process.env.MAX_UPLOAD_SIZE || 52428800000,
   pipelinesEnabled: process.env.PIPELINES_API_ENABLED === 'true',
   documentDir: process.env.DOCUMENT_DIRECTORY || '/tmp/ffmpeglab',
 };

@@ -19,5 +19,5 @@ export class ApiKey {
   data: APIKeyData;
 
   @Column()
-  date?: Date;
+  date: Date;
 }

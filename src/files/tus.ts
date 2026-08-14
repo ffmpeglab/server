@@ -7,7 +7,7 @@ import { extractTokenFromHeader } from '../auth/util';
 import { AuthService } from '../auth/auth.service';
 
 const s3Store = new S3Store({
-  partSize: 6 * 1024 * 1024, // Each uploaded part will have ~8MiB,
+  partSize: 8 * 1024 * 1024, // Each uploaded part will have ~8MiB,
   s3ClientConfig: {
     bucket: config.s3.bucketId,
     region: config.s3.region,
@@ -24,6 +24,7 @@ export class TusService {
     this.server = new Server({
       path: '/files/tus/',
       datastore: s3Store,
+      maxSize: config.maxUploadSize as number,
       generateUrl(req, { proto, host, path, id }) {
         id = Buffer.from(id, 'utf-8').toString('base64url');
         return `${proto}://${host}${path}/${id}`;
