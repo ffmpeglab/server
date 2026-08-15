@@ -4,26 +4,31 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity()
 export class Render {
   @PrimaryGeneratedColumn('uuid')
+  @Index()
   id: string;
 
   @Column()
   title: string;
 
   @Column()
+  @Index()
   project: string;
 
   @Column()
   status: string;
 
   @Column()
+  @Index()
   public: boolean;
 
   @Column({ type: 'uuid' })
+  @Index()
   user_id: string;
 
   @Column()
@@ -39,5 +44,6 @@ export class Render {
   result: MinimalMedia | Media;
 
   @CreateDateColumn()
+  @Index()
   date: Date;
 }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, Index } from 'typeorm';
 
 @Entity()
 export class LogPiece {
@@ -9,6 +9,7 @@ export class LogPiece {
 
   @Column()
   @ApiProperty()
+  @Index()
   date: Date;
 
   @Column()
@@ -17,9 +18,11 @@ export class LogPiece {
 
   @Column({ type: 'uuid' })
   @ApiProperty()
+  @Index()
   render: string;
 
   @Column({ type: 'uuid' })
   @ApiProperty()
+  @Index()
   user_id: string;
 }
