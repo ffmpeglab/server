@@ -1,0 +1,55 @@
+import { MigrationInterface, QueryRunner } from "typeorm";
+
+export class Init1787055444961 implements MigrationInterface {
+    name = 'Init1787055444961'
+
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`CREATE TABLE "api_key" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "apikey" character varying(200) NOT NULL, "user_id" uuid NOT NULL, "data" text NOT NULL, "date" TIMESTAMP NOT NULL, CONSTRAINT "UQ_3105fa6c448e8846c395244f438" UNIQUE ("apikey"), CONSTRAINT "PK_b1bd840641b8acbaad89c3d8d11" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE INDEX "IDX_b1bd840641b8acbaad89c3d8d1" ON "api_key"  ("id") `);
+        await queryRunner.query(`CREATE INDEX "IDX_3105fa6c448e8846c395244f43" ON "api_key"  ("apikey") `);
+        await queryRunner.query(`CREATE INDEX "IDX_6a0830f03e537b239a53269b27" ON "api_key"  ("user_id") `);
+        await queryRunner.query(`CREATE INDEX "IDX_be67c65f46bf4a4cacaf31c60f" ON "api_key"  ("date") `);
+        await queryRunner.query(`CREATE TABLE "log_piece" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "date" TIMESTAMP NOT NULL, "logs" character varying NOT NULL, "render" uuid NOT NULL, "user_id" uuid NOT NULL, CONSTRAINT "PK_78574b2254e7b99ce0771a70009" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE INDEX "IDX_32565a216e335ed743410fa770" ON "log_piece"  ("date") `);
+        await queryRunner.query(`CREATE INDEX "IDX_33ffe08322582439ec109ad3c1" ON "log_piece"  ("render") `);
+        await queryRunner.query(`CREATE INDEX "IDX_1328cc0f4c80cc998ab96c7383" ON "log_piece"  ("user_id") `);
+        await queryRunner.query(`CREATE TABLE "pipeline" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "status" character varying NOT NULL, "user_id" uuid NOT NULL, "downsql" character varying NOT NULL, "upsql" character varying NOT NULL, "yml" character varying NOT NULL, "date" TIMESTAMP NOT NULL, "version" integer NOT NULL, "updated" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_df8aedd50509192d995535d68cd" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE INDEX "IDX_df8aedd50509192d995535d68c" ON "pipeline"  ("id") `);
+        await queryRunner.query(`CREATE INDEX "IDX_044b4cbf9b8efa4d15e9d76110" ON "pipeline"  ("user_id") `);
+        await queryRunner.query(`CREATE INDEX "IDX_c7307813538ef39d59a9fdb485" ON "pipeline"  ("date") `);
+        await queryRunner.query(`CREATE TABLE "render" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "project" character varying NOT NULL, "status" character varying NOT NULL, "public" boolean NOT NULL, "user_id" uuid NOT NULL, "progress" integer NOT NULL, "logs" character varying NOT NULL, "data" text NOT NULL, "result" text NOT NULL, "date" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ca7fc35bdf60b33c9778f5e7c85" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE INDEX "IDX_ca7fc35bdf60b33c9778f5e7c8" ON "render"  ("id") `);
+        await queryRunner.query(`CREATE INDEX "IDX_e320d150d8f0119e9dda0167a9" ON "render"  ("project") `);
+        await queryRunner.query(`CREATE INDEX "IDX_094c1eb759b086be91b6656883" ON "render"  ("public") `);
+        await queryRunner.query(`CREATE INDEX "IDX_1640c5627c5d3141a6eb5caa40" ON "render"  ("user_id") `);
+        await queryRunner.query(`CREATE INDEX "IDX_58c6b1221195ef87c2c4d62c84" ON "render"  ("date") `);
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`DROP INDEX "public"."IDX_58c6b1221195ef87c2c4d62c84"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_1640c5627c5d3141a6eb5caa40"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_094c1eb759b086be91b6656883"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_e320d150d8f0119e9dda0167a9"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_ca7fc35bdf60b33c9778f5e7c8"`);
+        await queryRunner.query(`DROP TABLE "render"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_c7307813538ef39d59a9fdb485"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_044b4cbf9b8efa4d15e9d76110"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_df8aedd50509192d995535d68c"`);
+        await queryRunner.query(`DROP TABLE "pipeline"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_1328cc0f4c80cc998ab96c7383"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_33ffe08322582439ec109ad3c1"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_32565a216e335ed743410fa770"`);
+        await queryRunner.query(`DROP TABLE "log_piece"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_be67c65f46bf4a4cacaf31c60f"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_6a0830f03e537b239a53269b27"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_3105fa6c448e8846c395244f43"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_b1bd840641b8acbaad89c3d8d1"`);
+        await queryRunner.query(`DROP TABLE "api_key"`);
+    }
+
+}
+const queryRunner2 = {
+    query:async (e)=>console.log(e)
+}
+
+new Init1787055444961().up(queryRunner2 as any)
