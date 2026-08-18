@@ -17,6 +17,6 @@ CREATE INDEX "IDX_e320d150d8f0119e9dda0167a9" ON "render"  ("project") ;
 CREATE INDEX "IDX_094c1eb759b086be91b6656883" ON "render"  ("public") ;
 CREATE INDEX "IDX_1640c5627c5d3141a6eb5caa40" ON "render"  ("user_id") ;
 CREATE INDEX "IDX_58c6b1221195ef87c2c4d62c84" ON "render"  ("date") ;
-SELECT pgmq.create('render');
+SELECT pgmq.create('renders');
 SELECT pgmq.create('file');
 SELECT pgmq.create('logs');
