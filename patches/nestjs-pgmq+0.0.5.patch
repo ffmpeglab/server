@@ -1,0 +1,17 @@
+diff --git a/node_modules/nestjs-pgmq/dist/pgmq.module.js b/node_modules/nestjs-pgmq/dist/pgmq.module.js
+index d192946..0faa85f 100644
+--- a/node_modules/nestjs-pgmq/dist/pgmq.module.js
++++ b/node_modules/nestjs-pgmq/dist/pgmq.module.js
+@@ -65,9 +65,9 @@ let PgmqModule = PgmqModule_1 = class PgmqModule {
+         const queueProvider = {
+             provide: (0, pgmq_decorators_1.getQueueToken)(options.name),
+             useFactory: async (pool) => {
+-                await pool.query(`SELECT pgmq.create_non_partitioned($1)`, [
+-                    options.name,
+-                ]);
++                // await pool.query(`SELECT pgmq.create_non_partitioned($1)`, [
++                //     options.name,
++                // ]);
+                 return new pgmq_service_1.PgmqQueue(pool, options.name);
+             },
+             inject: [pgmq_constants_1.PGMQ_CONNECTION],

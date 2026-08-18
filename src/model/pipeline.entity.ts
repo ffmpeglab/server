@@ -5,12 +5,14 @@ import {
   PrimaryGeneratedColumn,
   VersionColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity()
 export class Pipeline {
   @PrimaryGeneratedColumn('uuid')
   @ApiProperty()
+  @Index()
   id: string;
 
   @Column()
@@ -23,6 +25,7 @@ export class Pipeline {
 
   @Column({ type: 'uuid' })
   @ApiProperty()
+  @Index()
   user_id: string;
 
   @Column()
@@ -39,6 +42,7 @@ export class Pipeline {
 
   @Column()
   @ApiProperty()
+  @Index()
   date?: Date;
 
   @VersionColumn()
