@@ -45,7 +45,7 @@ recreated cluster cannot leave a stale kubeconfig behind and there is no
 long-lived key to rotate. `deploy/terraform/gke` sets that up and prints the
 values to paste — `terraform output github_variables`.
 
-Repository variables, none of them secret:
+Secrets, under Settings → Environments → `production`:
 
 | Name | Where it comes from |
 |------|---------------------|
@@ -54,18 +54,23 @@ Repository variables, none of them secret:
 | `GCP_PROJECT_ID` | the project holding the cluster |
 | `GKE_CLUSTER` | cluster name |
 | `GKE_LOCATION` | its zone |
-| `DEPLOY_IMAGE_TAG` | optional, for runs that are not releases |
-| `VAULT_ADDR` | `https://vault.ffmpeglab.com` |
-
-Secrets, under Settings → Environments → `production`:
-
-| Name | What it is |
-|------|------------|
+| `TF_STATE_BUCKET` | `terraform output state_bucket` |
+| `VAULT_ADDR` | the Vault address |
 | `VAULT_USERNAME` | userpass account, the `k8suser` role |
 | `VAULT_PASSWORD` | its password |
 
-Federation is scoped to one repository, so knowing the provider path buys
-nothing on its own — a workflow anywhere else cannot assume the account.
+Repository variables:
+
+| Name | What it is |
+|------|------------|
+| `DEPLOY_IMAGE_TAG` | optional, for runs that are not releases |
+| `TF_VAR_FILE` | optional, defaults to `gke.tfvars` |
+
+None of the first table is dangerous on its own — federation is scoped to one
+repository, so a workflow anywhere else cannot assume the account. They are
+secrets because the logs of a public repository are readable by anyone and
+GitHub prints variables in plain sight, including in the env block of the step
+that receives them. Secrets it redacts everywhere.
 
 Nothing about a tenant belongs here. Tenant credentials live in Vault, one entry
 per Supabase instance — see [../vault/README.md](../vault/README.md).
