@@ -23,6 +23,11 @@ terraform {
 
 provider "vault" {
   address = var.vault_address
+
+  # The provider otherwise mints a short-lived child token for itself, which the
+  # deploy role is not allowed to do. The token it is given already expires with
+  # the workflow run.
+  skip_child_token = true
 }
 
 provider "kubernetes" {
