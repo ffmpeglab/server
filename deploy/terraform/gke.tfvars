@@ -22,6 +22,11 @@ chart_values = {
 
   statusGate = { enabled = true }
 
+  # The file runner cannot start without S3: its processor calls
+  # config.s3.endpoint.search(...) in the constructor, and tenant records carry
+  # no storage keys, so it crashes on boot rather than idling. On until they do.
+  file = { enabled = false }
+
   documentDir = {
     persistence = {
       enabled      = true
