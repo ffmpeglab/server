@@ -121,9 +121,12 @@ What triggers a run:
   {"event_type":"tenants-changed"}
   ```
 
-- an hourly schedule, so a registry change still arrives if that post is not
-  wired up or fails to reach GitHub
 - `workflow_dispatch`, for when it should happen now
+
+Nothing runs on a timer. A registry change that fires no dispatch waits for the
+next run, which is deliberate: a schedule only ever runs from the default
+branch, so it would report failures for as long as the deployment lives on a
+branch.
 
 Terraform state lives in a bucket rather than on a runner, since a run that
 starts from an empty state tries to create tenants that already exist. The
