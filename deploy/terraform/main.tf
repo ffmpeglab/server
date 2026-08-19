@@ -40,32 +40,34 @@ locals {
   ])
 }
 
-data "vault_kv_secret_v2" "tenant" {
+# Read over the same API as the listing. The Vault provider marks whatever it
+# returns as sensitive, and Terraform then refuses to use any of it — even the
+# on/off flag — as a for_each key, since resource keys are visible in plans.
+data "http" "tenant" {
   for_each = toset(local.tenant_paths)
 
-  mount = var.tenant_mount
-  name  = "${trim(var.tenant_prefix, "/")}/${each.value}"
+  url = "${trimsuffix(var.vault_address, "/")}/v1/${var.tenant_mount}/data/${trim(var.tenant_prefix, "/")}/${each.value}"
+
+  request_headers = {
+    X-Vault-Token = var.vault_token
+  }
 }
 
 locals {
-  # The platform stores the record one level down, under `data`.
+  # kv v2 wraps the secret in data.data, and the platform stores the record one
+  # level below that again.
   records = {
-    for path in local.tenant_paths :
-    path => try(
-      jsondecode(data.vault_kv_secret_v2.tenant[path].data["data"]),
-      data.vault_kv_secret_v2.tenant[path].data
-    )
+    for path, resp in data.http.tenant :
+    path => try(jsondecode(resp.response_body).data.data.data, jsondecode(resp.response_body).data.data)
   }
 
-  # A tenant switched off in the platform UI should not be running here.
   tenants = {
     for path, record in local.records :
     path => {
       slug      = substr(lower(regexall("[^/]+$", path)[0]), 0, 40)
       namespace = "${var.namespace_prefix}${substr(lower(regexall("[^/]+$", path)[0]), 0, 40)}"
-      data      = { for k, v in record : k => tostring(v) if can(tostring(v)) }
     }
-    if try(record["ffmpeglabStatus"], "on") == "on"
+    if try(tostring(record["ffmpeglabStatus"]), "on") == "on"
   }
 }
 
@@ -90,7 +92,7 @@ resource "kubernetes_secret" "tenant" {
     namespace = kubernetes_namespace.tenant[each.key].metadata[0].name
   }
 
-  data = each.value.data
+  data = { for k, v in local.records[each.key] : k => tostring(v) if can(tostring(v)) }
   type = "Opaque"
 }
 
