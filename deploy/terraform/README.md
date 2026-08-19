@@ -55,13 +55,14 @@ Repository variables, none of them secret:
 | `GKE_CLUSTER` | cluster name |
 | `GKE_LOCATION` | its zone |
 | `DEPLOY_IMAGE_TAG` | optional, for runs that are not releases |
+| `VAULT_ADDR` | `https://vault.ffmpeglab.com` |
 
 Secrets, under Settings → Environments → `production`:
 
 | Name | What it is |
 |------|------------|
-| `VAULT_ADDR` | Vault address reachable from the runner |
-| `VAULT_TOKEN` | token that can list `tenants/metadata` and read `tenants/data/*`, nothing more |
+| `VAULT_USERNAME` | userpass account, the `k8suser` role |
+| `VAULT_PASSWORD` | its password |
 
 Federation is scoped to one repository, so knowing the provider path buys
 nothing on its own — a workflow anywhere else cannot assume the account.
@@ -69,8 +70,9 @@ nothing on its own — a workflow anywhere else cannot assume the account.
 Nothing about a tenant belongs here. Tenant credentials live in Vault, one entry
 per Supabase instance — see [../vault/README.md](../vault/README.md).
 
-`VAULT_TOKEN` should not be root. It ends up in the Terraform state, so scope it
-to the registry and rotate it like any other deploy credential.
+The workflow logs in with userpass and uses the token it gets back, which lives
+only as long as the run. That token does reach the Terraform state, so the role
+should be able to read the registry and nothing else.
 
 ### Triggering a deploy when a tenant changes
 
