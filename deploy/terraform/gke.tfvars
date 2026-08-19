@@ -8,7 +8,17 @@
 # The file runner stays off because tenant records carry no S3 credentials yet —
 # it would come up with nowhere to upload to.
 
+# The operator produces the Secret, so Terraform no longer reads credentials at
+# all and none of them reach its state.
+manage_secrets = false
+
 chart_values = {
+  vaultSecret = {
+    enabled = true
+    method  = "jwt"
+    mount   = "jwt"
+  }
+
   render = { enabled = false }
   file   = { enabled = false }
 

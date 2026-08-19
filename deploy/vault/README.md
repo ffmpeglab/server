@@ -47,3 +47,21 @@ Mount `tenants` as kv v2 if it does not exist yet:
 ```bash
 vault secrets enable -path=tenants -version=2 kv
 ```
+
+## Keeping credentials out of Terraform state
+
+The reconciler reads each record to find `ffmpeglabStatus`, and the response —
+password included — is stored in Terraform state. The operator now produces the
+Secret, so this read is the only reason credentials touch state at all.
+
+kv v2 carries `custom_metadata` alongside the record, readable through the
+metadata endpoint without any access to the record itself. Writing the flag
+there as well would let the reconciler decide from metadata alone:
+
+```
+vault kv metadata put -custom-metadata=ffmpeglabStatus=on secret/tenants/<userId>/<projectId>
+```
+
+or, from the platform, on the same call that writes the tenant. Once the flag is
+present the reconciler can stop reading record bodies, and no tenant password
+reaches Terraform.
