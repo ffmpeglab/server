@@ -33,8 +33,7 @@ object duplicates the flat `DB_*` keys; the application reads the flat ones.
 
 The record carries no `S3_*` keys, so the file runner has nowhere to upload and
 renders stop at `done` with an empty `result`. Until the platform provides
-credentials, run with `file.enabled=false` — or, in the combined worker,
-`worker.env.IS_FILE_RUNNER=false`.
+credentials, run with `file.enabled=false`.
 
 ## Where Vault runs
 

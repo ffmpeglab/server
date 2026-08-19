@@ -33,15 +33,14 @@ Vault (tenant list)  ->  one Helm release per tenant  ->  that tenant's Supabase
 | `render` | yes | runs ffmpeg, writes to the document directory |
 | `file` | yes | reads from the same directory, uploads to storage |
 | `logs` | yes | no filesystem access |
-| `worker` | no | render and file in one process, for clusters without shared storage |
 
 Render and file are separate deployments, as in docker-compose, and they hand
 the output over through the document directory. That means both mount the same
 volume, so it has to be `ReadWriteMany`.
 
-Where no such storage exists — GKE's default class is `ReadWriteOnce` — use the
-combined `worker` instead and turn `render` and `file` off. One process does both
-steps and the directory becomes a private `emptyDir`.
+Where no such storage exists — GKE's default class is `ReadWriteOnce` — turn
+persistence off. Each runner then gets its own `emptyDir` and neither sees the
+other's files, so anything they hand over has to travel through storage.
 
 ## Running it locally
 
@@ -66,11 +65,10 @@ terraform -chdir=deploy/terraform apply -var-file=demo.tfvars
 ```
 
 For a cluster in Google Cloud rather than minikube, see
-[terraform/gke/](terraform/gke/README.md) — including why the chart runs the
-combined worker there instead of split runners.
+[terraform/gke/](terraform/gke/README.md).
 
-`demo.tfvars` shrinks the resource requests: the chart sizes a render worker for
-real footage, which will not schedule on a small local cluster.
+`demo.tfvars` drops the claim to `ReadWriteOnce`, which a single-node cluster
+will attach to several pods because they all land on the same node.
 
 Things that will otherwise cost you an hour:
 

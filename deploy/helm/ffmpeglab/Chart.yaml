@@ -2,7 +2,7 @@ apiVersion: v2
 name: ffmpeglab
 description: One FFmpegLab tenant — API plus render, file and logs runners, bound to a single Supabase project
 type: application
-version: 0.3.0
+version: 0.4.0
 appVersion: "0.4.1"
 keywords:
   - ffmpeg

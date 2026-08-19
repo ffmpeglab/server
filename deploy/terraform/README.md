@@ -21,7 +21,7 @@ terraform apply
 ```
 
 On a single-node cluster add `-var-file=demo.tfvars`: the chart sizes a render
-worker for real footage, which will not schedule next to Vault and the metrics
+runner for real footage, which will not schedule next to Vault and the metrics
 stack on a laptop.
 
 ## What it reads
