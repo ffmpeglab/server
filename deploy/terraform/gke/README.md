@@ -75,3 +75,23 @@ registry; nothing here creates or manages Vault.
 
 Federation is scoped to `github_repository`, so no other repository can assume
 the deploy account.
+
+## Parking the cluster
+
+Scaling the pool to zero leaves the control plane, and with it every namespace,
+Deployment and Secret — bringing it back is one resize, no reconcile needed.
+
+```bash
+gcloud container clusters update <cluster> --zone <zone> \
+  --no-enable-autoscaling --node-pool <pool>
+gcloud container clusters resize <cluster> --zone <zone> \
+  --node-pool <pool> --num-nodes 0
+```
+
+Autoscaling has to go off first. Left on, the autoscaler sees the pods it can no
+longer place and brings a node straight back.
+
+What that leaves running is the cluster management fee, $0.10 per hour. The GKE
+free tier is $74.40 of monthly credit per billing account — one zonal Standard
+cluster — so a single parked zonal cluster costs nothing. A second cluster, or a
+regional one, is not covered.

@@ -57,6 +57,8 @@ variable "spot" {
   default     = true
 }
 
+# Zero is a valid resting state: the control plane and everything in etcd
+# survive, so the cluster comes back with one resize and no reconcile.
 variable "min_nodes" {
   type    = number
   default = 1
