@@ -77,9 +77,12 @@ vault write auth/jwt/role/ffmpeglab \
   user_claim=sub \
   bound_audiences=https://kubernetes.default.svc \
   bound_claims_type=glob \
-  bound_claims=sub="system:serviceaccount:ffmpeglab-*:ffmpeglab-vault" \
+  bound_claims='{"sub":"system:serviceaccount:ffmpeglab-*:ffmpeglab-vault"}' \
   policies=ffmpeglab-tenants
 ```
+
+`bound_claims` is a map, so it has to arrive as JSON in single quotes —
+`bound_claims=sub=...` is rejected with `expected a map, got 'string'`.
 
 Set `vaultSecret.method` and `vaultSecret.mount` to `jwt` for this. The signing
 keys behind that discovery URL are served without authentication, which is what
