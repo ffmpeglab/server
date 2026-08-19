@@ -121,11 +121,43 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if $ctx.Values.dnsWait.enabled }}
-      # Cluster DNS is not always answering for external names by the time pods
-      # start, and the application exits instead of retrying — which turns every
-      # cluster restart into a crash-loop backoff.
+      {{- if or $ctx.Values.dnsWait.enabled $ctx.Values.statusGate.enabled }}
       initContainers:
+        {{- if $ctx.Values.statusGate.enabled }}
+        # A tenant switched off in the registry should stop working without
+        # waiting for a pipeline run. The flag travels with the credentials, so
+        # the pod can read it: while it is not on, this container waits and the
+        # application never starts. Turning the tenant back on rewrites the
+        # Secret, the operator restarts the deployment, and this check passes.
+        - name: wait-for-status
+          image: {{ $ctx.Values.dnsWait.image }}
+          command:
+            - sh
+            - -c
+            - |
+              while :; do
+                status=$(printenv {{ $ctx.Values.statusGate.key }} || true)
+                if [ "$status" = "{{ $ctx.Values.statusGate.expected }}" ]; then
+                  echo "tenant is {{ $ctx.Values.statusGate.expected }}"
+                  exit 0
+                fi
+                echo "tenant is ${status:-unset}, holding"
+                sleep {{ $ctx.Values.statusGate.intervalSeconds }}
+              done
+          {{- if $secretName }}
+          envFrom:
+            - secretRef:
+                name: {{ $secretName }}
+          {{- end }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+        {{- end }}
+        {{- if $ctx.Values.dnsWait.enabled }}
+        # Cluster DNS is not always answering for external names by the time pods
+        # start, and the application exits instead of retrying — which turns every
+        # cluster restart into a crash-loop backoff.
         - name: wait-for-dns
           image: {{ $ctx.Values.dnsWait.image }}
           command:
@@ -163,6 +195,7 @@ spec:
             requests:
               cpu: 10m
               memory: 16Mi
+        {{- end }}
       {{- end }}
       containers:
         - name: {{ $component }}

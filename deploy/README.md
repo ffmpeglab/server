@@ -128,6 +128,21 @@ next run, which is deliberate: a schedule only ever runs from the default
 branch, so it would report failures for as long as the deployment lives on a
 branch.
 
+## Switching a tenant off
+
+Two things react, on different timescales.
+
+The pods stop working within about a minute. The operator notices the flag on
+its next refresh, rewrites the Secret and restarts the deployments; the new pods
+read the flag and hold before the application starts. Nothing outside the
+cluster is involved, so this happens whether or not a pipeline ever runs.
+
+The namespace, release and Secret are removed by the reconciler, on its next
+run. That is the part that frees the node — a held pod still holds its resource
+reservation, because the scheduler counts a pod from the moment it is placed.
+
+So a tenant stops serving immediately and stops costing on the next reconcile.
+
 Terraform state lives in a bucket rather than on a runner, since a run that
 starts from an empty state tries to create tenants that already exist. The
 bucket comes out of the cluster module as `state_bucket` and is passed at init
