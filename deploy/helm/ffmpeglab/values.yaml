@@ -20,6 +20,9 @@ env: {}
   # DOCUMENT_DIRECTORY: /tmp/ffmpeglab
 
 # Secret with the tenant's credentials, normally produced from Vault.
+# Set by whatever writes the Secret, so a rotated credential rolls the pods.
+secretChecksum: ""
+
 existingSecret: ""
 
 # Local testing only.
