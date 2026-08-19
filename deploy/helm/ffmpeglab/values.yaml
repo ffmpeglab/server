@@ -66,6 +66,15 @@ updateStrategy:
 
 # The app exits rather than retries when the database hostname does not resolve,
 # so hold pods back until cluster DNS answers for it.
+# Stops a tenant that was switched off in the registry from doing any work,
+# without waiting for a deploy. Reads the flag out of the tenant's own Secret,
+# so it only does anything when the operator keeps that Secret current.
+statusGate:
+  enabled: false
+  key: ffmpeglabStatus
+  expected: "on"
+  intervalSeconds: 30
+
 dnsWait:
   enabled: true
   hostFrom: DB_HOST

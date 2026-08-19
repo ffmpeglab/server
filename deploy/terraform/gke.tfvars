@@ -17,7 +17,13 @@ chart_values = {
     enabled = true
     method  = "jwt"
     mount   = "jwt"
+
+    # How long a tenant keeps working after being switched off, since this is
+    # what decides when the operator notices the flag.
+    refreshAfter = "60s"
   }
+
+  statusGate = { enabled = true }
 
   render = { enabled = false }
   file   = { enabled = false }
