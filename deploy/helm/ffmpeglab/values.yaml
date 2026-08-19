@@ -34,6 +34,13 @@ vaultSecret:
   method: kubernetes
   mount: kubernetes
   audience: https://kubernetes.default.svc
+
+  # Record fields that are objects rather than plain values. They reach the pods
+  # as JSON strings through envFrom, and db repeats the password the DB_* keys
+  # already carry.
+  excludes:
+    - ^db$
+    - ^database$
   role: ffmpeglab
   serviceAccountName: ffmpeglab-vault
   secretMount: secret

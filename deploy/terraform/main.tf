@@ -114,6 +114,13 @@ resource "helm_release" "tenant" {
         tenant         = { name = each.value.slug }
         existingSecret = var.manage_secrets ? kubernetes_secret.tenant[each.key].metadata[0].name : "${each.value.slug}-supabase"
         secretChecksum = var.manage_secrets ? sha256(jsonencode(local.records[each.key])) : ""
+
+        # The chart appends the tenant name, so this is the record's parent —
+        # the owning user. Passing it per tenant is what lets one chart serve
+        # tenants belonging to different users.
+        vaultSecret = {
+          path = "${trim(var.tenant_prefix, "/")}/${dirname(each.key)}"
+        }
       },
       var.chart_values,
       var.image_tag != "" ? { image = { tag = var.image_tag } } : {},
