@@ -103,6 +103,33 @@ Credentials are expected to arrive as a Kubernetes Secret produced from Vault by
 an external controller, referenced with `existingSecret` and mounted with
 `envFrom`. The `secret.create` block exists for local testing only.
 
+## Picking up a tenant automatically
+
+The reconciler reads the whole registry on every run and makes the cluster match
+it: an entry that turns `on` gets a namespace, a Secret and a release, one that
+turns `off` loses all three, and a changed password lands as a Secret update.
+Nothing about a tenant is written down here, so onboarding never touches this
+repository.
+
+What triggers a run:
+
+- whatever writes the tenant into Vault posts to the repository, and the cluster
+  follows within seconds:
+
+  ```http
+  POST https://api.github.com/repos/ffmpeglab/server/dispatches
+  {"event_type":"tenants-changed"}
+  ```
+
+- an hourly schedule, so a registry change still arrives if that post is not
+  wired up or fails to reach GitHub
+- `workflow_dispatch`, for when it should happen now
+
+Terraform state lives in a bucket rather than on a runner, since a run that
+starts from an empty state tries to create tenants that already exist. The
+bucket comes out of the cluster module as `state_bucket` and is passed at init
+time; runs are serialised so two of them never hold the lock at once.
+
 ## Install
 
 ```bash

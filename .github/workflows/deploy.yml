@@ -19,11 +19,13 @@ on:
     - cron: '0 * * * *'
 
   workflow_dispatch:
-    inputs:
-      chart_values:
-        description: 'Extra chart values as JSON'
-        required: false
-        default: '{}'
+
+# A scheduled run and a dispatch can land together. Both hold the same state
+# lock, so the second would fail on the lock rather than wait; queueing them
+# keeps the hourly safety net from turning into a red run.
+concurrency:
+  group: deploy-tenants
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -80,11 +82,7 @@ jobs:
           else
             tag="${{ vars.DEPLOY_IMAGE_TAG }}"
           fi
-          if [ -n "$tag" ]; then
-            echo "values={\"image\":{\"tag\":\"${tag#v}\"}}" >> "$GITHUB_OUTPUT"
-          else
-            echo 'values={}' >> "$GITHUB_OUTPUT"
-          fi
+          echo "tag=${tag#v}" >> "$GITHUB_OUTPUT"
 
       # Exchanged for a token that lives as long as the run, so nothing
       # long-lived is stored and the password never reaches Terraform.
@@ -111,10 +109,12 @@ jobs:
           TF_VAR_vault_address: ${{ vars.VAULT_ADDR }}
           TF_VAR_kube_context: ${{ env.KUBE_CONTEXT }}
           TF_VAR_kubeconfig_path: ${{ env.KUBECONFIG_PATH }}
-          TF_VAR_chart_values: ${{ github.event.inputs.chart_values || steps.image.outputs.values }}
+          TF_VAR_image_tag: ${{ steps.image.outputs.tag }}
         run: |
-          terraform init -input=false
-          terraform apply -input=false -auto-approve
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          terraform apply -input=false -auto-approve \
+            -var-file="${{ vars.TF_VAR_FILE || 'gke.tfvars' }}"
 
       - name: Report tenants
         if: always()
