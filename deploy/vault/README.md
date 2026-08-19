@@ -32,6 +32,8 @@ tenants whose ids differ only in case or punctuation would collide.
 | `S3_SECRET_KEY` | for file work | |
 | `S3_BUCKET_ID` | for file work | Bucket name |
 | `DOCUMENT_DIRECTORY` | no | Defaults to `/tmp/ffmpeglab` |
+| `MAX_UPLOAD_SIZE` | no | Upload limit for the TUS endpoint |
+| `PIPELINES_API_ENABLED` | no | Turns on the pipelines API |
 
 Every key in the entry is copied into the tenant's Kubernetes Secret as-is and
 the chart passes it with `envFrom`. Nothing is renamed on the way, so a new
