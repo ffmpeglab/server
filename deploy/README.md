@@ -83,7 +83,8 @@ Things that will otherwise cost you an hour:
   been used before, drop them first:
   `select pgmq.drop_queue('render'), pgmq.drop_queue('logs'), pgmq.drop_queue('file');`
 - **Set `DB_MIGRATION_ENABLED=true`** in the entry on first run so the tables get
-  created.
+  created — `render`, `api_key`, `log_piece` and `pipeline`. It maps to TypeORM
+  `synchronize`, not to the files under `src/migrations`.
 - **Editing the chart? Bump `version` in `Chart.yaml`.** `helm_release` compares
   chart versions, so without it Terraform reports no changes and your edit never
   reaches the cluster.
