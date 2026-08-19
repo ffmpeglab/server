@@ -123,10 +123,10 @@ api:
     failureThreshold: 6
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      memory: 500Mi
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -134,7 +134,12 @@ api:
 
 # Separate runners, as in docker-compose. Both mount the document directory:
 # One envelope for every component, because it follows what these processes
-# actually use rather than what the component does.
+# actually use rather than what the component does: idle pods sit at 1-3m of
+# CPU and a render worker at around 25m.
+#
+# No CPU limit on purpose. A limit does not take cores away from a pod, it
+# throttles it — which would slow down the one thing here that needs to be fast.
+# Requests already stop a busy tenant from starving its neighbours.
 #
 # render writes the output there, file picks it up and uploads it.
 render:
@@ -145,10 +150,10 @@ render:
   mountDocumentDir: true
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      memory: 500Mi
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -162,10 +167,10 @@ file:
   mountDocumentDir: true
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      memory: 500Mi
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -180,10 +185,10 @@ logs:
   mountDocumentDir: false
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      memory: 500Mi
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
