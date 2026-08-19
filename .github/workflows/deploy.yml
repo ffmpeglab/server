@@ -15,9 +15,9 @@ on:
 
   workflow_dispatch:
 
-# A scheduled run and a dispatch can land together. Both hold the same state
-# lock, so the second would fail on the lock rather than wait; queueing them
-# keeps the hourly safety net from turning into a red run.
+# A release and a dispatch can land together. Both hold the same state lock, so
+# the second would fail on it rather than wait; queueing them keeps that from
+# turning into a red run.
 concurrency:
   group: deploy-tenants
   cancel-in-progress: false
@@ -36,24 +36,6 @@ jobs:
       id-token: write
 
     steps:
-      # Logs of a public repository are readable by anyone, and everything below
-      # prints cluster and tenant identifiers as a matter of course. Masking
-      # them here means later steps are redacted without having to be careful.
-      # Through the environment rather than inline: a run block is echoed with
-      # its expressions already expanded, and that echo happens before the mask
-      # it is registering takes effect.
-      - name: Mask infrastructure identifiers
-        env:
-          IDENTIFIERS: >-
-            ${{ vars.GCP_PROJECT_ID }} ${{ vars.GKE_CLUSTER }}
-            ${{ vars.GKE_LOCATION }} ${{ vars.TF_STATE_BUCKET }}
-            ${{ vars.DEPLOY_SA_EMAIL }} ${{ vars.WIF_PROVIDER }}
-            ${{ vars.VAULT_ADDR }}
-        run: |
-          for v in $IDENTIFIERS; do
-            echo "::add-mask::$v"
-          done
-
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -67,14 +49,14 @@ jobs:
       # secret behind, and there is no long-lived key to rotate.
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
-          service_account: ${{ vars.DEPLOY_SA_EMAIL }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.DEPLOY_SA_EMAIL }}
 
       - uses: google-github-actions/get-gke-credentials@v2
         with:
-          cluster_name: ${{ vars.GKE_CLUSTER }}
-          location: ${{ vars.GKE_LOCATION }}
-          project_id: ${{ vars.GCP_PROJECT_ID }}
+          cluster_name: ${{ secrets.GKE_CLUSTER }}
+          location: ${{ secrets.GKE_LOCATION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       # Both values come from the credentials just fetched, so neither has to be
       # stored anywhere and neither can go stale.
@@ -100,7 +82,7 @@ jobs:
       # long-lived is stored and the password never reaches Terraform.
       - name: Log in to Vault
         env:
-          VAULT_ADDR: ${{ vars.VAULT_ADDR }}
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
           VAULT_USERNAME: ${{ secrets.VAULT_USERNAME }}
           VAULT_PASSWORD: ${{ secrets.VAULT_PASSWORD }}
         run: |
@@ -112,13 +94,15 @@ jobs:
           echo "::add-mask::$token"
           echo "VAULT_TOKEN=$token" >> "$GITHUB_ENV"
 
-      # Terraform names every tenant in its plan, kubectl names their
-      # namespaces and the summary lists them. Reading the registry first and
-      # masking each id covers all three, and covers a tenant that appears in
+      # Logs of a public repository are readable by anyone. Cluster and Vault
+      # details are secrets, which GitHub redacts on its own, but tenant ids
+      # come out of the registry at run time — Terraform names every one in its
+      # plan, kubectl names their namespaces, the summary lists them. Reading
+      # the registry first covers all three, including a tenant that appears in
       # this very run.
       - name: Mask tenant identifiers
         env:
-          VAULT_ADDR: ${{ vars.VAULT_ADDR }}
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
         run: |
           list() {
             curl -sf --max-time 30 -H "X-Vault-Token: $VAULT_TOKEN" \
@@ -135,16 +119,16 @@ jobs:
       - name: Apply the tenant registry
         working-directory: deploy/terraform
         env:
-          VAULT_ADDR: ${{ vars.VAULT_ADDR }}
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
           VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
           TF_VAR_vault_token: ${{ env.VAULT_TOKEN }}
-          TF_VAR_vault_address: ${{ vars.VAULT_ADDR }}
+          TF_VAR_vault_address: ${{ secrets.VAULT_ADDR }}
           TF_VAR_kube_context: ${{ env.KUBE_CONTEXT }}
           TF_VAR_kubeconfig_path: ${{ env.KUBECONFIG_PATH }}
           TF_VAR_image_tag: ${{ steps.image.outputs.tag }}
         run: |
           terraform init -input=false \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
           terraform state list 2>/dev/null | grep '^helm_release' | sort > /tmp/before.txt || true
           terraform apply -input=false -auto-approve \
             -var-file="${{ vars.TF_VAR_FILE || 'gke.tfvars' }}"
