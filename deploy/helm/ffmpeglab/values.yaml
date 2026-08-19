@@ -90,9 +90,8 @@ dnsWait:
 # so the claim has to be ReadWriteMany; a single-node cluster will also accept
 # ReadWriteOnce.
 #
-# With persistence off the directory is an emptyDir, which is private to each
-# pod. That only works when one process does both steps — see the `worker`
-# component below.
+# With persistence off the directory is an emptyDir, private to each pod, and
+# the two runners no longer see each other's files.
 documentDir:
   mountPath: /tmp/ffmpeglab
   persistence:
@@ -125,7 +124,7 @@ api:
   resources:
     requests:
       cpu: 100m
-      memory: 150Mi
+      memory: 256Mi
     limits:
       memory: 500Mi
   nodeSelector: {}
@@ -134,9 +133,8 @@ api:
   podAnnotations: {}
 
 # Separate runners, as in docker-compose. Both mount the document directory:
-# Memory is the same envelope everywhere — 150Mi covers these processes in
-# practice and 500Mi is the ceiling — because it follows what they use rather
-# than what the component does.
+# One envelope for every component, because it follows what these processes
+# actually use rather than what the component does.
 #
 # render writes the output there, file picks it up and uploads it.
 render:
@@ -147,10 +145,9 @@ render:
   mountDocumentDir: true
   resources:
     requests:
-      cpu: "1"
-      memory: 150Mi
+      cpu: 100m
+      memory: 256Mi
     limits:
-      cpu: "4"
       memory: 500Mi
   nodeSelector: {}
   tolerations: []
@@ -166,7 +163,7 @@ file:
   resources:
     requests:
       cpu: 100m
-      memory: 150Mi
+      memory: 256Mi
     limits:
       memory: 500Mi
   nodeSelector: {}
@@ -174,27 +171,6 @@ file:
   affinity: {}
   podAnnotations: {}
 
-# Render and file in one process, sharing an emptyDir instead of a claim. For
-# clusters with no ReadWriteMany storage. Turn `render` and `file` off if you
-# enable this.
-worker:
-  enabled: false
-  replicaCount: 1
-  env:
-    IS_RENDER_RUNNER: "true"
-    IS_FILE_RUNNER: "true"
-  mountDocumentDir: true
-  resources:
-    requests:
-      cpu: "1"
-      memory: 150Mi
-    limits:
-      cpu: "4"
-      memory: 500Mi
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-  podAnnotations: {}
 
 logs:
   enabled: true
@@ -204,8 +180,8 @@ logs:
   mountDocumentDir: false
   resources:
     requests:
-      cpu: 50m
-      memory: 150Mi
+      cpu: 100m
+      memory: 256Mi
     limits:
       memory: 500Mi
   nodeSelector: {}

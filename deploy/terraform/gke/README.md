@@ -52,7 +52,6 @@ So on GKE use the combined runner instead: one process does both steps and the
 directory is an `emptyDir` private to that pod.
 
 ```bash
---set worker.enabled=true --set render.enabled=false --set file.enabled=false \
 --set documentDir.persistence.enabled=false
 ```
 
