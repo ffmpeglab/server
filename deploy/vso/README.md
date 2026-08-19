@@ -34,12 +34,17 @@ vault write auth/kubernetes/config \
 vault write auth/kubernetes/role/ffmpeglab \
   bound_service_account_names=ffmpeglab-vault \
   bound_service_account_namespaces='ffmpeglab-*' \
-  policies=tenants \
+  policies=ffmpeglab-tenants \
   ttl=1h
 ```
 
-`tenants` is the policy `k8suser` already uses to read the registry — read and
-list on `secret/data/tenants/*`. Nothing new has to be created.
+With a policy that only reads the registry:
+
+```hcl
+path "secret/data/tenants/*" {
+  capabilities = ["read", "list"]
+}
+```
 
 The cluster endpoint and CA certificate come from:
 
@@ -73,7 +78,7 @@ vault write auth/jwt/role/ffmpeglab \
   bound_audiences=https://kubernetes.default.svc \
   bound_claims_type=glob \
   bound_claims='{"sub":"system:serviceaccount:ffmpeglab-*:ffmpeglab-vault"}' \
-  policies=tenants
+  policies=ffmpeglab-tenants
 ```
 
 `bound_claims` is a map, so it has to arrive as JSON in single quotes —
