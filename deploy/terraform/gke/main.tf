@@ -47,6 +47,25 @@ resource "google_container_cluster" "this" {
     workload_pool = "${var.project_id}.svc.id.goog"
   }
 
+  # Managed Prometheus and its kube-state-metrics reserve ~110m of a 2 vCPU
+  # node to scrape workloads nothing reads. System component monitoring stays,
+  # so the cluster itself is still observable.
+  monitoring_config {
+    enable_components = ["SYSTEM_COMPONENTS"]
+
+    managed_prometheus {
+      enabled = false
+    }
+  }
+
+  # The L7 backend exists to serve Ingress, and tenants are reached through
+  # port-forward or a Service.
+  addons_config {
+    http_load_balancing {
+      disabled = true
+    }
+  }
+
   depends_on = [google_project_service.container]
 }
 
