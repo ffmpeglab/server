@@ -39,13 +39,19 @@ jobs:
       # Logs of a public repository are readable by anyone, and everything below
       # prints cluster and tenant identifiers as a matter of course. Masking
       # them here means later steps are redacted without having to be careful.
+      # Through the environment rather than inline: a run block is echoed with
+      # its expressions already expanded, and that echo happens before the mask
+      # it is registering takes effect.
       - name: Mask infrastructure identifiers
+        env:
+          IDENTIFIERS: >-
+            ${{ vars.GCP_PROJECT_ID }} ${{ vars.GKE_CLUSTER }}
+            ${{ vars.GKE_LOCATION }} ${{ vars.TF_STATE_BUCKET }}
+            ${{ vars.DEPLOY_SA_EMAIL }} ${{ vars.WIF_PROVIDER }}
+            ${{ vars.VAULT_ADDR }}
         run: |
-          for v in "${{ vars.GCP_PROJECT_ID }}" "${{ vars.GKE_CLUSTER }}" \
-                   "${{ vars.GKE_LOCATION }}" "${{ vars.TF_STATE_BUCKET }}" \
-                   "${{ vars.DEPLOY_SA_EMAIL }}" "${{ vars.WIF_PROVIDER }}" \
-                   "${{ vars.VAULT_ADDR }}"; do
-            [ -n "$v" ] && echo "::add-mask::$v"
+          for v in $IDENTIFIERS; do
+            echo "::add-mask::$v"
           done
 
       - uses: actions/checkout@v4
