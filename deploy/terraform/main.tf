@@ -1,11 +1,13 @@
 # Vault registry in, running tenants out: an entry becomes a namespace, a
-# Secret and a release; removing it tears all three down.
+# Secret and a release; switching it off or removing it tears all three down.
+#
+# The platform writes tenants at secret/tenants/<userId>/<projectId>, so the
+# listing walks two levels. Not vault_kv_secrets_list_v2: it errors on an empty
+# level instead of returning nothing, which would make removing the last tenant
+# impossible.
 
-# Not vault_kv_secrets_list_v2: it errors on an empty registry, which would
-# make removing the last tenant impossible. Use a list-only token here — the
-# http data source keeps request headers in state.
-data "http" "tenant_list" {
-  url = "${trimsuffix(var.vault_address, "/")}/v1/${var.tenant_mount}/metadata?list=true"
+data "http" "users" {
+  url = "${local.metadata_url}?list=true"
 
   request_headers = {
     X-Vault-Token = var.vault_token
@@ -13,25 +15,57 @@ data "http" "tenant_list" {
 }
 
 locals {
-  tenant_names = contains([200], data.http.tenant_list.status_code) ? jsondecode(data.http.tenant_list.response_body).data.keys : []
+  metadata_url = "${trimsuffix(var.vault_address, "/")}/v1/${var.tenant_mount}/metadata/${trim(var.tenant_prefix, "/")}"
+
+  user_ids = data.http.users.status_code == 200 ? jsondecode(data.http.users.response_body).data.keys : []
 }
 
-data "vault_kv_secret_v2" "tenant" {
-  for_each = toset(local.tenant_names)
+data "http" "projects" {
+  for_each = toset(local.user_ids)
 
-  mount = var.tenant_mount
-  name  = each.value
+  url = "${local.metadata_url}/${trimsuffix(each.value, "/")}?list=true"
+
+  request_headers = {
+    X-Vault-Token = var.vault_token
+  }
 }
 
 locals {
-  # Vault subjects may contain characters Kubernetes rejects in object names.
+  # "<userId>/<projectId>" for every project of every user.
+  tenant_paths = flatten([
+    for user, resp in data.http.projects : [
+      for project in(resp.status_code == 200 ? jsondecode(resp.response_body).data.keys : []) :
+      "${trimsuffix(user, "/")}/${trimsuffix(project, "/")}"
+    ]
+  ])
+}
+
+data "vault_kv_secret_v2" "tenant" {
+  for_each = toset(local.tenant_paths)
+
+  mount = var.tenant_mount
+  name  = "${trim(var.tenant_prefix, "/")}/${each.value}"
+}
+
+locals {
+  # The platform stores the record one level down, under `data`.
+  records = {
+    for path in local.tenant_paths :
+    path => try(
+      jsondecode(data.vault_kv_secret_v2.tenant[path].data["data"]),
+      data.vault_kv_secret_v2.tenant[path].data
+    )
+  }
+
+  # A tenant switched off in the platform UI should not be running here.
   tenants = {
-    for name in local.tenant_names :
-    name => {
-      slug      = substr(replace(lower(name), "/[^a-z0-9-]/", "-"), 0, 40)
-      namespace = "${var.namespace_prefix}${substr(replace(lower(name), "/[^a-z0-9-]/", "-"), 0, 40)}"
-      data      = data.vault_kv_secret_v2.tenant[name].data
+    for path, record in local.records :
+    path => {
+      slug      = substr(lower(regexall("[^/]+$", path)[0]), 0, 40)
+      namespace = "${var.namespace_prefix}${substr(lower(regexall("[^/]+$", path)[0]), 0, 40)}"
+      data      = { for k, v in record : k => tostring(v) if can(tostring(v)) }
     }
+    if try(record["ffmpeglabStatus"], "on") == "on"
   }
 }
 

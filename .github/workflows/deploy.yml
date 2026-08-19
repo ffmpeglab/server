@@ -86,13 +86,29 @@ jobs:
             echo 'values={}' >> "$GITHUB_OUTPUT"
           fi
 
+      # Exchanged for a token that lives as long as the run, so nothing
+      # long-lived is stored and the password never reaches Terraform.
+      - name: Log in to Vault
+        env:
+          VAULT_ADDR: ${{ vars.VAULT_ADDR }}
+          VAULT_USERNAME: ${{ secrets.VAULT_USERNAME }}
+          VAULT_PASSWORD: ${{ secrets.VAULT_PASSWORD }}
+        run: |
+          token=$(curl -sf --max-time 30 \
+            --data "{\"password\":\"$VAULT_PASSWORD\"}" \
+            "$VAULT_ADDR/v1/auth/userpass/login/$VAULT_USERNAME" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["auth"]["client_token"])')
+          [ -n "$token" ] || { echo "Vault login failed"; exit 1; }
+          echo "::add-mask::$token"
+          echo "VAULT_TOKEN=$token" >> "$GITHUB_ENV"
+
       - name: Apply the tenant registry
         working-directory: deploy/terraform
         env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-          TF_VAR_vault_token: ${{ secrets.VAULT_TOKEN }}
-          TF_VAR_vault_address: ${{ secrets.VAULT_ADDR }}
+          VAULT_ADDR: ${{ vars.VAULT_ADDR }}
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          TF_VAR_vault_token: ${{ env.VAULT_TOKEN }}
+          TF_VAR_vault_address: ${{ vars.VAULT_ADDR }}
           TF_VAR_kube_context: ${{ env.KUBE_CONTEXT }}
           TF_VAR_kubeconfig_path: ${{ env.KUBECONFIG_PATH }}
           TF_VAR_chart_values: ${{ github.event.inputs.chart_values || steps.image.outputs.values }}

@@ -13,6 +13,12 @@ variable "vault_token" {
 variable "tenant_mount" {
   description = "kv-v2 mount holding the tenant registry."
   type        = string
+  default     = "secret"
+}
+
+variable "tenant_prefix" {
+  description = "Path under the mount, below which the platform writes <userId>/<projectId>."
+  type        = string
   default     = "tenants"
 }
 
