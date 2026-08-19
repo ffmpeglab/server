@@ -113,6 +113,7 @@ resource "helm_release" "tenant" {
       {
         tenant         = { name = each.value.slug }
         existingSecret = var.manage_secrets ? kubernetes_secret.tenant[each.key].metadata[0].name : "${each.value.slug}-supabase"
+        secretChecksum = var.manage_secrets ? sha256(jsonencode(local.records[each.key])) : ""
       },
       var.chart_values,
       var.image_tag != "" ? { image = { tag = var.image_tag } } : {},

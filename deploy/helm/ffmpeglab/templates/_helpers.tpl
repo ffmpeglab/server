@@ -96,9 +96,18 @@ spec:
       labels:
         {{- include "ffmpeglab.selectorLabels" $ctx | nindent 8 }}
         app.kubernetes.io/component: {{ $component }}
-      {{- with $cfg.podAnnotations }}
+      {{- if or $cfg.podAnnotations $ctx.Values.secretChecksum }}
       annotations:
+        {{- with $cfg.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $ctx.Values.secretChecksum }}
+        # Credentials arrive through envFrom, which Kubernetes reads once at
+        # start, so a rotated password reaches nothing until the pod restarts.
+        # Carrying the checksum here changes the pod spec when the Secret
+        # changes, and the rollout follows on its own.
+        ffmpeglab.com/secret-checksum: {{ . | quote }}
+        {{- end }}
       {{- end }}
     spec:
       {{- with $ctx.Values.imagePullSecrets }}
