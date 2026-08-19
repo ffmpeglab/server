@@ -28,8 +28,12 @@ secretChecksum: ""
 # operator installed and a Vault role bound to this cluster.
 vaultSecret:
   enabled: false
+  # kubernetes has Vault call the cluster to verify the token; jwt has it check
+  # the signature against the cluster's public keys, which is what works when
+  # the cluster has no public endpoint. The mount must match the method.
   method: kubernetes
   mount: kubernetes
+  audience: https://kubernetes.default.svc
   role: ffmpeglab
   serviceAccountName: ffmpeglab-vault
   secretMount: secret

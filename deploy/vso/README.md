@@ -70,15 +70,20 @@ vault auth enable jwt
 vault write auth/jwt/config \
   oidc_discovery_url=https://container.googleapis.com/v1/projects/<project>/locations/<zone>/clusters/<cluster>
 
+# A glob on the subject covers every tenant namespace, so a new tenant does
+# not need a new role.
 vault write auth/jwt/role/ffmpeglab \
   role_type=jwt \
-  bound_audiences=https://kubernetes.default.svc \
   user_claim=sub \
-  bound_subject=system:serviceaccount:<namespace>:ffmpeglab-vault \
+  bound_audiences=https://kubernetes.default.svc \
+  bound_claims_type=glob \
+  bound_claims=sub="system:serviceaccount:ffmpeglab-*:ffmpeglab-vault" \
   policies=ffmpeglab-tenants
 ```
 
-Set `vaultSecret.method` to `jwt` for this. CI reaches a private cluster through
+Set `vaultSecret.method` and `vaultSecret.mount` to `jwt` for this. The signing
+keys behind that discovery URL are served without authentication, which is what
+lets Vault verify a token it cannot ask the cluster about. CI reaches a private cluster through
 Connect Gateway, which runs over the workload identity federation already in
 place — no address allowlist, and no public endpoint.
 
