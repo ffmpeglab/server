@@ -1,13 +1,9 @@
-# Overrides for a cluster whose default storage class is ReadWriteOnce, which
-# is what GKE gives you unless Filestore is provisioned separately.
+# What this cluster does differently. Resource sizing is not here: the chart
+# carries one envelope for every component.
 #
-# Resource sizing lives in the chart — one envelope for every component. What is
-# left here is what this cluster does differently.
-#
-# The document directory is not a shared volume: GKE's default storage class is
-# ReadWriteOnce, which attaches to one pod at a time, so render and file each get
-# their own scratch space. Anything they need to hand over has to go through
-# storage rather than the filesystem.
+# The document directory is shared: render and file hand work over through it and
+# render is what scales, so several pods write to it at once. GKE's default class
+# cannot do that, so this points at the in-cluster NFS class — see deploy/nfs.
 
 # The operator produces the Secret, so Terraform no longer reads credentials at
 # all and none of them reach its state.
@@ -27,6 +23,11 @@ chart_values = {
   statusGate = { enabled = true }
 
   documentDir = {
-    persistence = { enabled = false }
+    persistence = {
+      enabled      = true
+      accessModes  = ["ReadWriteMany"]
+      storageClass = "nfs"
+      size         = "10Gi"
+    }
   }
 }

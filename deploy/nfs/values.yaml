@@ -1,0 +1,26 @@
+# Values for nfs-ganesha/nfs-server-provisioner.
+#
+# Gives the cluster a ReadWriteMany storage class backed by one ordinary disk.
+# Render and file need the same directory, and render is the part that scales,
+# so several pods have to write to it at once — which a Persistent Disk cannot
+# do. Filestore can, at a 1 TiB minimum and around $200 a month; this is the
+# same capability for the price of the disk underneath it.
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 20Gi
+
+storageClass:
+  create: true
+  name: nfs
+  defaultClass: false
+  reclaimPolicy: Delete
+  allowVolumeExpansion: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 500Mi
