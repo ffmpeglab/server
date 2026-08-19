@@ -12,6 +12,16 @@ chart_values = {
   render = { enabled = false }
   file   = { enabled = false }
 
+  # Requests are what the scheduler reserves for the whole life of the pod, so
+  # they are sized to what a tenant actually uses while waiting for work: the
+  # API and the log reader sit at 1-3m, the render worker at ~25m. Limits are
+  # what a pod may burst to, and a render is a burst — hence the wide gap.
+  #
+  # Sized against a 2 vCPU node: 1930m allocatable, ~860m held by kube-system,
+  # leaving room for three tenants at 225m each with headroom to spare. Three
+  # tenants rendering at once will contend for CPU; the node fits three idle
+  # tenants, not three busy ones.
+
   worker = {
     enabled = true
     env = {
@@ -20,8 +30,12 @@ chart_values = {
     }
     resources = {
       requests = {
-        cpu    = "300m"
-        memory = "768Mi"
+        cpu    = "150m"
+        memory = "256Mi"
+      }
+      limits = {
+        cpu    = "1500m"
+        memory = "2Gi"
       }
     }
   }
@@ -29,8 +43,12 @@ chart_values = {
   api = {
     resources = {
       requests = {
-        cpu    = "100m"
-        memory = "256Mi"
+        cpu    = "50m"
+        memory = "128Mi"
+      }
+      limits = {
+        cpu    = "500m"
+        memory = "512Mi"
       }
     }
   }
@@ -38,8 +56,12 @@ chart_values = {
   logs = {
     resources = {
       requests = {
-        cpu    = "50m"
-        memory = "128Mi"
+        cpu    = "25m"
+        memory = "96Mi"
+      }
+      limits = {
+        cpu    = "250m"
+        memory = "256Mi"
       }
     }
   }

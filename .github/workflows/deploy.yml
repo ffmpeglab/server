@@ -113,10 +113,37 @@ jobs:
         run: |
           terraform init -input=false \
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          terraform state list 2>/dev/null | grep '^helm_release' | sort > /tmp/before.txt || true
           terraform apply -input=false -auto-approve \
             -var-file="${{ vars.TF_VAR_FILE || 'gke.tfvars' }}"
 
-      - name: Report tenants
+      # Helm counts the rollout as done without waiting: one replica with
+      # maxUnavailable 1 never breaches the budget, so a pod that cannot be
+      # scheduled still reports success. Ask the deployments directly.
+      - name: Wait for every tenant to be ready
+        run: |
+          failed=0
+          for ns in $(kubectl get ns -l app.kubernetes.io/part-of=ffmpeglab -o name); do
+            kubectl rollout status -n "${ns#namespace/}" deploy --timeout=180s || failed=1
+          done
+          exit $failed
+
+      # A run that quietly adds a tenant looks exactly like a run that does
+      # nothing, so say which ones arrived and which ones left.
+      - name: Report what changed
         if: always()
         working-directory: deploy/terraform
-        run: terraform output -json tenants || true
+        run: |
+          terraform state list 2>/dev/null | grep '^helm_release' | sort > /tmp/after.txt || true
+          slug() { sed 's|.*/||; s|"\]$||'; }
+          added=$(comm -13 /tmp/before.txt /tmp/after.txt | slug)
+          removed=$(comm -23 /tmp/before.txt /tmp/after.txt | slug)
+
+          {
+            echo "## Tenants"
+            [ -n "$added" ]   && echo "$added"   | sed 's/^/- added /'
+            [ -n "$removed" ] && echo "$removed" | sed 's/^/- removed /'
+            [ -z "$added$removed" ] && echo "No change."
+            echo
+            echo "Running now: $(wc -l < /tmp/after.txt)"
+          } >> "$GITHUB_STEP_SUMMARY"
