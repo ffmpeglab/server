@@ -23,6 +23,19 @@ env: {}
 # Set by whatever writes the Secret, so a rotated credential rolls the pods.
 secretChecksum: ""
 
+# Let the Vault Secrets Operator produce the Secret instead of the pipeline, so
+# credentials never pass through Terraform state. Off by default: it needs the
+# operator installed and a Vault role bound to this cluster.
+vaultSecret:
+  enabled: false
+  method: kubernetes
+  mount: kubernetes
+  role: ffmpeglab
+  serviceAccountName: ffmpeglab-vault
+  secretMount: secret
+  path: tenants
+  refreshAfter: 1h
+
 existingSecret: ""
 
 # Local testing only.
