@@ -36,6 +36,18 @@ jobs:
       id-token: write
 
     steps:
+      # Logs of a public repository are readable by anyone, and everything below
+      # prints cluster and tenant identifiers as a matter of course. Masking
+      # them here means later steps are redacted without having to be careful.
+      - name: Mask infrastructure identifiers
+        run: |
+          for v in "${{ vars.GCP_PROJECT_ID }}" "${{ vars.GKE_CLUSTER }}" \
+                   "${{ vars.GKE_LOCATION }}" "${{ vars.TF_STATE_BUCKET }}" \
+                   "${{ vars.DEPLOY_SA_EMAIL }}" "${{ vars.WIF_PROVIDER }}" \
+                   "${{ vars.VAULT_ADDR }}"; do
+            [ -n "$v" ] && echo "::add-mask::$v"
+          done
+
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -64,7 +76,6 @@ jobs:
         run: |
           echo "KUBECONFIG_PATH=$KUBECONFIG" >> "$GITHUB_ENV"
           echo "KUBE_CONTEXT=$(kubectl config current-context)" >> "$GITHUB_ENV"
-          kubectl config current-context
 
       # A release deploys the image built from that release. Without this the
       # chart keeps whatever tag is pinned in values.yaml and publishing a
@@ -94,6 +105,26 @@ jobs:
           [ -n "$token" ] || { echo "Vault login failed"; exit 1; }
           echo "::add-mask::$token"
           echo "VAULT_TOKEN=$token" >> "$GITHUB_ENV"
+
+      # Terraform names every tenant in its plan, kubectl names their
+      # namespaces and the summary lists them. Reading the registry first and
+      # masking each id covers all three, and covers a tenant that appears in
+      # this very run.
+      - name: Mask tenant identifiers
+        env:
+          VAULT_ADDR: ${{ vars.VAULT_ADDR }}
+        run: |
+          list() {
+            curl -sf --max-time 30 -H "X-Vault-Token: $VAULT_TOKEN" \
+              "$VAULT_ADDR/v1/secret/metadata/tenants${1:+/$1}?list=true" \
+              | jq -r '.data.keys[]? | rtrimstr("/")' || true
+          }
+          for user in $(list); do
+            echo "::add-mask::$user"
+            for project in $(list "$user"); do
+              echo "::add-mask::$project"
+            done
+          done
 
       - name: Apply the tenant registry
         working-directory: deploy/terraform
