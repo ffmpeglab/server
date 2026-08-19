@@ -13,11 +13,6 @@ on:
   repository_dispatch:
     types: [tenants-changed]
 
-  # Safety net for changes that arrive without firing the dispatch. The apply is
-  # idempotent, so a run with nothing to do reports no changes and stops.
-  schedule:
-    - cron: '0 * * * *'
-
   workflow_dispatch:
 
 # A scheduled run and a dispatch can land together. Both hold the same state
