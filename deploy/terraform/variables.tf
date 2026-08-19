@@ -60,3 +60,12 @@ variable "chart_values" {
   type        = any
   default     = {}
 }
+
+# Kept apart from chart_values so a release can set the tag without replacing
+# the cluster profile: -var-file and TF_VAR_chart_values are the same slot, and
+# whichever loads last wins.
+variable "image_tag" {
+  description = "Image tag deployed to every tenant. Empty keeps the chart default."
+  type        = string
+  default     = ""
+}

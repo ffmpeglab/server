@@ -115,6 +115,7 @@ resource "helm_release" "tenant" {
         existingSecret = var.manage_secrets ? kubernetes_secret.tenant[each.key].metadata[0].name : "${each.value.slug}-supabase"
       },
       var.chart_values,
+      var.image_tag != "" ? { image = { tag = var.image_tag } } : {},
     )),
   ]
 

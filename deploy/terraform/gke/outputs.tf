@@ -42,3 +42,8 @@ output "github_variables" {
     DEPLOY_SA_EMAIL = google_service_account.deployer.email
   }
 }
+
+output "state_bucket" {
+  description = "Backend bucket for the reconciler — terraform init -backend-config=\"bucket=...\""
+  value       = google_storage_bucket.state.name
+}
