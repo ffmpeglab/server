@@ -125,15 +125,19 @@ api:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 150Mi
     limits:
-      memory: 1Gi
+      memory: 500Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
   podAnnotations: {}
 
 # Separate runners, as in docker-compose. Both mount the document directory:
+# Memory is the same envelope everywhere — 150Mi covers these processes in
+# practice and 500Mi is the ceiling — because it follows what they use rather
+# than what the component does.
+#
 # render writes the output there, file picks it up and uploads it.
 render:
   enabled: true
@@ -144,10 +148,10 @@ render:
   resources:
     requests:
       cpu: "1"
-      memory: 1Gi
+      memory: 150Mi
     limits:
       cpu: "4"
-      memory: 4Gi
+      memory: 500Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -162,9 +166,9 @@ file:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 150Mi
     limits:
-      memory: 1Gi
+      memory: 500Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -183,10 +187,10 @@ worker:
   resources:
     requests:
       cpu: "1"
-      memory: 1Gi
+      memory: 150Mi
     limits:
       cpu: "4"
-      memory: 4Gi
+      memory: 500Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -201,9 +205,9 @@ logs:
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 150Mi
     limits:
-      memory: 512Mi
+      memory: 500Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
