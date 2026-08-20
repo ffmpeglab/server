@@ -72,4 +72,16 @@ kubectl get pods -n ffmpeglab-reconciler
 kubectl logs -n ffmpeglab-reconciler -l job-name=<job> --tail=20
 ```
 
-A run with nothing to do reports no changes and exits in seconds.
+A run with nothing to do reports no changes and finishes in about five seconds.
+A longer one is doing work: Helm waits for the pods of a release it installed or
+changed, and `timeout` in `helm_release` gives that five minutes before it gives
+up and rolls back.
+
+Where the knobs are:
+
+| What | Where |
+|---|---|
+| how often it checks | `schedule` in `manifests.yaml` |
+| how long it waits for pods | `timeout` in `helm_release`, `deploy/terraform/main.tf` |
+| whether a failed release rolls back | `atomic`, same resource |
+| which profile it applies | `TF_VAR_FILE` in `manifests.yaml` |

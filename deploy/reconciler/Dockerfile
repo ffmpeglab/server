@@ -21,6 +21,10 @@ RUN rm -rf /work/terraform/.terraform \
 RUN printf 'terraform {\n  backend "kubernetes" {\n    secret_suffix = "tenants"\n    in_cluster_config = true\n  }\n}\n' \
       > /work/terraform/backend.tf
 
+# Providers are fetched once here rather than on every run. Without this each
+# job spends its first seconds downloading the same four plugins again.
+RUN cd /work/terraform && terraform init -backend=false -input=false >/dev/null
+
 COPY reconciler/run.sh /work/run.sh
 
 ENTRYPOINT ["/work/run.sh"]
