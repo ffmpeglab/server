@@ -124,9 +124,39 @@ The operator asks for 100m CPU and 128Mi. On a two vCPU node with three tenants
 that leaves room, but it is roughly what a whole tenant reserves — worth knowing
 before adding it to a node that is already tight.
 
-## Until Vault is ready
+## On a cluster Vault cannot reach
 
-The operator can also authenticate with a token kept in a Secret, which needs no
-Vault-side change and still keeps passwords out of Terraform state. It leaves a
-long-lived token in the cluster, so it is a stepping stone rather than a
-destination.
+The operator authenticates with one of `kubernetes`, `jwt`, `appRole`, `aws` or
+`gcp` — there is no method that takes a token you already hold. That rules out
+`kubernetes` for a laptop cluster, since Vault has to call the cluster's API to
+verify a token and a minikube behind a home router is not reachable.
+
+Two things do work.
+
+`jwt` again, but with the key pasted in rather than fetched. Vault verifies the
+signature offline, so it needs no route to the cluster:
+
+```bash
+kubectl get --raw /openid/v1/jwks     # the cluster's public signing key
+
+vault auth enable -path=jwt-local jwt
+vault write auth/jwt-local/config jwt_validation_pubkeys=@pubkey.pem
+vault write auth/jwt-local/role/ffmpeglab \
+  role_type=jwt user_claim=sub \
+  bound_audiences="https://kubernetes.default.svc.cluster.local" \
+  bound_claims_type=glob \
+  bound_claims='{"sub":"system:serviceaccount:ffmpeglab-*:ffmpeglab-vault"}' \
+  policies=ffmpeglab-tenants
+```
+
+Every cluster has its own key and minikube mints a new one when it is recreated,
+so this is a Vault change per developer machine.
+
+`appRole` avoids that: one role serves any cluster, and the credential lives in
+a Secret next to the operator. That is a long-lived credential in the cluster —
+the thing this whole arrangement exists to avoid — which is why it belongs on a
+laptop and not in GKE.
+
+Without either, a local cluster still follows the registry: Terraform reads it
+and writes the Secrets, which is what `manage_secrets` does by default. What is
+lost is the operator noticing a change on its own.
