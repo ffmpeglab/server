@@ -1,13 +1,6 @@
 terraform {
   required_version = ">= 1.3"
 
-  # Shared so CI does not start from an empty state on every run and try to
-  # recreate tenants that already exist. Bucket is passed at init time:
-  #   terraform init -backend-config="bucket=<project>-tfstate"
-  backend "gcs" {
-    prefix = "reconciler"
-  }
-
   required_providers {
     vault = {
       source  = "hashicorp/vault"

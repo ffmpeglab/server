@@ -146,6 +146,10 @@ starts from an empty state tries to create tenants that already exist. The
 bucket comes out of the cluster module as `state_bucket` and is passed at init
 time; runs are serialised so two of them never hold the lock at once.
 
+That bucket is declared in `deploy/terraform/backend.tf` on its own, so a laptop
+cluster can delete the file and keep state locally. Without that, running any of
+this would need an account on the Google project that holds the bucket.
+
 ## Install
 
 ```bash
