@@ -30,34 +30,14 @@ provider "vault" {
   skip_child_token = true
 }
 
-# An empty kubeconfig path means this is running inside the cluster, so the
-# credentials come from the service account mounted into the pod. try() is
-# needed because Terraform evaluates both sides of a conditional, and those
-# files do not exist on a laptop.
-locals {
-  in_cluster       = var.kubeconfig_path == ""
-  service_account  = "/var/run/secrets/kubernetes.io/serviceaccount"
-  in_cluster_host  = "https://kubernetes.default.svc"
-  in_cluster_token = try(file("/var/run/secrets/kubernetes.io/serviceaccount/token"), null)
-  in_cluster_ca    = try(file("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"), null)
-}
-
 provider "kubernetes" {
-  config_path    = local.in_cluster ? null : var.kubeconfig_path
-  config_context = local.in_cluster ? null : var.kube_context
-
-  host                   = local.in_cluster ? local.in_cluster_host : null
-  token                  = local.in_cluster ? local.in_cluster_token : null
-  cluster_ca_certificate = local.in_cluster ? local.in_cluster_ca : null
+  config_path    = var.kubeconfig_path
+  config_context = var.kube_context
 }
 
 provider "helm" {
   kubernetes {
-    config_path    = local.in_cluster ? null : var.kubeconfig_path
-    config_context = local.in_cluster ? null : var.kube_context
-
-    host                   = local.in_cluster ? local.in_cluster_host : null
-    token                  = local.in_cluster ? local.in_cluster_token : null
-    cluster_ca_certificate = local.in_cluster ? local.in_cluster_ca : null
+    config_path    = var.kubeconfig_path
+    config_context = var.kube_context
   }
 }
