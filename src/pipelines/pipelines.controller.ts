@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { PipelinesService } from './pipelines.service';
 import { Pipeline } from '../model/pipeline.entity';
-import { CreatePipelineDto, UpdatePipelineDto } from './pipelines.dto';
+import { CreatePipelineDto, TranspilerRequest, TranspilerResponse, UpdatePipelineDto } from './pipelines.dto';
 
 @UseGuards(AuthGuard)
 @Controller('pipeline')
@@ -50,9 +50,9 @@ export class PipelinesController {
     return await this.pipelineService.update(updatePipe, req.user);
   }
 
-  @Post()
-  @ApiResponse({ type: Pipeline })
-  async transpile(@Body() createPipe: CreatePipelineDto, @Request() req) {
+  @Post('/transpile')
+  @ApiResponse({ type: TranspilerResponse })
+  async transpile(@Body() createPipe: TranspilerRequest) {
     return await this.pipelineService.transpile(createPipe);
   }
 }

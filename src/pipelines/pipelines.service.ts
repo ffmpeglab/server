@@ -2,18 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pipeline } from '../model/pipeline.entity';
-import { CreatePipelineDto, UpdatePipelineDto } from './pipelines.dto';
+import { CreatePipelineDto, TranspilerRequest, TranspilerResponse, UpdatePipelineDto } from './pipelines.dto';
 import fs from 'node:fs';
-import { ChildProcess, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { config } from '../config';
+
 const pathToTranspiler = path.join(
-  __dirname.replace('dist', '').replace('src', ''),
+  __dirname.replace('dist', '').replace('src', '').replace('pipelines', ''),
   'sdk/yaml/transpiler.ts',
 );
-
-console.info({ pathToTranspiler });
 
 @Injectable()
 export class PipelinesService {
@@ -54,12 +53,34 @@ export class PipelinesService {
     return await this.findOne(pipeline.id, userId);
   }
 
-  async transpile(pipeline: CreatePipelineDto): Promise<Pipeline | null> {
+  async transpile(pipeline: TranspilerRequest): Promise<TranspilerResponse> {
+    console.info('transpiler')
     const id = randomUUID();
-    const ymlPath = `${config.documentDir}/yml/${id}.yml`;
-    const sqlPath = `${config.documentDir}/sql/${id}/`;
-    return new Promise((res) => {
+    const ymlDir = `${config.documentDir}/yml/`
+    const ymlPath = `${ymlDir}${id}.yml`;
+    const sqlPath = `${config.documentDir}/sql/${id}`;
+    console.info('creating yml dir')
+    await new Promise(res=>{
+      const ex = fs.existsSync(ymlDir)
+      if(ex)
+        return res(1)
+
+      fs.mkdir(ymlDir, ()=>{
+        res(1)
+      })
+    })
+    console.info('creating sql dir')
+    await new Promise(res=>fs.mkdir(sqlPath, ()=>{
+      res(1)
+    }))
+    console.info('starting transpiling')
+    const files = await new Promise((mainResolve, mainReject) => {
       fs.writeFile(ymlPath, pipeline.yml, (err) => {
+        if(err)
+          return mainReject(err)
+        
+        console.info('after writing yml, starting transpiler')
+
         const transpiler = spawn('deno', [
           'run',
           '-A',
@@ -77,24 +98,34 @@ export class PipelinesService {
           console.error('yml transpiler stderr', data.toString('utf-8'));
         });
 
-        transpiler.on('close', () => {
+        transpiler.on('close', (code) => {
+          console.info('transpiler finished code:', code)
+          fs.unlink(ymlPath, ()=>{})
           fs.readdir(sqlPath, (err, files) => {
-            const results = Promise.all(
+            console.info('readdir with result', files)
+            if(err)
+              return mainReject(err)
+            const fileMap:{[key:string]:string} = {}
+            Promise.all(
               files.map(
-                async (file) =>
-                  await new Promise((res, reject) => {
-                    fs.readFile(file, 'utf-8', (err, file) => {
-                      if (err) return reject(err);
-
-                      res(file);
+                async (fileName) =>
+                  await new Promise((res) => {
+                    const filePath = `${sqlPath}/${fileName}`
+                    fs.readFile(filePath, 'utf-8', (err, file) => {
+                      if (err) return mainReject(err);
+                      fileMap[fileName] = file
+                      fs.unlink(filePath, ()=>{
+                        res(1)
+                      })
                     });
                   }),
               ),
-            );
-            return results;
+            ).then(()=>mainResolve(fileMap))
           });
         });
       });
-    });
+    }) as {[key:string]:string}
+    
+    return {files}
   }
 }

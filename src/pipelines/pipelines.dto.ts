@@ -27,3 +27,13 @@ export class CreatePipelineDto implements Omit<UpdatePipelineDto, 'id'> {
   @ApiProperty()
   yml: string;
 }
+
+export class TranspilerRequest {
+  @ApiProperty()
+  yml:string
+}
+
+export class TranspilerResponse {
+  @ApiProperty()
+  files:{[key:string]:string}
+}
