@@ -49,4 +49,10 @@ export class PipelinesController {
   async update(@Body() updatePipe: UpdatePipelineDto, @Request() req) {
     return await this.pipelineService.update(updatePipe, req.user);
   }
+
+  @Post()
+  @ApiResponse({ type: Pipeline })
+  async transpile(@Body() createPipe: CreatePipelineDto, @Request() req) {
+    return await this.pipelineService.transpile(createPipe);
+  }
 }
