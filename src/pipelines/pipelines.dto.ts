@@ -30,10 +30,10 @@ export class CreatePipelineDto implements Omit<UpdatePipelineDto, 'id'> {
 
 export class TranspilerRequest {
   @ApiProperty()
-  yml:string
+  yml: string;
 }
 
 export class TranspilerResponse {
   @ApiProperty()
-  files:{[key:string]:string}
+  files: { [key: string]: string };
 }
