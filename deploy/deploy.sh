@@ -41,19 +41,46 @@ load_env() {
   : "${DB_NAME:?DB_NAME missing from deploy/.env}"
 }
 
+# Everything in .env becomes a key of the Secret except what configures the
+# deployment rather than the application.
 secret_args() {
   local key
   while IFS='=' read -r key _; do
-    case "$key" in ''|\#*) continue ;; esac
+    case "$key" in
+      ''|\#*) continue ;;
+      IMAGE_TAG|DOCUMENT_STORAGE_CLASS|DOCUMENT_EXISTING_CLAIM) continue ;;
+      MINIKUBE_MEMORY|MINIKUBE_CPUS|FFMPEGLAB_RELEASE|FFMPEGLAB_NAMESPACE) continue ;;
+    esac
     # An empty value is not an absent one: the AWS SDK rejects an empty region.
     [ -n "${!key:-}" ] || continue
     printf -- '--set-string\nsecret.data.%s=%s\n' "$key" "${!key}"
   done < <(grep -vE '^\s*(#|$)' "$ROOT/deploy/.env")
 }
 
+# A tag is a moving name: pushing over it changes nothing in the pod spec, so
+# Kubernetes never rolls. Deploying the digest a tag points at right now means a
+# new image is a new pod spec, and the release records exactly what runs.
+resolve_digest() {
+  local tag="$1" digest
+  digest=$(curl -sf --max-time 20 \
+    "https://hub.docker.com/v2/repositories/ffmpeglab/server/tags/$tag" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["digest"])' 2>/dev/null) || true
+  case "$digest" in
+    sha256:*) echo "$digest" ;;
+    *) die "cannot resolve ffmpeglab/server:$tag to a digest" ;;
+  esac
+}
+
 install_chart() {
   local -a extra=("$@")
   mapfile -t args < <(secret_args)
+
+  if [ -n "${IMAGE_TAG:-}" ]; then
+    local digest
+    digest=$(resolve_digest "$IMAGE_TAG")
+    echo "Image: $IMAGE_TAG is ${digest:0:19}..."
+    extra+=(--set "image.digest=$digest")
+  fi
 
   if [ -z "${S3_ENDPOINT:-}" ]; then
     echo "S3_ENDPOINT is empty: deploying without the file runner."
