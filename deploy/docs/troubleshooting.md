@@ -114,6 +114,24 @@ kubectl rollout status -n ffmpeglab deployment --timeout=5m
 
 `helm_release` compares chart versions. Bump `version` in `Chart.yaml`.
 
+## minikube will not start: `certSANs: Invalid value: ""`
+
+```
+error: apiServer.certSANs: Invalid value: "": altname is not a valid IP address
+```
+
+The stored profile lost the node's address — `~/.minikube/profiles/minikube/config.json`
+has an empty `IP` while the container itself has one. minikube then builds a
+certificate name list containing an empty string, which kubeadm rejects.
+
+```bash
+minikube delete
+```
+
+That removes the profile and the container; the next start writes a correct one.
+It is a minikube bug, not a deployment problem — the script stops before touching
+the cluster.
+
 ## minikube shows an empty cluster in a GUI client
 
 `minikube stop` hands out a new API server port on the next start. `kubectl`
