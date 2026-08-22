@@ -58,6 +58,7 @@ export class PipelinesService {
         downsql: pipeline.downsql,
         upsql: pipeline.upsql,
         title: pipeline.title,
+        yml: pipeline.yml,
       },
     );
     return await this.findOne(pipeline.id, userId);
