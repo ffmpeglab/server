@@ -1,226 +1,95 @@
 # deploy
 
-Kubernetes deployment assets. Nothing outside this directory is touched, and
-nothing here is required to run the project with Docker Compose.
+Kubernetes deployment for FFmpegLab Server. Nothing outside this directory is
+touched, and none of it is required to run the project with Docker Compose.
 
 ```
 deploy/
-├── helm/ffmpeglab/     one release == one tenant
-├── terraform/          reads the Vault registry, keeps one release per tenant
-├── terraform/gke/      the cluster itself
-└── vault/              the registry format
+├── helm/ffmpeglab/   the application: API, render, file and log runners
+├── vso/              Vault Secrets Operator, for clusters that take credentials from Vault
+├── vault/            the shape of a tenant record in Vault
+└── docs/             architecture, deployment, development, troubleshooting
 ```
 
-## Model
-
-A tenant is one Supabase instance. The application binds a process to a single
-database connection and a single queue at startup, so one process serves exactly
-one tenant — multi-tenancy therefore lives at the deployment layer, not in the
-code. Adding a tenant means installing another release of this chart.
-
-Supabase is never deployed by this chart. Each tenant runs its own instance
-elsewhere, and the chart only receives its connection details.
-
-```
-Vault (tenant list)  ->  one Helm release per tenant  ->  that tenant's Supabase
-```
-
-## Components
-
-| Component | Enabled by default | Notes |
-|-----------|--------------------|-------|
-| `api` | yes | HTTP service, the only component with a port |
-| `render` | yes | runs ffmpeg, writes to the document directory |
-| `file` | yes | reads from the same directory, uploads to storage |
-| `logs` | yes | no filesystem access |
-
-Render and file are separate deployments, as in docker-compose, and they hand
-the output over through the document directory. That means both mount the same
-volume, so it has to be `ReadWriteMany`.
-
-Where no such storage exists — GKE's default class is `ReadWriteOnce` — turn
-persistence off. Each runner then gets its own `emptyDir` and neither sees the
-other's files, so anything they hand over has to travel through storage.
-
-## Running it locally
-
-Needs `minikube`, `kubectl`, `helm`, `terraform` and the `vault` CLI, a Vault to
-read the registry from, and a Supabase project to point at.
-
-Give Docker at least 8 GB. A 4 GB Docker was not enough here — the minikube
-container was OOM-killed with the metrics stack and one tenant running.
+## Deploy
 
 ```bash
-minikube start --memory=6g --cpus=4
-
-export VAULT_ADDR=https://<your-vault>
-export VAULT_TOKEN=<token that can read tenants/>
-export TF_VAR_vault_token=$VAULT_TOKEN
-
-# one entry per tenant — see deploy/vault/README.md for the keys
-vault kv put tenants/<project-ref> DB_HOST=... DB_PORT=6543 ...
-
-terraform -chdir=deploy/terraform init
-terraform -chdir=deploy/terraform apply -var-file=demo.tfvars
+cp deploy/.env.example deploy/.env   # then fill it in
+./deploy/deploy.sh local
 ```
-
-For a cluster in Google Cloud rather than minikube, see
-[terraform/gke/](terraform/gke/README.md).
-
-`demo.tfvars` drops the claim to `ReadWriteOnce`, which a single-node cluster
-will attach to several pods because they all land on the same node.
-
-Things that will otherwise cost you an hour:
-
-- **Use the pooler host**, not `db.<ref>.supabase.co` — the direct one resolves to
-  IPv6 only and is unreachable from the cluster. Port `6543` is transaction mode,
-  `5432` session mode, and session mode caps a project at 15 connections.
-- **The queues must not already exist.** `nestjs-pgmq` calls `pgmq.create` on
-  every boot and pgmq answers `sequence pgmq.q_render_msg_id_seq is already a
-  member of extension "pgmq"`, so the pods crash-loop. Against a project that has
-  been used before, drop them first:
-  `select pgmq.drop_queue('render'), pgmq.drop_queue('logs'), pgmq.drop_queue('file');`
-- **Set `DB_MIGRATION_ENABLED=true`** in the entry on first run so the tables get
-  created — `render`, `api_key`, `log_piece` and `pipeline`. It maps to TypeORM
-  `synchronize`, not to the files under `src/migrations`.
-- **Editing the chart? Bump `version` in `Chart.yaml`.** `helm_release` compares
-  chart versions, so without it Terraform reports no changes and your edit never
-  reaches the cluster.
-- `minikube stop` hands out a new API server port on the next start. `kubectl`
-  follows along, GUI clients like Lens keep the old connection and show an empty
-  cluster until reconnected.
-
-## Configuration
-
-Environment variable names are not hardcoded in the templates. Everything under
-`env` (shared) and `<component>.env` (per component) is passed through verbatim,
-so renaming a variable in the application is a change to `values.yaml` alone.
-What each variable means is documented in the repository root, not here.
-
-Credentials are expected to arrive as a Kubernetes Secret produced from Vault by
-an external controller, referenced with `existingSecret` and mounted with
-`envFrom`. The `secret.create` block exists for local testing only.
-
-## Picking up a tenant automatically
-
-The reconciler reads the whole registry on every run and makes the cluster match
-it: an entry that turns `on` gets a namespace, a Secret and a release, one that
-turns `off` loses all three, and a changed password lands as a Secret update.
-Nothing about a tenant is written down here, so onboarding never touches this
-repository.
-
-What triggers a run:
-
-- whatever writes the tenant into Vault posts to the repository, and the cluster
-  follows within seconds:
-
-  ```http
-  POST https://api.github.com/repos/ffmpeglab/server/dispatches
-  {"event_type":"tenants-changed"}
-  ```
-
-- `workflow_dispatch`, for when it should happen now
-
-Nothing runs on a timer. A registry change that fires no dispatch waits for the
-next run, which is deliberate: a schedule only ever runs from the default
-branch, so it would report failures for as long as the deployment lives on a
-branch.
-
-## Switching a tenant off
-
-Two things react, on different timescales.
-
-The pods stop working within about a minute. The operator notices the flag on
-its next refresh, rewrites the Secret and restarts the deployments; the new pods
-read the flag and hold before the application starts. Nothing outside the
-cluster is involved, so this happens whether or not a pipeline ever runs.
-
-The namespace, release and Secret are removed by the reconciler, on its next
-run. That is the part that frees the node — a held pod still holds its resource
-reservation, because the scheduler counts a pod from the moment it is placed.
-
-So a tenant stops serving immediately and stops costing on the next reconcile.
-
-Terraform state lives in a bucket rather than on a runner, since a run that
-starts from an empty state tries to create tenants that already exist. The
-bucket comes out of the cluster module as `state_bucket` and is passed at init
-time; runs are serialised so two of them never hold the lock at once.
-
-That bucket is declared in `deploy/terraform/backend.tf` on its own, so a laptop
-cluster can delete the file and keep state locally. Without that, running any of
-this would need an account on the Google project that holds the bucket.
-
-## Install
 
 ```bash
-helm install <tenant> deploy/helm/ffmpeglab \
-  --namespace ffmpeglab-<tenant> --create-namespace \
-  --set tenant.name=<tenant> \
-  --set existingSecret=<tenant>-supabase \
-  --set env.DB_PORT=5432
+./deploy/deploy.sh on-prem
 ```
 
-Verify:
+`local` starts minikube if it is not running. `on-prem` uses the cluster your
+kubeconfig already points at. Both install the same chart.
 
 ```bash
-kubectl -n ffmpeglab-<tenant> get pods
-kubectl -n ffmpeglab-<tenant> port-forward svc/<tenant>-ffmpeglab-api 3000:3000
-curl http://localhost:3000/
+./deploy/deploy.sh local --destroy
+./deploy/deploy.sh on-prem --destroy
 ```
 
-Render the manifests without installing:
+The script calls Helm and kubectl; it does not reimplement them.
+[docs/deployment.md](docs/deployment.md) shows the same steps by hand.
 
-```bash
-helm template <tenant> deploy/helm/ffmpeglab --set tenant.name=<tenant>
+## Where this sits
+
+```
+  ffmpeglab/platform                     ffmpeglab/server  ← you are here
+  ──────────────────                     ────────────────
+  creates tenants                        deploys the application
+  writes their records into Vault        into a cluster that already exists
+  provisions cloud clusters
+           │                                      │
+           │  tenant record                       │  helm upgrade --install
+           ▼                                      ▼
+        ┌──────────┐   VaultStaticSecret   ┌──────────────────┐
+        │  Vault   │ ◀──────────────────── │  VSO in-cluster  │
+        └──────────┘   reads at runtime    └──────────────────┘
+                                                   │ writes
+                                                   ▼
+                                            Kubernetes Secret
+                                                   │ envFrom
+                                                   ▼
+                                      api · render · file · logs
 ```
 
-## Running a real render
+For a local run there is no Vault: `deploy/.env` fills the Secret directly.
 
-`example.sh` in the repository root creates a render, queues it and polls for the
-result. Two things it needs first.
+## What this deploys, and what it does not
 
-An API key — there is no signup endpoint, so insert one into the tenant's
-database:
+One release is one FFmpegLab instance: an API and three runners, all pointing at
+one Postgres and one object store.
 
-```sql
-insert into api_key (title, apikey, user_id, data)
-values ('local', 'ffmpeglab_sk_...', gen_random_uuid(), '{}');
-```
+It does **not** deploy Postgres, object storage or Supabase, and it does not
+create or remove tenants. A tenant is a database plus the credentials for it,
+created outside this repository and delivered into the cluster as a Secret —
+by the Vault Secrets Operator, or from `deploy/.env` for a local run.
 
-And a different `API_HOST`: the script assigns it on its first line, so an
-environment variable will not override it.
+Cloud provisioning is not here either. Creating a cluster belongs to whoever owns
+the cloud account; this chart installs into a cluster that already exists.
 
-From inside the cluster, reaching the API by service name. The server image
-already carries `curl`, so no extra image is pulled:
+## Storage
 
-```bash
-sed 's|^API_HOST=.*|API_HOST=http://<tenant>-ffmpeglab-api:3000|' example.sh | \
-kubectl -n ffmpeglab-<tenant> run example --rm -i --restart=Never \
-  --image=ffmpeglab/server:<tag> --env="API_KEY=<key>" --command -- sh -s
-```
+render writes the finished file into the document directory and the file runner
+reads it back from there, so both need the same volume.
 
-Or from your machine, through a forwarded port:
+| Cluster | What to use |
+|---------|-------------|
+| minikube | one `ReadWriteOnce` claim — every pod lands on the single node |
+| one node | the same |
+| more than one node | a `ReadWriteMany` StorageClass, or an existing RWX claim |
 
-```bash
-kubectl -n ffmpeglab-<tenant> port-forward svc/<tenant>-ffmpeglab-api 3000:3000 &
-sed 's|^API_HOST=.*|API_HOST=http://localhost:3000|' example.sh > /tmp/example.sh
-API_KEY=<key> bash /tmp/example.sh
-```
+Set `DOCUMENT_STORAGE_CLASS` or `DOCUMENT_EXISTING_CLAIM` in `deploy/.env` for
+the last case. This chart installs no storage provider of its own — NFS, Ceph,
+Filestore or anything else is supplied by whoever runs the cluster.
 
-A render takes around half a minute, and the script only sleeps 3 and 5 seconds
-between polls — its last line usually still says `rendering`. Read the status
-again to see it finish:
+## Documentation
 
-```bash
-curl -s -H "Authorization: Bearer <key>" http://localhost:3000/renders/<id>
-```
-
-`status` reaching `done` means the render ran. `result` is filled in by the file
-runner after it uploads, so an empty `result` with `done` means the upload has
-not happened — check the `file` pod and the S3 settings in the tenant's entry.
-
-## Not covered yet
-
-Ingress, scale-to-zero for idle runners, and how tenant entries get written to
-Vault in the first place. Tracked in
-[#2](https://github.com/ffmpeglab/server/issues/2).
+| File | Contents |
+|------|----------|
+| [docs/architecture.md](docs/architecture.md) | components, why one release is one instance |
+| [docs/deployment.md](docs/deployment.md) | local and on-prem, by hand and by script |
+| [docs/development.md](docs/development.md) | working on the chart, running a real render |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | failures worth recognising |

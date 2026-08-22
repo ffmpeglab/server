@@ -17,11 +17,6 @@
 {{- end -}}
 {{- end -}}
 
-{{/* Tenant identifier; falls back to the release name. */}}
-{{- define "ffmpeglab.tenant" -}}
-{{- default .Release.Name .Values.tenant.name -}}
-{{- end -}}
-
 {{- define "ffmpeglab.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{ include "ffmpeglab.selectorLabels" . }}
@@ -30,7 +25,6 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: ffmpeglab
-ffmpeglab.com/tenant: {{ include "ffmpeglab.tenant" . | quote }}
 {{- end -}}
 
 {{- define "ffmpeglab.selectorLabels" -}}
@@ -102,10 +96,6 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- with $ctx.Values.secretChecksum }}
-        # Credentials arrive through envFrom, which Kubernetes reads once at
-        # start, so a rotated password reaches nothing until the pod restarts.
-        # Carrying the checksum here changes the pod spec when the Secret
-        # changes, and the rollout follows on its own.
         ffmpeglab.com/secret-checksum: {{ . | quote }}
         {{- end }}
       {{- end }}
@@ -121,43 +111,8 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or $ctx.Values.dnsWait.enabled $ctx.Values.statusGate.enabled }}
+      {{- if $ctx.Values.dnsWait.enabled }}
       initContainers:
-        {{- if $ctx.Values.statusGate.enabled }}
-        # A tenant switched off in the registry should stop working without
-        # waiting for a pipeline run. The flag travels with the credentials, so
-        # the pod can read it: while it is not on, this container waits and the
-        # application never starts. Turning the tenant back on rewrites the
-        # Secret, the operator restarts the deployment, and this check passes.
-        - name: wait-for-status
-          image: {{ $ctx.Values.dnsWait.image }}
-          command:
-            - sh
-            - -c
-            - |
-              while :; do
-                status=$(printenv {{ $ctx.Values.statusGate.key }} || true)
-                if [ "$status" = "{{ $ctx.Values.statusGate.expected }}" ]; then
-                  echo "tenant is {{ $ctx.Values.statusGate.expected }}"
-                  exit 0
-                fi
-                echo "tenant is ${status:-unset}, holding"
-                sleep {{ $ctx.Values.statusGate.intervalSeconds }}
-              done
-          {{- if $secretName }}
-          envFrom:
-            - secretRef:
-                name: {{ $secretName }}
-          {{- end }}
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-        {{- end }}
-        {{- if $ctx.Values.dnsWait.enabled }}
-        # Cluster DNS is not always answering for external names by the time pods
-        # start, and the application exits instead of retrying — which turns every
-        # cluster restart into a crash-loop backoff.
         - name: wait-for-dns
           image: {{ $ctx.Values.dnsWait.image }}
           command:
@@ -195,7 +150,6 @@ spec:
             requests:
               cpu: 10m
               memory: 16Mi
-        {{- end }}
       {{- end }}
       containers:
         - name: {{ $component }}
