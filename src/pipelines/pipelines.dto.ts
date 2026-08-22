@@ -19,7 +19,10 @@ export class UpdatePipelineDto implements Omit<
   status: string;
 }
 
-export class CreatePipelineDto implements Omit<UpdatePipelineDto, 'id'> {
+export class CreatePipelineDto implements Omit<
+  UpdatePipelineDto,
+  'id' | 'status'
+> {
   @ApiProperty()
   title: string;
   @ApiProperty()

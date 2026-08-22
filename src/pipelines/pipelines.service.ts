@@ -53,7 +53,12 @@ export class PipelinesService {
   ): Promise<Pipeline | null> {
     await this.pipelinesRepository.update(
       { id: pipeline.id, user_id: userId },
-      pipeline,
+      {
+        status: pipeline.status,
+        downsql: pipeline.downsql,
+        upsql: pipeline.upsql,
+        title: pipeline.title,
+      },
     );
     return await this.findOne(pipeline.id, userId);
   }
