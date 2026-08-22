@@ -14,17 +14,10 @@ import { getFileId } from '../ffmpeg/util/util';
 import { getMimeType } from '../files/mime-utils';
 import https from 'node:https';
 import http from 'node:http';
+import { createS3Client } from '../s3client';
 @Processor(config.queue.file)
 export class ResultProcessor {
-  s3client: S3Client;
-  constructor(private readonly renderService: RendersService) {
-    this.s3client = new S3Client({
-      ...config.s3,
-      tls: config.s3.endpoint.search('https://') > -1 ? true : false,
-      requestHandler: config.s3.endpoint.search('https://') > -1 ? https : http,
-      forcePathStyle: true,
-    });
-  }
+  constructor(private readonly renderService: RendersService) {}
   @Process('file')
   async handleFile(
     job: PgmqJob<{
@@ -36,11 +29,12 @@ export class ResultProcessor {
       runId?: string;
     }>,
   ) {
+    const s3Client = await createS3Client();
     console.log('new file', job);
     const { userId, media, renderId, bucket, outputPath, runId } =
       job.message.data;
     try {
-      if (media?.id && this.s3client) {
+      if (media?.id && s3Client) {
         const fileStream = fs.createReadStream(media.filePath as string);
         const metadata: Record<string, string> = {};
         for (const [key, value] of Object.entries(media)) {
@@ -61,7 +55,7 @@ export class ResultProcessor {
           ContentType: contentType,
           Metadata: metadata,
         });
-        await this.s3client.send(putObjectCmd);
+        await s3Client.send(putObjectCmd);
 
         // Generate presigned URL for GET
         const getObjectCmd = new GetObjectCommand({
@@ -69,7 +63,7 @@ export class ResultProcessor {
           Key: fileKey,
         });
 
-        const link = await getSignedUrl(this.s3client, getObjectCmd, {
+        const link = await getSignedUrl(s3Client, getObjectCmd, {
           expiresIn: 3600 * 24 * 6,
         }); // 6 days
 

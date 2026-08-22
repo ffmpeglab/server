@@ -44,4 +44,6 @@ export const config = {
   maxUploadSize: process.env.MAX_UPLOAD_SIZE || 52428800000,
   pipelinesEnabled: process.env.PIPELINES_API_ENABLED === 'true',
   documentDir: process.env.DOCUMENT_DIRECTORY || '/tmp/ffmpeglab',
+  isSupabasePlatform: process.env.IS_SUPABASE_PLATFORM === 'true',
+  tenantServiceKy: process.env.TENANT_SERVICE_KEY as string,
 };

@@ -9,22 +9,18 @@ import {
 import { config } from '../config';
 import { getMimeType } from './mime-utils';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { createS3Client } from '../s3client';
 
 @Injectable()
 export class FilesService {
-  s3client: S3Client;
-  constructor() {
-    this.s3client = new S3Client({
-      ...config.s3,
-      forcePathStyle: true,
-    });
-  }
+  constructor() {}
 
   async uploadFile(userId: string, fileName: string, file: Buffer) {
     try {
+      const s3Client = await createS3Client();
       const contentType = getMimeType(fileName);
       const fileKey = `${userId}/${fileName}`;
-      await this.s3client.send(
+      await s3Client.send(
         new PutObjectCommand({
           Bucket: config.s3.bucketId,
           Key: fileKey,
@@ -39,7 +35,7 @@ export class FilesService {
         Key: fileKey,
       });
 
-      const link = await getSignedUrl(this.s3client, getObjectCmd, {
+      const link = await getSignedUrl(s3Client, getObjectCmd, {
         expiresIn: 3600 * 24 * 6,
       }); // 6 days
 
@@ -51,24 +47,26 @@ export class FilesService {
   }
 
   async listFiles(userId: string) {
+    const s3Client = await createS3Client();
     const listObjectsCommand = new ListObjectsCommand({
       Bucket: config.s3.bucketId,
       Prefix: userId,
     });
 
-    const list = await this.s3client.send(listObjectsCommand);
+    const list = await s3Client.send(listObjectsCommand);
 
     return { list: list.Contents };
   }
 
   async getFile(fileId: string, userId: string) {
+    const s3Client = await createS3Client();
     const fileKey = `${userId}${fileId.replace(userId, '')}`;
     const getObjectCmd = new GetObjectCommand({
       Bucket: config.s3.bucketId,
       Key: fileKey,
     });
 
-    const link = await getSignedUrl(this.s3client, getObjectCmd, {
+    const link = await getSignedUrl(s3Client, getObjectCmd, {
       expiresIn: 3600 * 24 * 6,
     });
 
