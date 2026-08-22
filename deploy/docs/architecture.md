@@ -89,6 +89,24 @@ the file runner never sees what render produced. There is no fallback path —
 object storage is where the result is uploaded to, not how it travels between the
 two runners.
 
+## Readiness and liveness
+
+They answer different questions and must not point at the same check.
+
+Readiness is "can this pod do its work". Failing it stops traffic reaching the
+pod; nothing is restarted. Liveness is "is the process alive". Failing it kills
+the pod.
+
+A component that starts and waits for something — credentials, a dependency —
+should fail readiness and pass liveness. The chart keeps a low failure threshold
+for readiness and a high one for liveness so waiting is never mistaken for being
+stuck.
+
+Both currently point at `/`, which returns a greeting and knows nothing about
+dependencies, so a waiting pod would still report ready. Set
+`probes.readinessPath` once the application exposes an endpoint that reflects
+whether it can actually serve.
+
 ## Portability
 
 The chart carries no assumption about which cluster it runs on. Storage class,

@@ -184,7 +184,7 @@ spec:
           {{- if and $cfg.probes $cfg.probes.enabled $cfg.containerPort }}
           readinessProbe:
             httpGet:
-              path: {{ $cfg.probes.path }}
+              path: {{ $cfg.probes.readinessPath | default $cfg.probes.path }}
               port: http
             initialDelaySeconds: {{ $cfg.probes.initialDelaySeconds }}
             periodSeconds: {{ $cfg.probes.periodSeconds }}
@@ -192,12 +192,12 @@ spec:
             failureThreshold: {{ $cfg.probes.failureThreshold }}
           livenessProbe:
             httpGet:
-              path: {{ $cfg.probes.path }}
+              path: {{ $cfg.probes.livenessPath | default $cfg.probes.path }}
               port: http
             initialDelaySeconds: {{ $cfg.probes.initialDelaySeconds }}
             periodSeconds: {{ $cfg.probes.periodSeconds }}
             timeoutSeconds: {{ $cfg.probes.timeoutSeconds }}
-            failureThreshold: {{ $cfg.probes.failureThreshold }}
+            failureThreshold: {{ $cfg.probes.livenessFailureThreshold | default $cfg.probes.failureThreshold }}
           {{- end }}
           {{- with $cfg.resources }}
           resources:

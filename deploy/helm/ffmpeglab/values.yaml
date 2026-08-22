@@ -65,13 +65,19 @@ api:
     type: ClusterIP
     port: 3000
     annotations: {}
+  # readinessPath should say whether the process can do its work, not just that
+  # it is up: a pod waiting for credentials would otherwise be sent traffic.
+  # Liveness stays lenient so waiting is never mistaken for being stuck.
   probes:
     enabled: true
     path: /
+    readinessPath: ""
+    livenessPath: ""
     initialDelaySeconds: 20
     periodSeconds: 15
     timeoutSeconds: 5
     failureThreshold: 6
+    livenessFailureThreshold: 30
   resources:
     requests:
       cpu: 50m
