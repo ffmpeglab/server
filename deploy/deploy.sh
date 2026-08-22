@@ -161,8 +161,16 @@ onprem_up() {
   need kubectl helm
   load_env
 
-  step "Using $(kubectl config current-context)"
-  kubectl version -o json >/dev/null 2>&1 || die "cannot reach the cluster with the current kubeconfig"
+  local context
+  context=$(kubectl config current-context 2>/dev/null) || true
+  if [ -z "$context" ]; then
+    echo "No kubectl context is selected. Available:" >&2
+    kubectl config get-contexts -o name 2>/dev/null | sed 's/^/  /' >&2
+    die "pick one with: kubectl config use-context <name>"
+  fi
+
+  step "Using $context"
+  kubectl version -o json >/dev/null 2>&1 || die "cannot reach $context with the current kubeconfig"
 
   step "Installing the chart"
   # render and file exchange the rendered file through the document directory, so
