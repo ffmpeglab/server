@@ -1,7 +1,4 @@
-# One release == one tenant == one Supabase project. Supabase is not deployed here.
-
-tenant:
-  name: ""
+# One release is one FFmpegLab instance. See deploy/docs/architecture.md.
 
 image:
   repository: ffmpeglab/server
@@ -19,62 +16,26 @@ env: {}
   # S3_REGION: "us-east-1"
   # DOCUMENT_DIRECTORY: /tmp/ffmpeglab
 
-# Secret with the tenant's credentials, normally produced from Vault.
 # Set by whatever writes the Secret, so a rotated credential rolls the pods.
 secretChecksum: ""
 
-# Let the Vault Secrets Operator produce the Secret instead of the pipeline, so
-# credentials never pass through Terraform state. Off by default: it needs the
-# operator installed and a Vault role bound to this cluster.
-vaultSecret:
-  enabled: false
-  # kubernetes has Vault call the cluster to verify the token; jwt has it check
-  # the signature against the cluster's public keys, which is what works when
-  # the cluster has no public endpoint. The mount must match the method.
-  method: kubernetes
-  mount: kubernetes
-  audience: https://kubernetes.default.svc
-
-  # Record fields that are objects rather than plain values. They reach the pods
-  # as JSON strings through envFrom, and db repeats the password the DB_* keys
-  # already carry.
-  excludes:
-    - ^db$
-    - ^database$
-  role: ffmpeglab
-  serviceAccountName: ffmpeglab-vault
-  secretMount: secret
-  path: tenants
-  refreshAfter: 1h
-
 existingSecret: ""
 
-# Local testing only.
+# For clusters where no external controller supplies the Secret.
 secret:
   create: false
   data: {}
     # DB_HOST: db.example.internal
     # DB_PASSWORD: change-me
 
-# Each pod opens ~4 DB connections and the pooler caps a project at 15 in
-# session mode, so old+new side by side during a rollout exhausts it.
+# maxSurge 0: old+new side by side would exhaust the database connection cap.
 updateStrategy:
   type: RollingUpdate
   rollingUpdate:
     maxSurge: 0
     maxUnavailable: 1
 
-# The app exits rather than retries when the database hostname does not resolve,
-# so hold pods back until cluster DNS answers for it.
-# Stops a tenant that was switched off in the registry from doing any work,
-# without waiting for a deploy. Reads the flag out of the tenant's own Secret,
-# so it only does anything when the operator keeps that Secret current.
-statusGate:
-  enabled: false
-  key: ffmpeglabStatus
-  expected: "on"
-  intervalSeconds: 30
-
+# The app exits rather than retries when DB_HOST does not resolve yet.
 dnsWait:
   enabled: true
   hostFrom: DB_HOST
@@ -82,16 +43,7 @@ dnsWait:
   attempts: 60
   intervalSeconds: 2
 
-# Where renders are written. Must match the app's document directory.
-#
-# The render step writes its output here and the file step reads it back from
-# the same path — the `./tmp` bind mount shared by both runners in
-# docker-compose. Splitting them across pods needs the same directory in both,
-# so the claim has to be ReadWriteMany; a single-node cluster will also accept
-# ReadWriteOnce.
-#
-# With persistence off the directory is an emptyDir, private to each pod, and
-# the two runners no longer see each other's files.
+# Shared between render and file. See deploy/docs/architecture.md.
 documentDir:
   mountPath: /tmp/ffmpeglab
   persistence:
@@ -101,7 +53,6 @@ documentDir:
       - ReadWriteMany
     size: 10Gi
     storageClass: ""
-  # emptyDir settings, used when persistence is off
   sizeLimit: 10Gi
   medium: ""
 
@@ -132,16 +83,7 @@ api:
   affinity: {}
   podAnnotations: {}
 
-# Separate runners, as in docker-compose. Both mount the document directory:
-# One envelope for every component, because it follows what these processes
-# actually use rather than what the component does: idle pods sit at 1-3m of
-# CPU and a render worker at around 25m.
-#
-# No CPU limit on purpose. A limit does not take cores away from a pod, it
-# throttles it — which would slow down the one thing here that needs to be fast.
-# Requests already stop a busy tenant from starving its neighbours.
-#
-# render writes the output there, file picks it up and uploads it.
+# No CPU limit on purpose: a limit throttles rather than reallocates.
 render:
   enabled: true
   replicaCount: 1
