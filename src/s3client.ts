@@ -1,32 +1,30 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { config } from './config';
-import { UnauthorizedException } from '@nestjs/common';
+import { createClient } from '@supabase/supabase-js';
 
 export async function createS3Client() {
   if (config.isSupabasePlatform) {
-    const session = (await (
-      await fetch(
-        `${config.platformHost}/platform/session/supabase/${config.tenantUserId}`,
-        {
-          headers: {
-            authorization: 'Bearer ' + config.tenantServiceKey,
-          },
-        },
-      )
-    ).json()) as { access_token: string };
+    const supabaseClient = createClient(
+      config.supabaseHost,
+      config.supabaseAnonKey,
+    );
 
-    if (!session.access_token) {
-      throw new UnauthorizedException();
-    }
-
+    const {
+      data: { session },
+      error,
+    } = await supabaseClient.auth.signInWithPassword({
+      email: config.supabaseWorkerLogin,
+      password: config.tenantSecretKey,
+    });
+    // console.info({session, error})
     const client = new S3Client({
       forcePathStyle: true,
       region: config.s3.region,
       endpoint: config.s3.endpoint,
       credentials: {
-        accessKeyId: config.s3.region,
+        accessKeyId: config.supabaseProjectId,
         secretAccessKey: config.supabaseAnonKey,
-        sessionToken: session.access_token,
+        sessionToken: session?.access_token,
       },
     });
 

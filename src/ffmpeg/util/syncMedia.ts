@@ -35,9 +35,9 @@ const downloadFile = async ({ filePath, dirPath, url }) =>
 // Reuse exact S3 client configuration from FileProcessor
 
 export const syncMedia = async (media: EncoderProject) => {
-  const s3Client = await createS3Client();
   // media.bucket is now stored in the render.data
   if (media.bucket) {
+    const s3Client = await createS3Client();
     const bucket = media.bucket || config.s3.bucketId;
     // media.key is the object path (previously we used media.url)
     const key = media.key || media.url; // fallback for backward compatibility
