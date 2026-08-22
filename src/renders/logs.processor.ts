@@ -20,7 +20,7 @@ export class LogsProcessor {
     try {
       const { renderId, logs, progress, userId, date } = job.message.data;
       if (renderId && logs?.length) {
-        console.log('renderId:' + renderId, logs);
+        // console.log('renderId:' + renderId, logs);
         await this.renderService.appendLogs(renderId, logs, userId, date);
       }
       if (renderId && progress) {

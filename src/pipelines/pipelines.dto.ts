@@ -3,7 +3,7 @@ import { Pipeline } from '../model/pipeline.entity';
 
 export class UpdatePipelineDto implements Omit<
   Pipeline,
-  'user_id' | 'date' | 'status' | 'updated' | 'version'
+  'user_id' | 'date' | 'updated' | 'version'
 > {
   @ApiProperty()
   title: string;
@@ -15,6 +15,8 @@ export class UpdatePipelineDto implements Omit<
   yml: string;
   @ApiProperty()
   id: string;
+  @ApiProperty()
+  status: string;
 }
 
 export class CreatePipelineDto implements Omit<UpdatePipelineDto, 'id'> {

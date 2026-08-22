@@ -1,3 +1,44 @@
+create or replace function public.insert_vault_secret(secret_value text)
+returns uuid
+language plpgsql
+security definer -- Elevates permissions to write to vault schema
+as $$
+declare
+  current_user_id uuid;
+begin
+  -- 1. Grab the actual logged-in user's ID from the Supabase auth JWT context
+  current_user_id := auth.uid();
+  
+  -- 2. Reject the request if the user is not authenticated
+  if current_user_id is null then
+    raise exception 'Not authorized';
+  end if;
+
+  -- 3. Automatically use their user ID as the secret name so they can't hijack other profiles
+  return vault.create_secret(secret_value, current_user_id::text);
+end;
+$$;
+
+create or replace function public.get_my_secret()
+returns text
+language plpgsql
+security definer -- Elevates permissions to read from vault.decrypted_secrets
+as $$
+declare
+  user_secret text;
+begin
+  -- 1. Get the authenticated user's ID from the request context
+  -- 2. Find the secret where the name matches the user's ID string
+  select decrypted_secret into user_secret
+  from vault.decrypted_secrets
+  where name = auth.uid()::text
+  limit 1;
+
+  -- 3. Return the secret (returns null if no secret exists)
+  return user_secret;
+end;
+$$;
+
 CREATE TABLE "api_key" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "apikey" character varying(200) NOT NULL, "user_id" uuid NOT NULL, "data" text NOT NULL, "date" TIMESTAMP NOT NULL, CONSTRAINT "UQ_3105fa6c448e8846c395244f438" UNIQUE ("apikey"), CONSTRAINT "PK_b1bd840641b8acbaad89c3d8d11" PRIMARY KEY ("id"));
 CREATE INDEX "IDX_b1bd840641b8acbaad89c3d8d1" ON "api_key"  ("id") ;
 CREATE INDEX "IDX_3105fa6c448e8846c395244f43" ON "api_key"  ("apikey") ;
