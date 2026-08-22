@@ -45,5 +45,8 @@ export const config = {
   pipelinesEnabled: process.env.PIPELINES_API_ENABLED === 'true',
   documentDir: process.env.DOCUMENT_DIRECTORY || '/tmp/ffmpeglab',
   isSupabasePlatform: process.env.IS_SUPABASE_PLATFORM === 'true',
-  tenantServiceKy: process.env.TENANT_SERVICE_KEY as string,
+  tenantServiceKey: process.env.TENANT_SERVICE_KEY as string,
+  tenantUserId: process.env.TENANT_USER_ID as string,
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY as string,
+  platformHost: process.env.PLATFORM_HOST as string,
 };
