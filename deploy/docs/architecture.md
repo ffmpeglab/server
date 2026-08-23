@@ -68,6 +68,7 @@ releases exist, is decided outside.
 |------|------|
 | this chart | Deployments, Service, storage, health checks |
 | VSO | reading the tenant record from Vault, producing the Secret |
+| the deploy script | applying the operator's resources and installing the chart |
 | the platform | creating tenants and writing their records into Vault |
 | whoever owns the cluster | the cluster itself, and storage that supports it |
 

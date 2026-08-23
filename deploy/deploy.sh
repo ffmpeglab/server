@@ -35,10 +35,34 @@ load_env() {
   # shellcheck disable=SC1091
   . "$ROOT/deploy/.env"
   set +a
-  : "${DB_HOST:?DB_HOST missing from deploy/.env}"
-  : "${DB_USER:?DB_USER missing from deploy/.env}"
-  : "${DB_PASSWORD:?DB_PASSWORD missing from deploy/.env}"
-  : "${DB_NAME:?DB_NAME missing from deploy/.env}"
+
+  if [ -n "${VAULT_ADDR:-}" ]; then
+    : "${VAULT_ROLE:?VAULT_ROLE missing from deploy/.env}"
+    : "${TENANT_PATH:?TENANT_PATH missing from deploy/.env}"
+  else
+    : "${DB_HOST:?set VAULT_ADDR, or DB_HOST for a run without Vault}"
+    : "${DB_USER:?DB_USER missing from deploy/.env}"
+    : "${DB_PASSWORD:?DB_PASSWORD missing from deploy/.env}"
+    : "${DB_NAME:?DB_NAME missing from deploy/.env}"
+  fi
+}
+
+# The operator reads the tenant record from Vault and writes the Secret the
+# release consumes, so no credential passes through here.
+install_vso_resources() {
+  need envsubst
+  export VSO_NAMESPACE="$NAMESPACE" VSO_RELEASE="$RELEASE"
+  export VSO_METHOD="${VAULT_METHOD:-kubernetes}" VSO_MOUNT="${VAULT_MOUNT:-kubernetes}"
+  export VSO_ROLE="$VAULT_ROLE" VSO_SECRET_MOUNT="${VAULT_SECRET_MOUNT:-secret}"
+  export VSO_PATH="$TENANT_PATH" VSO_REFRESH="${VAULT_REFRESH:-60s}"
+
+  kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  envsubst < "$ROOT/deploy/vso/vault-secret.yaml" | kubectl apply -f -
+
+  step "Waiting for the operator to write the Secret"
+  kubectl wait --for=condition=SecretSynced --timeout=2m \
+    -n "$NAMESPACE" vaultstaticsecret/"$RELEASE" \
+    || die "the operator could not sync the Secret — check the Vault role and path"
 }
 
 # Everything in .env becomes a key of the Secret except what configures the
@@ -73,7 +97,6 @@ resolve_digest() {
 
 install_chart() {
   local -a extra=("$@")
-  mapfile -t args < <(secret_args)
 
   if [ -n "${IMAGE_TAG:-}" ]; then
     local digest
@@ -82,16 +105,17 @@ install_chart() {
     extra+=(--set "image.digest=$digest")
   fi
 
-  if [ -z "${S3_ENDPOINT:-}" ]; then
-    echo "S3_ENDPOINT is empty: deploying without the file runner."
-    echo "Renders will complete but their results will not be uploaded anywhere."
-    extra+=(--set file.enabled=false)
+  if [ -n "${VAULT_ADDR:-}" ]; then
+    install_vso_resources
+    extra+=(--set "existingSecret=$RELEASE-credentials")
+  else
+    mapfile -t args < <(secret_args)
+    extra+=(--set secret.create=true "${args[@]}")
   fi
 
   helm upgrade --install "$RELEASE" "$CHART" \
     --namespace "$NAMESPACE" --create-namespace \
-    --set secret.create=true \
-    "${args[@]}" "${extra[@]}"
+    "${extra[@]}"
 }
 
 # Not helm --wait: it holds the release lock for the whole timeout, so a failed

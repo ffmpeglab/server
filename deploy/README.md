@@ -14,7 +14,7 @@ deploy/
 ## Deploy
 
 ```bash
-cp deploy/.env.example deploy/.env   # then fill it in
+cp deploy/.env.example deploy/.env   # Vault address, role and tenant path
 ./deploy/deploy.sh local
 ```
 
@@ -62,10 +62,13 @@ For a local run there is no Vault: `deploy/.env` fills the Secret directly.
 One release is one FFmpegLab instance: an API and three runners, all pointing at
 one Postgres and one object store.
 
+Credentials come from Vault: the operator reads the tenant record and writes the
+Secret the release consumes. See [vso/](vso/). Values can be put in `deploy/.env`
+instead, which is only for a local run without Vault.
+
 It does **not** deploy Postgres, object storage or Supabase, and it does not
-create or remove tenants. A tenant is a database plus the credentials for it,
-created outside this repository and delivered into the cluster as a Secret —
-by the Vault Secrets Operator, or from `deploy/.env` for a local run.
+create or remove tenants. The platform writes tenant records; this repository
+reads them.
 
 Cloud provisioning is not here either. Creating a cluster belongs to whoever owns
 the cloud account; this chart installs into a cluster that already exists.

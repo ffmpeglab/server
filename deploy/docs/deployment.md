@@ -6,10 +6,12 @@
 |------|-----------|
 | kubectl | both |
 | helm 3 | both |
+| envsubst | with Vault |
 | docker | local |
 | minikube | local |
 
-Plus a Postgres the cluster can reach. FFmpegLab does not deploy one.
+Plus a Postgres the cluster can reach — FFmpegLab does not deploy one — and the
+Vault Secrets Operator installed in the cluster, see [../vso/](../vso/).
 
 Docker needs about 4 GB for a local cluster.
 
@@ -19,41 +21,36 @@ Docker needs about 4 GB for a local cluster.
 cp deploy/.env.example deploy/.env
 ```
 
-`deploy/.env` is gitignored and is the only place you enter anything.
+Credentials are not entered here. Vault holds the tenant record and the operator
+writes it into the cluster; `deploy/.env` only says where to look:
 
-| Variable | Required | Who reads it | Example |
-|----------|----------|--------------|---------|
-| `DB_HOST` | yes | every component | `aws-1-eu-west-1.pooler.supabase.com` |
-| `DB_PORT` | yes | every component | `6543` |
-| `DB_USER` | yes | every component | `postgres.abcdefgh` |
-| `DB_PASSWORD` | yes | every component | — |
-| `DB_NAME` | yes | every component | `postgres` |
-| `DB_MIGRATION_ENABLED` | no | api, on start | `true` on an empty database, then `false` |
-| `IMAGE_TAG` | no | the deploy script | `latest`, `0.4`, `0.4.3` — empty keeps the chart's pin |
-| `S3_ENDPOINT` | for uploads | file runner | `https://<ref>.storage.supabase.co/storage/v1/s3` |
-| `S3_REGION` | with S3 | file runner | `eu-central-1` |
-| `S3_ACCESS_KEY` | with S3 | file runner | from Storage → S3 Connection, not the anon key |
-| `S3_SECRET_KEY` | with S3 | file runner | — |
-| `S3_BUCKET_ID` | with S3 | file runner | `renders` |
-| `DOCUMENT_STORAGE_CLASS` | multi-node | the PVC | a class that provides `ReadWriteMany` |
-| `DOCUMENT_EXISTING_CLAIM` | multi-node | the PVC | an RWX claim you already have |
+| Variable | Required | What it is |
+|----------|----------|------------|
+| `VAULT_ADDR` | yes | the Vault the operator reads from |
+| `VAULT_ROLE` | yes | the role bound to this cluster's service account |
+| `TENANT_PATH` | yes | `tenants/<userId>/<projectId>` |
+| `VAULT_METHOD` | no | `kubernetes` by default, `jwt` where Vault cannot reach the cluster |
+| `VAULT_MOUNT` | no | auth mount, matches the method |
+| `VAULT_SECRET_MOUNT` | no | kv mount, `secret` by default |
+| `VAULT_REFRESH` | no | how often the operator re-reads, `60s` by default |
+| `IMAGE_TAG` | no | resolved to a digest before install |
+| `DOCUMENT_STORAGE_CLASS` | multi-node | a class providing `ReadWriteMany` |
+| `DOCUMENT_EXISTING_CLAIM` | multi-node | an RWX claim you already have |
 
-Everything non-empty becomes a key of one Kubernetes Secret, which every pod
-reads through `envFrom`, except the last three rows and `IMAGE_TAG` — those
-configure the deployment, not the application. Adding a variable the application understands needs no
-change to the chart or the script.
+The tenant record's own fields are listed in [../vso/](../vso/).
 
-Empty is not the same as absent: a blank `S3_REGION` reaches the AWS SDK as an
-empty string and fails, so blank values are skipped rather than passed on.
+### Without Vault
 
-Two variables decide whether the deployment comes up at all:
+Leave `VAULT_ADDR` empty and put the tenant's values in `deploy/.env` directly —
+`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and the `S3_*` set.
+Every non-empty value becomes a key of a Secret the script creates.
 
-- `DB_HOST` must resolve from inside the cluster. A Supabase project has to be
-  reached through its pooler host — `db.<ref>.supabase.co` has an IPv6 address
-  and no A record, so nothing in a cluster can reach it.
-- `DB_MIGRATION_ENABLED=true` on a database with no tables yet, and off
-  afterwards. It maps to TypeORM `synchronize`, which will try to alter tables it
-  does not own.
+This is for a local run only: the values pass through the machine doing the
+deploy, which is the thing the operator exists to avoid.
+
+`DB_HOST` must resolve from inside the cluster. A Supabase project has to be
+reached through its pooler host — `db.<ref>.supabase.co` has an IPv6 address and
+no A record.
 
 ## Local
 
@@ -66,13 +63,17 @@ By hand, which is what the script does:
 ```bash
 minikube start --memory=3000mb --cpus=2
 
+VSO_NAMESPACE=ffmpeglab VSO_RELEASE=ffmpeglab \
+VSO_METHOD=kubernetes VSO_MOUNT=kubernetes VSO_ROLE=ffmpeglab \
+VSO_SECRET_MOUNT=secret VSO_PATH=tenants/<userId>/<projectId> VSO_REFRESH=60s \
+  envsubst < deploy/vso/vault-secret.yaml | kubectl apply -f -
+
+kubectl wait --for=condition=SecretSynced --timeout=2m \
+  -n ffmpeglab vaultstaticsecret/ffmpeglab
+
 helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
   --namespace ffmpeglab --create-namespace \
-  --set secret.create=true \
-  --set-string secret.data.DB_HOST=... \
-  --set-string secret.data.DB_USER=... \
-  --set-string secret.data.DB_PASSWORD=... \
-  --set-string secret.data.DB_NAME=... \
+  --set existingSecret=ffmpeglab-credentials \
   --set 'documentDir.persistence.accessModes[0]=ReadWriteOnce'
 ```
 
@@ -100,13 +101,9 @@ By hand:
 ```bash
 helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
   --namespace ffmpeglab --create-namespace \
-  --set secret.create=true \
-  --set-string secret.data.DB_HOST=... \
+  --set existingSecret=ffmpeglab-credentials \
   --set documentDir.persistence.storageClass=<class>
 ```
-
-Where credentials come from Vault instead of `.env`, see [../vso/](../vso/) and
-install with `--set existingSecret=<name>` rather than `secret.create=true`.
 
 ## Image versions
 

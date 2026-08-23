@@ -21,70 +21,7 @@ kubectl logs -n ffmpeglab <pod> -c wait-for-dns
 A Supabase project resolves only through its pooler host; `db.<ref>.supabase.co`
 has an IPv6 address and no A record, so nothing in a cluster can reach it.
 
-## CrashLoopBackOff on a database that has been used before
 
-```
-sequence pgmq.q_render_msg_id_seq is already a member of extension "pgmq"
-```
-
-`nestjs-pgmq` calls `pgmq.create` on every boot. Drop the queues first:
-
-```sql
-select pgmq.drop_queue('render'), pgmq.drop_queue('logs'), pgmq.drop_queue('file');
-```
-
-## The file runner exits immediately
-
-```
-TypeError: Cannot read properties of undefined (reading 'search')
-    at new ResultProcessor
-```
-
-`S3_ENDPOINT` is unset. The processor calls `.search()` on it in its
-constructor, so the process dies before Nest finishes starting. Set the `S3_*`
-variables or run with `--set file.enabled=false`.
-
-## A render stays in `created`
-
-```
-ERROR [ExceptionsHandler] error: new row violates row-level security policy
-  for table "q_render"
-```
-
-The API accepted the render but could not enqueue it. Checked against the
-database:
-
-```sql
-select current_user,
-       has_table_privilege('pgmq.q_render','INSERT') as can_insert,
-       (select relrowsecurity from pg_class where relname='q_render') as rls,
-       (select count(*) from pg_policies where tablename='q_render') as policies;
-```
-
-```
-user_ffmpeglab_… | t | t | 0
-```
-
-The grant is there. Row-level security is enabled on the queue table and no
-policy exists, and Postgres denies every row to a non-owner in that situation —
-a grant does not override it. The table is owned by `postgres`, which bypasses
-RLS, so the same application works when it connects as the owner.
-
-This comes from the database, not from the deployment. Nothing in this
-repository or in the platform that provisions tenants enables row-level
-security — exposing a schema through the Supabase API does, and it applies to
-the tables in it. Add a policy for the role, or turn the flag off on that table.
-
-Reproduce it directly:
-
-```bash
-curl -s -X PUT http://localhost:3000/renders/run \
-  -H "Authorization: Bearer <key>" -H "Content-Type: application/json" \
-  -d '{"renderId":"<id>"}'
-```
-
-A 500 with that message in the API log is this, and no amount of redeploying
-changes it.
 
 ## Pending pods
 
