@@ -1,26 +1,59 @@
 # vso
 
-Vault Secrets Operator: an in-cluster controller that reads a tenant record from
-Vault and keeps a Kubernetes Secret in step with it.
+Vault Secrets Operator reads the tenant record from Vault and writes it into the
+cluster as a Secret. The release consumes that Secret by name, so no credential
+passes through the machine running the deploy.
 
-## Why
+## Install
 
-Without it, credentials reach the cluster from `deploy/.env` through the chart's
-`secret.create` block — fine for a laptop, wrong for anything shared, because the
-values pass through whoever runs the deploy.
+```bash
+helm repo add hashicorp https://helm.releases.hashicorp.com
+helm install vault-secrets-operator hashicorp/vault-secrets-operator \
+  --namespace vault-secrets-operator --create-namespace \
+  --values deploy/vso/values.yaml \
+  --set defaultVaultConnection.address=https://<your vault>
+```
 
-With it the operator reads Vault directly. Nothing outside the cluster handles
-the password, and a rotated credential reaches the pods on its own: the operator
-rewrites the Secret and restarts the Deployments that use it.
+Then set `VAULT_ADDR`, `VAULT_ROLE` and `TENANT_PATH` in `deploy/.env` and run
+`./deploy/deploy.sh`. It applies `vault-secret.yaml` for the release, waits for
+the Secret to appear, and installs the chart against it.
 
-The chart never reads Vault itself. It consumes a Secret by name through
-`existingSecret`; who fills that Secret is decided outside the chart.
+The operator asks for 100m CPU and 128Mi.
+
+## The tenant record
+
+One record per tenant at `secret/tenants/<userId>/<projectId>`:
+
+```json
+{
+  "IS_SUPABASE_PLATFORM": true,
+  "PIPELINES_API_ENABLED": true,
+  "PLATFORM_HOST": "https://platform.ffmpeglab.com",
+  "S3_ENDPOINT": "https://{projectId}.storage.supabase.co/storage/v1/s3",
+  "S3_REGION": "eu-central-1",
+  "SUPABASE_ANON_KEY": "eyJ...",
+  "SUPABASE_HOST": "https://{projectId}.supabase.co",
+  "SUPABASE_PROJECT_ID": "{projectId}",
+  "TENANT_SECRET_KEY": "{password}",
+  "TENANT_SERVICE_KEY": "",
+  "TENANT_USER_ID": "{userId}",
+  "TENANT_WORKER_LOGIN": "worker@ffmpeglab.com"
+}
+```
+
+Every field becomes a key of the Secret and reaches the pods through `envFrom`.
+No name is hardcoded in the chart, so a new field needs no change here.
+
+`_raw` and any object-valued field are excluded: they would arrive as JSON
+strings in the environment, and `_raw` repeats what the individual keys carry.
+
+The record is written by the platform. This repository only reads it.
 
 ## What Vault needs
 
-An auth method bound to your cluster and a policy that can read the tenant path.
-Both belong to whoever administers Vault — a deploy-time role normally cannot
-enable auth methods.
+An auth method bound to the cluster and a policy that can read the tenant path.
+Both belong to whoever administers Vault — a deploy-time role cannot enable auth
+methods.
 
 ```bash
 vault policy write ffmpeglab-tenants - <<'HCL'
@@ -42,8 +75,8 @@ vault write auth/kubernetes/role/ffmpeglab \
   ttl=1h
 ```
 
-Vault verifies the pod's own service account token against the cluster, so no
-password or token is stored on the cluster side.
+Vault verifies the pod's own service account token against the cluster, so
+nothing is stored on the cluster side.
 
 Naming a policy that does not exist is accepted silently: login succeeds, the
 name appears on the token, and every read is denied. If reads come back
@@ -56,7 +89,7 @@ possible, JWT auth verifies the same token offline against the cluster's public
 signing key:
 
 ```bash
-kubectl get --raw /openid/v1/jwks > jwks.json
+kubectl get --raw /openid/v1/jwks
 
 vault auth enable -path=jwt jwt
 vault write auth/jwt/config jwt_validation_pubkeys=@pubkey.pem
@@ -73,30 +106,5 @@ vault write auth/jwt/role/ffmpeglab \
 `bound_claims` is a map, so it has to arrive as JSON in single quotes —
 `bound_claims=sub=…` is rejected with `expected a map, got 'string'`.
 
-Each cluster has its own signing key, and a recreated cluster mints a new one.
-
-The operator authenticates with `kubernetes`, `jwt`, `appRole`, `aws` or `gcp`.
-There is no method that accepts a token you already hold.
-
-## Install
-
-```bash
-helm repo add hashicorp https://helm.releases.hashicorp.com
-helm install vault-secrets-operator hashicorp/vault-secrets-operator \
-  --namespace vault-secrets-operator --create-namespace \
-  --values deploy/vso/values.yaml \
-  --set defaultVaultConnection.address=https://<your vault>
-```
-
-Then apply `vault-secret.yaml` for the release, filling in the namespace, the
-Vault role and the record path, and install the chart with
-`--set existingSecret=<the Secret it creates>` instead of `secret.create=true`.
-
-`_raw` and any object-valued field are excluded from the generated Secret: they
-would arrive as JSON strings in the pods' environment, and `_raw` repeats the
-password the individual keys already carry.
-
-## Cost
-
-The operator asks for 100m CPU and 128Mi — roughly what one FFmpegLab component
-reserves. Worth knowing before adding it to a node that is already tight.
+Set `VAULT_METHOD=jwt` and `VAULT_MOUNT=jwt` in `deploy/.env` for this. Each
+cluster has its own signing key, and a recreated cluster mints a new one.

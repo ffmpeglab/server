@@ -55,20 +55,6 @@ until the render reports finished. Watch the work happen:
 kubectl logs -n ffmpeglab -l app.kubernetes.io/component=render -f
 ```
 
-The file runner uploads the result to object storage. Without `S3_ENDPOINT` it
-cannot start at all — it calls `config.s3.endpoint.search(...)` in its
-constructor — so with no storage configured, run with `--set file.enabled=false`
-and expect the render to finish without an upload.
-
-## Prerequisites for the render test
-
-- an API key row in the database, as above
-- `DB_MIGRATION_ENABLED=true` on first start, or the `api_key` table will not
-  exist
-- the queues must not already exist in that database: `nestjs-pgmq` calls
-  `pgmq.create` on every boot and fails against a database that has been used
-  before
-
-```sql
-select pgmq.drop_queue('render'), pgmq.drop_queue('logs'), pgmq.drop_queue('file');
-```
+The file runner uploads the result to object storage. It is the last step of the
+render, so a render that finishes without an upload means that component is not
+running or has no storage configured.
