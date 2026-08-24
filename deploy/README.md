@@ -328,12 +328,41 @@ helm template test deploy/helm/ffmpeglab --set existingSecret=ffmpeglab-credenti
 but anything driving it declaratively — Argo CD, Flux, Terraform's `helm_release`
 — compares chart versions and reports no changes without a bump.
 
-## Remove
+## Stopping and removing
+
+The release, leaving the cluster alone:
 
 ```bash
 ./deploy/deploy.sh local --destroy    # or on-prem
-k3d cluster delete ffmpeglab          # the local cluster as well
 ```
+
+The local cluster, keeping it for next time:
+
+```bash
+k3d cluster stop ffmpeglab
+k3d cluster start ffmpeglab
+```
+
+Or for good:
+
+```bash
+k3d cluster delete ffmpeglab
+```
+
+A k0s cluster run in Docker is a container and a volume:
+
+```bash
+docker stop k0s          # keeps everything
+docker start k0s
+
+docker rm -f k0s         # for good
+docker volume rm k0s-data
+```
+
+Verified across a stop and start of k0s: the cluster, its namespaces and every
+running workload come back. **The dev Vault does not** — it holds its data in
+memory, so the record, the policy and the role are gone. Run
+`./deploy/deploy.sh local` again, or the seeding block above, to write them back.
 
 ## When something is wrong
 
