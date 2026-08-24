@@ -2,10 +2,12 @@
 #
 # Deploys FFmpegLab into a Kubernetes cluster.
 #
-#   ./deploy/deploy.sh local              minikube, started if not running
+#   ./deploy/deploy.sh local              k3s in Docker, with an operator and a dev Vault
 #   ./deploy/deploy.sh on-prem            a cluster your kubeconfig already points at
 #   ./deploy/deploy.sh local --destroy
 #   ./deploy/deploy.sh on-prem --destroy
+#
+# LOCAL_CLUSTER=minikube keeps the older local target.
 
 set -euo pipefail
 
@@ -15,11 +17,21 @@ readonly CHART="$ROOT/deploy/helm/ffmpeglab"
 readonly RELEASE="${FFMPEGLAB_RELEASE:-ffmpeglab}"
 readonly NAMESPACE="${FFMPEGLAB_NAMESPACE:-ffmpeglab}"
 readonly ONPREM_VALUES="$ROOT/deploy/values-onprem.yaml"
+# k3d runs real k3s in containers. minikube stays available through
+# LOCAL_CLUSTER=minikube, but it is not the default any more: its provisioner
+# binds a ReadWriteMany claim that k3s and most on-prem storage refuse, so a
+# green run there says nothing about a real cluster.
+readonly LOCAL_CLUSTER="${LOCAL_CLUSTER:-k3d}"
+readonly K3D_CLUSTER="${K3D_CLUSTER:-ffmpeglab}"
+readonly K3D_AGENTS="${K3D_AGENTS:-2}"
+readonly DEV_VAULT_NAMESPACE=vault
+readonly DEV_VAULT_ADDR="http://vault.vault.svc.cluster.local:8200"
+readonly TENANT_FILE="$ROOT/deploy/tenant.local.env"
 ACCESS_MODE=ReadWriteOnce
 CLAIM_CLASS=""
 
 usage() {
-  sed -n '3,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '3,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -33,11 +45,14 @@ need() {
 }
 
 load_env() {
-  [ -f "$ROOT/deploy/.env" ] || die "deploy/.env not found — copy deploy/.env.example and fill it in"
-  set -a
-  # shellcheck disable=SC1091
-  . "$ROOT/deploy/.env"
-  set +a
+  if [ -f "$ROOT/deploy/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$ROOT/deploy/.env"
+    set +a
+  elif [ -z "${VAULT_ADDR:-}" ]; then
+    die "deploy/.env not found — copy deploy/.env.example and fill it in"
+  fi
 
   # Credentials come from Vault and only from Vault: the tenant record is the
   # acceptance criterion of the issue, and a path around it would just be
@@ -269,7 +284,142 @@ uninstall() {
   kubectl delete namespace "$NAMESPACE" --ignore-not-found
 }
 
+# A local k3s cluster, the operator and a Vault to read from - the same path a
+# real deployment takes, with the registry standing in a dev server instead of
+# the platform's.
+k3d_up() {
+  if k3d cluster list "$K3D_CLUSTER" >/dev/null 2>&1; then
+    step "Using the k3d cluster $K3D_CLUSTER"
+    k3d cluster start "$K3D_CLUSTER" >/dev/null 2>&1 || true
+  else
+    step "Creating a $((K3D_AGENTS + 1))-node k3s cluster"
+    # No Ingress in the chart, so k3s's bundled Traefik and its per-node load
+    # balancer pods are four containers doing nothing.
+    k3d cluster create "$K3D_CLUSTER" --agents "$K3D_AGENTS" \
+      --k3s-arg "--disable=traefik@server:*" --wait >/dev/null
+  fi
+  kubectl config use-context "k3d-$K3D_CLUSTER" >/dev/null
+}
+
+# Not "is the CRD there": a release left half-installed by an earlier failure
+# owns the CRDs and would be skipped.
+install_operator() {
+  step "Installing the secrets operator"
+  helm repo add hashicorp https://helm.releases.hashicorp.com >/dev/null 2>&1 || true
+  helm repo update hashicorp >/dev/null
+  helm upgrade --install vault-secrets-operator hashicorp/vault-secrets-operator \
+    --namespace vault-secrets-operator-system --create-namespace \
+    --set "defaultVaultConnection.enabled=true" \
+    --set "defaultVaultConnection.address=$DEV_VAULT_ADDR" \
+    --wait --timeout 5m >/dev/null
+}
+
+install_dev_vault() {
+  step "Installing a dev Vault"
+  helm upgrade --install vault hashicorp/vault \
+    --namespace "$DEV_VAULT_NAMESPACE" --create-namespace \
+    --set "server.dev.enabled=true" \
+    --set "server.dev.devRootToken=root" \
+    --set "injector.enabled=false" \
+    --wait --timeout 5m >/dev/null
+
+  # helm returns before the container is up, and the seeding exec needs it.
+  kubectl wait --for=condition=Ready pod/vault-0 -n "$DEV_VAULT_NAMESPACE" --timeout=3m >/dev/null \
+    || die "the dev Vault did not become ready"
+
+  # Vault checks the pod's token with the cluster, which needs this binding.
+  kubectl create clusterrolebinding vault-auth-delegator \
+    --clusterrole=system:auth-delegator \
+    --serviceaccount="$DEV_VAULT_NAMESPACE:vault" >/dev/null 2>&1 || true
+}
+
+vault_do() {
+  kubectl exec -n "$DEV_VAULT_NAMESPACE" vault-0 -- \
+    env VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root sh -c "$1"
+}
+
+# The record the platform would have written. Values come from
+# deploy/tenant.local.env when it exists; without it the chain still runs and
+# the pods fail to reach a database, which is enough to prove the wiring.
+seed_dev_vault() {
+  step "Seeding the tenant record"
+  vault_do 'vault auth list | grep -q "^kubernetes/" || vault auth enable kubernetes' >/dev/null
+  vault_do 'vault write auth/kubernetes/config kubernetes_host=https://kubernetes.default.svc' >/dev/null
+  vault_do 'vault policy write ffmpeglab - <<EOF
+path "secret/data/tenants/*"     { capabilities = ["read"] }
+path "secret/metadata/tenants/*" { capabilities = ["read", "list"] }
+EOF' >/dev/null
+  vault_do "vault write auth/kubernetes/role/$VAULT_ROLE \
+    bound_service_account_names=ffmpeglab-vault \
+    bound_service_account_namespaces=$NAMESPACE \
+    policies=ffmpeglab ttl=1h" >/dev/null
+
+  local json
+  json=$(python3 - "$TENANT_FILE" <<'PYEOF'
+import json, os, sys
+path = sys.argv[1]
+record = {}
+if os.path.exists(path):
+    for line in open(path):
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        k, v = line.split('=', 1)
+        if v:
+            record[k] = v
+if not record:
+    record = {'DB_HOST': 'postgres.invalid', 'DB_PORT': '5432',
+              'DB_USER': 'demo', 'DB_PASSWORD': 'demo', 'DB_NAME': 'postgres'}
+print(json.dumps(record))
+PYEOF
+)
+  printf '%s' "$json" | kubectl exec -i -n "$DEV_VAULT_NAMESPACE" vault-0 -- \
+    env VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root sh -c \
+    "cat > /tmp/tenant.json && vault kv put -mount=secret '$TENANT_PATH' @/tmp/tenant.json && rm -f /tmp/tenant.json" >/dev/null
+
+  if [ -f "$TENANT_FILE" ]; then
+    echo "Record: deploy/tenant.local.env, $(printf '%s' "$json" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))') keys"
+  else
+    echo "Record: placeholders - the pods will not reach a database. Fill deploy/tenant.local.env for a real one."
+  fi
+}
+
 local_up() {
+  case "$LOCAL_CLUSTER" in
+    k3d)      local_k3d_up ;;
+    minikube) local_minikube_up ;;
+    *)        die "LOCAL_CLUSTER must be k3d or minikube, not $LOCAL_CLUSTER" ;;
+  esac
+}
+
+local_k3d_up() {
+  need k3d kubectl helm docker python3
+
+  # Everything the cluster needs to read its own credentials, so the local run
+  # exercises the same path as a real one instead of going around it.
+  export VAULT_ADDR="$DEV_VAULT_ADDR"
+  export VAULT_ROLE="${VAULT_ROLE:-ffmpeglab}"
+  export TENANT_PATH="${TENANT_PATH:-tenants/local/demo}"
+  export VAULT_METHOD=kubernetes VAULT_MOUNT=kubernetes
+  load_env
+
+  k3d_up
+  # Vault first: the operator's default connection is checked on install and
+  # never becomes ready without something to connect to.
+  install_dev_vault
+  install_operator
+  seed_dev_vault
+
+  step "Installing the chart"
+  # One node attaches a ReadWriteOnce volume to every pod on it, so render and
+  # file still share the document directory without ReadWriteMany storage.
+  install_chart --set 'documentDir.persistence.accessModes[0]=ReadWriteOnce'
+
+  wait_ready
+  show_status
+}
+
+local_minikube_up() {
   need minikube kubectl helm docker
   load_env
 
@@ -282,8 +432,6 @@ local_up() {
   kubectl config use-context minikube >/dev/null
 
   step "Installing the chart"
-  # One node attaches a ReadWriteOnce volume to every pod on it, so render and
-  # file still share the document directory without ReadWriteMany storage.
   install_chart --set 'documentDir.persistence.accessModes[0]=ReadWriteOnce'
 
   wait_ready
@@ -291,10 +439,14 @@ local_up() {
 }
 
 local_down() {
-  need minikube kubectl helm
+  need kubectl helm
   uninstall
   echo
-  echo "The cluster is still running. Remove it with: minikube delete"
+  if [ "$LOCAL_CLUSTER" = k3d ]; then
+    echo "The cluster is still running. Remove it with: k3d cluster delete $K3D_CLUSTER"
+  else
+    echo "The cluster is still running. Remove it with: minikube delete"
+  fi
 }
 
 onprem_up() {
