@@ -103,8 +103,14 @@ reads it back, so both mount one claim. `deploy.sh` asks for `ReadWriteOnce`,
 which every storage class can bind and which both pods share while they run on
 the same node.
 
-More than one node needs `ReadWriteMany`. No default class provides it, so
-supply the volume yourself - NFS, EFS or Filestore:
+More than one node does not force `ReadWriteMany`. A volume bound to a node
+carries that affinity and the scheduler puts every pod mounting it on that node,
+so the two runners land together on their own. Pin them with a `nodeSelector`
+where that has to be certain — `deploy/values-onprem.yaml` does, alongside the
+cluster's storage class.
+
+`ReadWriteMany` is only needed when the runners are spread deliberately, and no
+default class provides it, so supply the volume yourself — NFS, EFS or Filestore:
 
 ```bash
 # in deploy/.env

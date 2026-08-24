@@ -82,8 +82,8 @@ FFmpegLab deployment never creates a tenant. It receives one.
 ## The document directory
 
 render writes output where file reads it, the same `./tmp` bind mount the two
-runners share in docker-compose. Across pods that means the same volume in both,
-which needs `ReadWriteMany`.
+runners share in docker-compose. Across pods that means one volume mounted by
+both.
 
 A single-node cluster attaches a `ReadWriteOnce` volume to every pod on that
 node, so nothing extra is needed. More than one node does not force
