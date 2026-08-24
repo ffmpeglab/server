@@ -1,0 +1,80 @@
+# Requirement 2 of issue #8: a published release deploys to production.
+#
+# The runner holds no Vault credentials. The secrets operator authenticates as
+# the cluster and reads the tenant record itself, so all this needs is a way to
+# reach the cluster.
+
+name: deploy
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to deploy
+        default: latest
+
+# A release and a hand-started run can land together; one deploy at a time.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # A prerelease is not production.
+    if: github.event_name != 'release' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Resolve the tag
+        id: tag
+        run: |
+          tag="${{ inputs.image_tag }}"
+          # docker.yml tags images with the semver, so v0.4.3 publishes as 0.4.3.
+          [ -n "$tag" ] || tag="${GITHUB_REF_NAME#v}"
+          echo "value=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the image
+        # The image builds on the tag push, which races the release event.
+        run: |
+          tag='${{ steps.tag.outputs.value }}'
+          for _ in $(seq 1 40); do
+            if curl -sfo /dev/null "https://hub.docker.com/v2/repositories/ffmpeglab/server/tags/$tag"; then
+              echo "ffmpeglab/server:$tag is published"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "ffmpeglab/server:$tag never appeared" >&2
+          exit 1
+
+      - name: Tools
+        # deploy.sh renders the operator manifest with envsubst.
+        run: command -v envsubst >/dev/null || sudo apt-get install -y gettext-base
+
+      - name: Reach the cluster
+        run: |
+          mkdir -p ~/.kube
+          printf '%s' '${{ secrets.KUBECONFIG }}' > ~/.kube/config
+          chmod 600 ~/.kube/config
+          kubectl version -o json >/dev/null
+
+      - name: Configure the release
+        run: |
+          cat > deploy/.env <<EOF
+          VAULT_ADDR=${{ vars.VAULT_ADDR }}
+          VAULT_ROLE=${{ vars.VAULT_ROLE }}
+          TENANT_PATH=${{ vars.TENANT_PATH }}
+          VAULT_METHOD=${{ vars.VAULT_METHOD || 'jwt' }}
+          VAULT_MOUNT=${{ vars.VAULT_MOUNT || 'jwt' }}
+          IMAGE_TAG=${{ steps.tag.outputs.value }}
+          EOF
+
+      - name: Deploy
+        run: ./deploy/deploy.sh on-prem
