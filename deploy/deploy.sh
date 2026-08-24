@@ -24,7 +24,7 @@ ACCESS_MODE=ReadWriteOnce
 CLAIM_CLASS=""
 
 usage() {
-  sed -n '3,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '3,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
