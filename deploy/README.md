@@ -105,6 +105,10 @@ Plus a Postgres the cluster can reach — FFmpegLab does not deploy one. On-prem
 also needs the Vault Secrets Operator in the cluster, see [vso/](vso/);
 the local run installs it itself.
 
+On-prem targets any conformant cluster — k0s, kubeadm, MicroK8s, a managed one.
+The chart needs no change between them, but their defaults differ in what they
+give you for free: see [A bare cluster](#a-bare-cluster).
+
 Docker needs about 4 GB for a local cluster.
 
 ## Configuration
@@ -156,9 +160,6 @@ a database that does not exist.
 The dev Vault keeps everything in memory. Restarting Docker empties it, so run
 `./deploy/deploy.sh local` again to seed it back.
 
-`LOCAL_CLUSTER=minikube` keeps the older target. It installs neither Vault nor
-the operator, so it only works against a cluster where both already exist.
-
 ### By hand
 
 The cluster. Traefik is disabled because the chart has no Ingress:
@@ -184,7 +185,8 @@ kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=3m
 
 ## On-prem
 
-Point your kubeconfig at the cluster, then:
+A cluster that already exists, with storage and the operator in it. Point your
+kubeconfig at it, then:
 
 ```bash
 kubectl config current-context
@@ -214,9 +216,9 @@ helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
 
 ### A bare cluster
 
-k0s and kubeadm ship no storage class and no ingress — a deliberate choice, and
-the honest on-prem starting point. Two things bite before the chart is reached,
-both measured on k0s v1.35.7:
+This is the honest on-prem starting point. k0s and kubeadm ship no storage class
+and no ingress — a deliberate choice. Two things bite before
+the chart is reached, both measured on k0s v1.35.7:
 
 ```bash
 
@@ -391,9 +393,3 @@ availability budget, so `helm --wait` returns immediately with zero ready pods.
 Restarting a local cluster hands out a new API server port. `kubectl` follows the
 kubeconfig; GUI clients keep the old connection until reconnected.
 
-### minikube will not start: `certSANs: Invalid value: ""`
-
-The stored profile lost the node's address while the container has one, so
-minikube builds a certificate name list containing an empty string and kubeadm
-rejects it. `minikube delete` removes the profile; the next start writes a
-correct one. A minikube bug, not a deployment problem.

@@ -6,8 +6,6 @@
 #   ./deploy/deploy.sh on-prem            a cluster your kubeconfig already points at
 #   ./deploy/deploy.sh local --destroy
 #   ./deploy/deploy.sh on-prem --destroy
-#
-# LOCAL_CLUSTER=minikube keeps the older local target.
 
 set -euo pipefail
 
@@ -17,7 +15,6 @@ readonly CHART="$ROOT/deploy/helm/ffmpeglab"
 readonly RELEASE="${FFMPEGLAB_RELEASE:-ffmpeglab}"
 readonly NAMESPACE="${FFMPEGLAB_NAMESPACE:-ffmpeglab}"
 readonly ONPREM_VALUES="$ROOT/deploy/values-onprem.yaml"
-readonly LOCAL_CLUSTER="${LOCAL_CLUSTER:-k3d}"
 readonly K3D_CLUSTER="${K3D_CLUSTER:-ffmpeglab}"
 readonly K3D_AGENTS="${K3D_AGENTS:-2}"
 readonly DEV_VAULT_NAMESPACE=vault
@@ -368,14 +365,6 @@ PYEOF
 }
 
 local_up() {
-  case "$LOCAL_CLUSTER" in
-    k3d)      local_k3d_up ;;
-    minikube) local_minikube_up ;;
-    *)        die "LOCAL_CLUSTER must be k3d or minikube, not $LOCAL_CLUSTER" ;;
-  esac
-}
-
-local_k3d_up() {
   need k3d kubectl helm docker python3
 
   export VAULT_ADDR="$DEV_VAULT_ADDR"
@@ -397,34 +386,11 @@ local_k3d_up() {
   show_status
 }
 
-local_minikube_up() {
-  need minikube kubectl helm docker
-  load_env
-
-  if minikube status >/dev/null 2>&1; then
-    step "Using the running minikube"
-  else
-    step "Starting minikube"
-    minikube start --memory="${MINIKUBE_MEMORY:-3000mb}" --cpus="${MINIKUBE_CPUS:-2}"
-  fi
-  kubectl config use-context minikube >/dev/null
-
-  step "Installing the chart"
-  install_chart --set 'documentDir.persistence.accessModes[0]=ReadWriteOnce'
-
-  wait_ready
-  show_status
-}
-
 local_down() {
   need kubectl helm
   uninstall
   echo
-  if [ "$LOCAL_CLUSTER" = k3d ]; then
-    echo "The cluster is still running. Remove it with: k3d cluster delete $K3D_CLUSTER"
-  else
-    echo "The cluster is still running. Remove it with: minikube delete"
-  fi
+  echo "The cluster is still running. Remove it with: k3d cluster delete $K3D_CLUSTER"
 }
 
 onprem_up() {
