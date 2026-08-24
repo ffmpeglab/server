@@ -69,10 +69,82 @@ The dev Vault keeps everything in memory. Restarting Docker empties it, so run
 `LOCAL_CLUSTER=minikube` keeps the older target. It installs neither Vault nor
 the operator, so it only works against a cluster where both already exist.
 
-By hand, which is what the script does for on-prem:
+### By hand
+
+The cluster. Traefik is disabled because the chart has no Ingress:
 
 ```bash
+k3d cluster create ffmpeglab --agents 2 \
+  --k3s-arg "--disable=traefik@server:*"
+```
 
+Vault before the operator — the operator checks its default connection on
+install and never becomes ready without something to connect to:
+
+```bash
+helm repo add hashicorp https://helm.releases.hashicorp.com
+
+helm install vault hashicorp/vault \
+  --namespace vault --create-namespace \
+  --set server.dev.enabled=true \
+  --set server.dev.devRootToken=root \
+  --set injector.enabled=false --wait
+
+kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=3m
+
+# Vault verifies the pod's token with the cluster, which needs this
+kubectl create clusterrolebinding vault-auth-delegator \
+  --clusterrole=system:auth-delegator \
+  --serviceaccount=vault:vault
+
+helm install vault-secrets-operator hashicorp/vault-secrets-operator \
+  --namespace vault-secrets-operator-system --create-namespace \
+  --set defaultVaultConnection.enabled=true \
+  --set defaultVaultConnection.address=http://vault.vault.svc.cluster.local:8200 \
+  --wait
+```
+
+The part the platform plays in production — an auth method, a policy, a role and
+the tenant's record:
+
+```bash
+kubectl exec -i -n vault vault-0 -- \
+  env VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root sh <<'EOF'
+vault auth enable kubernetes
+vault write auth/kubernetes/config kubernetes_host=https://kubernetes.default.svc
+
+vault policy write ffmpeglab - <<POLICY
+path "secret/data/tenants/*"     { capabilities = ["read"] }
+path "secret/metadata/tenants/*" { capabilities = ["read", "list"] }
+POLICY
+
+vault write auth/kubernetes/role/ffmpeglab \
+  bound_service_account_names=ffmpeglab-vault \
+  bound_service_account_namespaces=ffmpeglab \
+  policies=ffmpeglab ttl=1h
+
+vault kv put -mount=secret tenants/local/demo \
+  DB_HOST=<host> DB_PORT=5432 DB_USER=<user> DB_PASSWORD=<password> DB_NAME=postgres
+EOF
+```
+
+Then the same two steps on-prem takes, below.
+
+## On-prem
+
+Point your kubeconfig at the cluster, then:
+
+```bash
+kubectl config current-context
+./deploy/deploy.sh on-prem
+```
+
+### By hand
+
+The operator resources, then the release. Nothing here carries a credential —
+`vault-secret.yaml` holds a reference, and the operator does the reading:
+
+```bash
 VSO_NAMESPACE=ffmpeglab VSO_RELEASE=ffmpeglab \
 VSO_METHOD=kubernetes VSO_MOUNT=kubernetes VSO_ROLE=ffmpeglab \
 VSO_SECRET_MOUNT=secret VSO_PATH=tenants/<userId>/<projectId> VSO_REFRESH=60s \
@@ -83,17 +155,9 @@ kubectl wait --for=condition=SecretSynced --timeout=2m \
 
 helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
   --namespace ffmpeglab --create-namespace \
+  -f deploy/values-onprem.yaml \
   --set existingSecret=ffmpeglab-credentials \
-  --set 'documentDir.persistence.accessModes[0]=ReadWriteOnce'
-```
-
-## On-prem
-
-Point your kubeconfig at the cluster, then:
-
-```bash
-kubectl config current-context
-./deploy/deploy.sh on-prem
+  --set image.digest=<sha256:…>
 ```
 
 ### The document volume
