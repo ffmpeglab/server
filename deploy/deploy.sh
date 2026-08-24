@@ -51,6 +51,11 @@ load_env() {
 # release consumes, so no credential passes through here.
 install_vso_resources() {
   need envsubst
+
+  # Without this the failure is two lines of "no matches for kind VaultAuth"
+  # from kubectl, which says nothing about what to do.
+  kubectl get crd vaultstaticsecrets.secrets.hashicorp.com >/dev/null 2>&1 \
+    || die "the Vault Secrets Operator is not installed in this cluster - see deploy/vso/README.md"
   export VSO_NAMESPACE="$NAMESPACE" VSO_RELEASE="$RELEASE"
   export VSO_METHOD="${VAULT_METHOD:-kubernetes}" VSO_MOUNT="${VAULT_MOUNT:-kubernetes}"
   export VSO_ROLE="$VAULT_ROLE" VSO_SECRET_MOUNT="${VAULT_SECRET_MOUNT:-secret}"
