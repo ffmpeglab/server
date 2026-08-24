@@ -45,6 +45,16 @@ name in `deploy/.env`. Both install the same chart.
 The script calls Helm and kubectl; it does not reimplement them.
 [docs/deployment.md](docs/deployment.md) shows the same steps by hand.
 
+## On a release
+
+Publishing a GitHub release runs `.github/workflows/deploy.yml`, which waits for
+the image to appear and then runs `./deploy/deploy.sh on-prem` against the
+cluster it is given. Prereleases are skipped, and one deploy runs at a time.
+
+The runner holds no Vault credential: the operator authenticates as the cluster
+and reads the record itself, so the only secret is `KUBECONFIG`. The Vault
+address, the role and the tenant path are repository variables.
+
 ## Where this sits
 
 ```
@@ -92,15 +102,12 @@ the cloud account; this chart installs into a cluster that already exists.
 render writes the finished file into the document directory and the file runner
 reads it back from there, so both need the same volume.
 
-| Cluster | What to use |
-|---------|-------------|
-| one node | one `ReadWriteOnce` claim — every pod lands on that node |
-| more than one node | `ReadWriteOnce` with render and file pinned to one node, as `values-onprem.yaml` does |
-| runners spread on purpose | a `ReadWriteMany` StorageClass, or an existing RWX claim |
+`ReadWriteOnce` is enough: the volume binds to one node and the scheduler puts
+both runners there. `deploy/values-onprem.yaml` pins them with a `nodeSelector`
+where that has to be certain. `ReadWriteMany` is only for runners spread on
+purpose, and this chart installs no storage provider of its own.
 
-Set `DOCUMENT_STORAGE_CLASS` or `DOCUMENT_EXISTING_CLAIM` in `deploy/.env` for
-the last case. This chart installs no storage provider of its own — NFS, Ceph,
-Filestore or anything else is supplied by whoever runs the cluster.
+[docs/deployment.md](docs/deployment.md#the-document-volume) has the settings.
 
 ## Documentation
 
