@@ -11,7 +11,7 @@ Rendering with the values a real install uses:
 
 ```bash
 helm template test deploy/helm/ffmpeglab \
-  --set secret.create=true \
+  --set existingSecret=ffmpeglab-credentials \
   --set 'documentDir.persistence.accessModes[0]=ReadWriteOnce'
 ```
 

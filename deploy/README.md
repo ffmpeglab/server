@@ -55,16 +55,16 @@ The script calls Helm and kubectl; it does not reimplement them.
                                       api · render · file · logs
 ```
 
-For a local run there is no Vault: `deploy/.env` fills the Secret directly.
+`deploy/.env` holds no credentials — only the Vault address, the role and the
+path to the tenant record.
 
 ## What this deploys, and what it does not
 
 One release is one FFmpegLab instance: an API and three runners, all pointing at
 one Postgres and one object store.
 
-Credentials come from Vault: the operator reads the tenant record and writes the
-Secret the release consumes. See [vso/](vso/). Values can be put in `deploy/.env`
-instead, which is only for a local run without Vault.
+Credentials come from Vault and only from Vault: the operator reads the tenant
+record and writes the Secret the release consumes. See [vso/](vso/).
 
 It does **not** deploy Postgres, object storage or Supabase, and it does not
 create or remove tenants. The platform writes tenant records; this repository
