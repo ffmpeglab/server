@@ -5,10 +5,10 @@ touched, and none of it is required to run the project with Docker Compose.
 
 ```
 deploy/
-├── helm/ffmpeglab/   the application: API, render, file and log runners
-├── vso/              Vault Secrets Operator, and the shape of a tenant record
-├── values-onprem.yaml  the storage class and nodes of the cluster you deploy to
-└── docs/             architecture, deployment, development, troubleshooting
+├── helm/ffmpeglab/      the application: API, render, file and log runners
+├── vso/                 Vault Secrets Operator, and the shape of a tenant record
+├── values-onprem.yaml   the storage class and nodes of the cluster you deploy to
+└── docs/                architecture, deployment, development, troubleshooting
 ```
 
 ## Deploy
@@ -21,9 +21,13 @@ deploy/
 installs a dev Vault and the secrets operator, seeds a tenant record and deploys
 from it — the same path production takes, with the registry standing in.
 
-Copy `deploy/tenant.local.env.example` to `deploy/tenant.local.env` and fill it
-in for the pods to reach a real database. Without it the run still proves the
-wiring and the pods stop waiting for DNS.
+The record it seeds comes from `deploy/tenant.local.env` — copy the example next
+to it — or from `deploy/.env` when that file is absent. With neither, the run
+seeds placeholders: the Secret is still written and the pods still receive it,
+they just have no database to reach.
+
+The dev Vault holds everything in memory, so restarting Docker empties it. Run
+the command again to seed it back.
 
 ```bash
 cp deploy/.env.example deploy/.env   # Vault address, role and tenant path
@@ -63,8 +67,10 @@ The script calls Helm and kubectl; it does not reimplement them.
                                       api · render · file · logs
 ```
 
-`deploy/.env` holds no credentials — only the Vault address, the role and the
-path to the tenant record.
+Nothing on the deploying side carries a credential: `deploy/.env` names the Vault
+address, the role and the path to the record, and the operator reads the record
+itself. The local run is the one exception, and only because it plays the part of
+the platform — it writes the record into its own dev Vault first.
 
 ## What this deploys, and what it does not
 
