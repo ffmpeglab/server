@@ -6,24 +6,32 @@ touched, and none of it is required to run the project with Docker Compose.
 ```
 deploy/
 ├── helm/ffmpeglab/   the application: API, render, file and log runners
-├── vso/              Vault Secrets Operator, for clusters that take credentials from Vault
-├── vault/            the shape of a tenant record in Vault
+├── vso/              Vault Secrets Operator, and the shape of a tenant record
+├── values-onprem.yaml  the storage class and nodes of the cluster you deploy to
 └── docs/             architecture, deployment, development, troubleshooting
 ```
 
 ## Deploy
 
 ```bash
-cp deploy/.env.example deploy/.env   # Vault address, role and tenant path
 ./deploy/deploy.sh local
 ```
 
+`local` needs nothing prepared. It creates a three-node k3s cluster in Docker,
+installs a dev Vault and the secrets operator, seeds a tenant record and deploys
+from it — the same path production takes, with the registry standing in.
+
+Copy `deploy/tenant.local.env.example` to `deploy/tenant.local.env` and fill it
+in for the pods to reach a real database. Without it the run still proves the
+wiring and the pods stop waiting for DNS.
+
 ```bash
+cp deploy/.env.example deploy/.env   # Vault address, role and tenant path
 ./deploy/deploy.sh on-prem
 ```
 
-`local` starts minikube if it is not running. `on-prem` uses the cluster your
-kubeconfig already points at. Both install the same chart.
+`on-prem` uses the cluster your kubeconfig already points at and the Vault you
+name in `deploy/.env`. Both install the same chart.
 
 ```bash
 ./deploy/deploy.sh local --destroy
@@ -80,9 +88,9 @@ reads it back from there, so both need the same volume.
 
 | Cluster | What to use |
 |---------|-------------|
-| minikube | one `ReadWriteOnce` claim — every pod lands on the single node |
-| one node | the same |
-| more than one node | a `ReadWriteMany` StorageClass, or an existing RWX claim |
+| one node | one `ReadWriteOnce` claim — every pod lands on that node |
+| more than one node | `ReadWriteOnce` with render and file pinned to one node, as `values-onprem.yaml` does |
+| runners spread on purpose | a `ReadWriteMany` StorageClass, or an existing RWX claim |
 
 Set `DOCUMENT_STORAGE_CLASS` or `DOCUMENT_EXISTING_CLAIM` in `deploy/.env` for
 the last case. This chart installs no storage provider of its own — NFS, Ceph,

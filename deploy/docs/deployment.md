@@ -8,10 +8,12 @@
 | helm 3 | both |
 | envsubst | with Vault |
 | docker | local |
-| minikube | local |
+| k3d | local |
+| python3 | local |
 
-Plus a Postgres the cluster can reach — FFmpegLab does not deploy one — and the
-Vault Secrets Operator installed in the cluster, see [../vso/](../vso/).
+Plus a Postgres the cluster can reach — FFmpegLab does not deploy one. On-prem
+also needs the Vault Secrets Operator in the cluster, see [../vso/](../vso/);
+the local run installs it itself.
 
 Docker needs about 4 GB for a local cluster.
 
@@ -50,10 +52,22 @@ address and no A record.
 ./deploy/deploy.sh local
 ```
 
-By hand, which is what the script does:
+This stands up everything the deployment needs and requires nothing prepared: a
+three-node k3s cluster in Docker, a dev Vault, the secrets operator, and a
+tenant record written into Vault. Credentials still reach the pods through the
+operator, so the local run exercises the same path as a real one.
+
+The record's values come from `deploy/tenant.local.env` — copy the example next
+to it and fill it in. Without the file the run seeds placeholders: the operator
+still syncs the Secret and the pods still receive it, but they stop waiting for
+a database that does not exist.
+
+`LOCAL_CLUSTER=minikube` keeps the older target. It installs neither Vault nor
+the operator, so it only works against a cluster where both already exist.
+
+By hand, which is what the script does for on-prem:
 
 ```bash
-minikube start --memory=3000mb --cpus=2
 
 VSO_NAMESPACE=ffmpeglab VSO_RELEASE=ffmpeglab \
 VSO_METHOD=kubernetes VSO_MOUNT=kubernetes VSO_ROLE=ffmpeglab \
@@ -151,5 +165,5 @@ proves little on its own; [development.md](development.md) has a real render.
 
 ```bash
 ./deploy/deploy.sh local --destroy    # or on-prem
-minikube delete                       # the local cluster as well
+k3d cluster delete ffmpeglab          # the local cluster as well
 ```
