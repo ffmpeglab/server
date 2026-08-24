@@ -64,7 +64,8 @@ kubectl rollout status -n ffmpeglab deployment --timeout=5m
 
 ## An edit to the chart changes nothing
 
-`helm_release` compares chart versions. Bump `version` in `Chart.yaml`.
+Whatever drives Helm declaratively compares chart versions and sees none.
+Bump `version` in `Chart.yaml`.
 
 ## minikube will not start: `certSANs: Invalid value: ""`
 

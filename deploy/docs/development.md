@@ -21,9 +21,9 @@ Applying a change to a running cluster:
 ./deploy/deploy.sh local
 ```
 
-**Bump `version` in `Chart.yaml` when you edit the chart.** Terraform's
-`helm_release` compares chart versions, so without a bump it reports no changes
-and the edit never reaches the cluster. Helm on its own does not care.
+**Bump `version` in `Chart.yaml` when you edit the chart.** Helm itself does not
+care, but anything that drives it declaratively — Argo CD, Flux, Terraform's
+`helm_release` — compares chart versions and reports no changes without a bump.
 
 ## Running a real render
 
