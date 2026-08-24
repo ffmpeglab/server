@@ -37,15 +37,12 @@ load_env() {
   . "$ROOT/deploy/.env"
   set +a
 
-  if [ -n "${VAULT_ADDR:-}" ]; then
-    : "${VAULT_ROLE:?VAULT_ROLE missing from deploy/.env}"
-    : "${TENANT_PATH:?TENANT_PATH missing from deploy/.env}"
-  else
-    : "${DB_HOST:?set VAULT_ADDR, or DB_HOST for a run without Vault}"
-    : "${DB_USER:?DB_USER missing from deploy/.env}"
-    : "${DB_PASSWORD:?DB_PASSWORD missing from deploy/.env}"
-    : "${DB_NAME:?DB_NAME missing from deploy/.env}"
-  fi
+  # Credentials come from Vault and only from Vault: the tenant record is the
+  # acceptance criterion of the issue, and a path around it would just be
+  # install.sh again.
+  : "${VAULT_ADDR:?VAULT_ADDR missing from deploy/.env}"
+  : "${VAULT_ROLE:?VAULT_ROLE missing from deploy/.env}"
+  : "${TENANT_PATH:?TENANT_PATH missing from deploy/.env}"
 }
 
 # The operator reads the tenant record from Vault and writes the Secret the
@@ -68,19 +65,6 @@ install_vso_resources() {
 
 # Everything in .env becomes a key of the Secret except what configures the
 # deployment rather than the application.
-secret_args() {
-  local key
-  while IFS='=' read -r key _; do
-    case "$key" in
-      ''|\#*) continue ;;
-      IMAGE_TAG|DOCUMENT_STORAGE_CLASS|DOCUMENT_EXISTING_CLAIM) continue ;;
-      MINIKUBE_MEMORY|MINIKUBE_CPUS|FFMPEGLAB_RELEASE|FFMPEGLAB_NAMESPACE) continue ;;
-    esac
-    # An empty value is not an absent one: the AWS SDK rejects an empty region.
-    [ -n "${!key:-}" ] || continue
-    printf -- '--set-string\nsecret.data.%s=%s\n' "$key" "${!key}"
-  done < <(grep -vE '^\s*(#|$)' "$ROOT/deploy/.env")
-}
 
 # A tag is a moving name: pushing over it changes nothing in the pod spec, so
 # Kubernetes never rolls. Deploying the digest a tag points at right now means a
@@ -221,13 +205,8 @@ install_chart() {
     extra+=(--set "image.digest=$digest")
   fi
 
-  if [ -n "${VAULT_ADDR:-}" ]; then
-    install_vso_resources
-    extra+=(--set "existingSecret=$RELEASE-credentials")
-  else
-    mapfile -t args < <(secret_args)
-    extra+=(--set secret.create=true "${args[@]}")
-  fi
+  install_vso_resources
+  extra+=(--set "existingSecret=$RELEASE-credentials")
 
   helm upgrade --install "$RELEASE" "$CHART" \
     --namespace "$NAMESPACE" --create-namespace \

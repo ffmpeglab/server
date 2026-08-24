@@ -40,18 +40,9 @@ writes it into the cluster; `deploy/.env` only says where to look:
 
 The tenant record's own fields are listed in [../vso/](../vso/).
 
-### Without Vault
-
-Leave `VAULT_ADDR` empty and put the tenant's values in `deploy/.env` directly —
-`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and the `S3_*` set.
-Every non-empty value becomes a key of a Secret the script creates.
-
-This is for a local run only: the values pass through the machine doing the
-deploy, which is the thing the operator exists to avoid.
-
-`DB_HOST` must resolve from inside the cluster. A Supabase project has to be
-reached through its pooler host — `db.<ref>.supabase.co` has an IPv6 address and
-no A record.
+The record's `DB_HOST` must resolve from inside the cluster. A Supabase project
+has to be reached through its pooler host — `db.<ref>.supabase.co` has an IPv6
+address and no A record.
 
 ## Local
 
