@@ -49,8 +49,12 @@ documentDir:
   persistence:
     enabled: true
     existingClaim: ""
+    # ReadWriteOnce binds on any cluster and lets render and file share the
+    # directory while they run on the same node. Spread over several nodes they
+    # need ReadWriteMany, which means NFS, EFS or Filestore - usually supplied
+    # through existingClaim.
     accessModes:
-      - ReadWriteMany
+      - ReadWriteOnce
     size: 10Gi
     storageClass: ""
   sizeLimit: 10Gi

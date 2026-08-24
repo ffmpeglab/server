@@ -14,6 +14,7 @@ readonly ROOT
 readonly CHART="$ROOT/deploy/helm/ffmpeglab"
 readonly RELEASE="${FFMPEGLAB_RELEASE:-ffmpeglab}"
 readonly NAMESPACE="${FFMPEGLAB_NAMESPACE:-ffmpeglab}"
+ACCESS_MODE=ReadWriteOnce
 
 usage() {
   sed -n '3,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -95,6 +96,121 @@ resolve_digest() {
   esac
 }
 
+# render hands the finished file to the file runner through the document
+# directory, so both pods mount the same claim. Storage that only supports
+# ReadWriteOnce works while both land on one node; more than one node needs
+# ReadWriteMany, which no default StorageClass provides.
+readonly RWX_PROVISIONERS='efs\.csi\.aws\.com|filestore\.csi\.storage\.gke\.io|file\.csi\.azure\.com|nfs|cephfs|glusterfs|quobyte|azure-file|portworx'
+
+default_storage_class() {
+  kubectl get storageclass -o json 2>/dev/null | python3 -c '
+import json, sys
+keys = ("storageclass.kubernetes.io/is-default-class",
+        "storageclass.beta.kubernetes.io/is-default-class")
+try:
+    items = json.load(sys.stdin)["items"]
+except Exception:
+    sys.exit(0)
+for i in items:
+    ann = i.get("metadata", {}).get("annotations") or {}
+    if any(ann.get(k) == "true" for k in keys):
+        print(i["metadata"]["name"])
+        break
+'
+}
+
+list_storage_classes() {
+  echo "Storage classes on this cluster:" >&2
+  kubectl get storageclass --no-headers -o custom-columns=NAME:.metadata.name,PROVISIONER:.provisioner \
+    2>/dev/null | sed 's/^/  /' >&2 || true
+}
+
+# Checks what the claim will ask for against what the cluster can actually give,
+# so a mismatch fails here with a reason instead of leaving pods Pending.
+preflight_storage() {
+  step "Checking the document volume"
+
+  if [ -n "${DOCUMENT_EXISTING_CLAIM:-}" ]; then
+    kubectl get pvc -n "$NAMESPACE" "$DOCUMENT_EXISTING_CLAIM" >/dev/null 2>&1 \
+      || die "DOCUMENT_EXISTING_CLAIM=$DOCUMENT_EXISTING_CLAIM does not exist in namespace $NAMESPACE"
+    echo "Using the existing claim $DOCUMENT_EXISTING_CLAIM"
+    return 0
+  fi
+
+  local class provisioner nodes
+  class="${DOCUMENT_STORAGE_CLASS:-}"
+  if [ -n "$class" ]; then
+    kubectl get storageclass "$class" >/dev/null 2>&1 || {
+      list_storage_classes
+      die "DOCUMENT_STORAGE_CLASS=$class does not exist on this cluster"
+    }
+  else
+    class=$(default_storage_class)
+    [ -n "$class" ] || {
+      list_storage_classes
+      die "this cluster has no default StorageClass - set DOCUMENT_STORAGE_CLASS in deploy/.env, or DOCUMENT_EXISTING_CLAIM to use a volume you created yourself"
+    }
+  fi
+
+  provisioner=$(kubectl get storageclass "$class" -o jsonpath='{.provisioner}' 2>/dev/null)
+  echo "Storage class: $class ($provisioner), access mode $ACCESS_MODE"
+
+  if [ "$ACCESS_MODE" = ReadWriteMany ] && ! printf '%s' "$provisioner" | grep -qiE "$RWX_PROVISIONERS"; then
+    echo "warning: $provisioner is not known to provide ReadWriteMany - the claim may stay Pending" >&2
+    echo "         set DOCUMENT_EXISTING_CLAIM to a volume backed by NFS, EFS or Filestore" >&2
+  fi
+
+  nodes=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$ACCESS_MODE" = ReadWriteOnce ] && [ "${nodes:-1}" -gt 1 ]; then
+    echo "warning: this cluster has $nodes nodes - with ReadWriteOnce, render and file only share" >&2
+    echo "         the directory while they run on the same node" >&2
+  fi
+}
+
+# A volume can bind and still fail to attach - a block device carrying a
+# ReadWriteMany claim cannot mount on two nodes at once, which leaves the pods in
+# ContainerCreating with the reason only in their events, never in their logs.
+report_stuck_pods() {
+  local pods pod
+  pods=$(kubectl get pods -n "$NAMESPACE" \
+    -o jsonpath='{range .items[?(@.status.phase!="Running")]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
+  [ -n "$pods" ] || return 0
+
+  while read -r pod; do
+    [ -n "$pod" ] || continue
+    local events
+    events=$(kubectl get events -n "$NAMESPACE" --field-selector "involvedObject.name=$pod" \
+      -o custom-columns=:message --no-headers 2>/dev/null \
+      | grep -iE "multi-attach|failedmount|failedattach|volume|unable to attach" | tail -2)
+    [ -n "$events" ] || continue
+    echo
+    echo "$pod cannot mount its volume:" >&2
+    printf '%s\n' "$events" | sed 's/^/    /' >&2
+    echo "  ReadWriteMany on block storage attaches to one node only. Use a claim backed" >&2
+    echo "  by NFS, EFS or Filestore, or keep both pods on one node with ReadWriteOnce." >&2
+  done <<< "$pods"
+}
+
+# Reported before pod logs: a Pending claim keeps its pods Pending, and Pending
+# pods have no logs to show.
+report_pending_claims() {
+  local pending pvc
+  pending=$(kubectl get pvc -n "$NAMESPACE" \
+    -o jsonpath='{range .items[?(@.status.phase=="Pending")]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
+  [ -n "$pending" ] || return 0
+
+  echo
+  echo "A volume claim is Pending, so every pod that mounts it stays Pending:" >&2
+  while read -r pvc; do
+    [ -n "$pvc" ] || continue
+    echo "  $pvc" >&2
+    kubectl get events -n "$NAMESPACE" --field-selector "involvedObject.name=$pvc" \
+      -o custom-columns=:message --no-headers 2>/dev/null | tail -3 | sed 's/^/    /' >&2
+  done <<< "$pending"
+  echo "  Most often the storage class cannot serve the requested access mode." >&2
+  echo "  See DOCUMENT_ACCESS_MODE, DOCUMENT_STORAGE_CLASS and DOCUMENT_EXISTING_CLAIM in deploy/.env." >&2
+}
+
 install_chart() {
   local -a extra=("$@")
 
@@ -125,6 +241,8 @@ wait_ready() {
   if ! kubectl rollout status -n "$NAMESPACE" deployment --timeout=5m; then
     echo
     kubectl get pods -n "$NAMESPACE"
+    report_pending_claims
+    report_stuck_pods
     echo
     kubectl logs -n "$NAMESPACE" --tail=20 --all-containers \
       -l app.kubernetes.io/name=ffmpeglab 2>/dev/null | tail -30
@@ -196,11 +314,15 @@ onprem_up() {
   step "Using $context"
   kubectl version -o json >/dev/null 2>&1 || die "cannot reach $context with the current kubeconfig"
 
+  ACCESS_MODE="${DOCUMENT_ACCESS_MODE:-ReadWriteOnce}"
+  case "$ACCESS_MODE" in
+    ReadWriteOnce|ReadWriteMany) ;;
+    *) die "DOCUMENT_ACCESS_MODE must be ReadWriteOnce or ReadWriteMany, not $ACCESS_MODE" ;;
+  esac
+  preflight_storage
+
   step "Installing the chart"
-  # render and file exchange the rendered file through the document directory, so
-  # on a cluster with more than one node it has to be ReadWriteMany. See
-  # deploy/docs/architecture.md.
-  local -a storage=()
+  local -a storage=(--set "documentDir.persistence.accessModes[0]=$ACCESS_MODE")
   if [ -n "${DOCUMENT_STORAGE_CLASS:-}" ]; then
     storage+=(--set "documentDir.persistence.storageClass=$DOCUMENT_STORAGE_CLASS")
   fi

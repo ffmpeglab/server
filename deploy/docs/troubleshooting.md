@@ -33,9 +33,24 @@ kubectl describe node | grep -A5 "Allocated resources"
 `Insufficient cpu` means the node is full. Three instances of four components fit
 on a two vCPU node with about 500m to spare; a fourth does not.
 
-`ReadWriteMany` on a cluster with no such class leaves the claim `Pending`
-forever. Point `DOCUMENT_STORAGE_CLASS` at a class that provides it, or use
-`DOCUMENT_EXISTING_CLAIM`.
+### Only render and file are Pending
+
+Those two are the only pods that mount the document volume, so an unbound claim
+stops exactly them while api and logs keep running:
+
+```bash
+kubectl get pvc -n ffmpeglab
+kubectl describe pvc ffmpeglab-documents -n ffmpeglab | sed -n '/Events:/,$p'
+```
+
+`Pending` with `no persistent volumes available for this claim` means the class
+cannot serve the requested access mode - almost always `ReadWriteMany` on a
+cluster that has no RWX class. Set `DOCUMENT_ACCESS_MODE=ReadWriteOnce` for a
+single node, or `DOCUMENT_EXISTING_CLAIM` for a volume backed by NFS, EFS or
+Filestore.
+
+`Pending` with `no storage class is set` means the cluster has no default class.
+Name one in `DOCUMENT_STORAGE_CLASS`.
 
 ## Helm says the rollout succeeded but nothing works
 

@@ -34,8 +34,9 @@ writes it into the cluster; `deploy/.env` only says where to look:
 | `VAULT_SECRET_MOUNT` | no | kv mount, `secret` by default |
 | `VAULT_REFRESH` | no | how often the operator re-reads, `60s` by default |
 | `IMAGE_TAG` | no | resolved to a digest before install |
-| `DOCUMENT_STORAGE_CLASS` | multi-node | a class providing `ReadWriteMany` |
-| `DOCUMENT_EXISTING_CLAIM` | multi-node | an RWX claim you already have |
+| `DOCUMENT_ACCESS_MODE` | no | `ReadWriteOnce` by default, `ReadWriteMany` for several nodes |
+| `DOCUMENT_STORAGE_CLASS` | no | the cluster default when empty |
+| `DOCUMENT_EXISTING_CLAIM` | multi-node | a claim you already have; overrides the two above |
 
 The tenant record's own fields are listed in [../vso/](../vso/).
 
@@ -86,15 +87,27 @@ kubectl config current-context
 ./deploy/deploy.sh on-prem
 ```
 
-On a cluster with more than one node, render and file land on different nodes and
-need shared storage:
+### The document volume
+
+render writes the finished file into the document directory and the file runner
+reads it back, so both mount one claim. `deploy.sh` asks for `ReadWriteOnce`,
+which every storage class can bind and which both pods share while they run on
+the same node.
+
+More than one node needs `ReadWriteMany`. No default class provides it, so
+supply the volume yourself - NFS, EFS or Filestore:
 
 ```bash
 # in deploy/.env
-DOCUMENT_STORAGE_CLASS=<a ReadWriteMany class>
-# or
-DOCUMENT_EXISTING_CLAIM=<an existing RWX claim>
+DOCUMENT_EXISTING_CLAIM=<a claim backed by RWX storage>
+# or, if a class on the cluster does provide RWX
+DOCUMENT_ACCESS_MODE=ReadWriteMany
+DOCUMENT_STORAGE_CLASS=<that class>
 ```
+
+Before installing, `deploy.sh` checks that the class exists, that the cluster has
+a default one when none is named, and warns when the provisioner is not known to
+serve the mode being asked for.
 
 By hand:
 
@@ -102,6 +115,7 @@ By hand:
 helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
   --namespace ffmpeglab --create-namespace \
   --set existingSecret=ffmpeglab-credentials \
+  --set documentDir.persistence.accessModes[0]=ReadWriteOnce \
   --set documentDir.persistence.storageClass=<class>
 ```
 
