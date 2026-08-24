@@ -160,6 +160,28 @@ helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
   --set image.digest=<sha256:…>
 ```
 
+### A bare cluster
+
+k0s and kubeadm ship no storage class and no ingress — a deliberate choice, and
+the honest on-prem starting point. Two things bite before the chart is reached,
+both measured on k0s v1.35.7:
+
+```bash
+# 1. a single-node cluster keeps the control-plane taint, so nothing schedules
+kubectl taint node <node> node-role.kubernetes.io/control-plane:NoSchedule-
+
+# 2. no provisioner exists; any will do, this one needs no configuration
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.30/deploy/local-path-storage.yaml
+kubectl patch storageclass local-path \
+  -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
+
+The secrets operator and a Vault the cluster can reach are the remaining two, and
+`deploy/docs/deployment.md#by-hand` above installs both.
+
+k3s and minikube bring a provisioner of their own, which is why neither shows
+these steps — and why a green run on them says less about on-prem than it looks.
+
 ### The document volume
 
 render writes the finished file into the document directory and the file runner
@@ -232,8 +254,39 @@ kubectl port-forward -n ffmpeglab svc/ffmpeglab-api 3000:3000 &
 curl -i http://localhost:3000/
 ```
 
-Four Deployments should be `1/1` — three if the file runner is off. A running pod
-proves little on its own; [development.md](development.md) has a real render.
+Four Deployments should be `1/1`.
+
+A running pod proves the process started, not that ffmpeg works. `example.sh` in
+the repository root submits a render, polls it and prints the result. It needs an
+API key, and there is no signup endpoint, so insert one into the tenant's
+database — `date` is NOT NULL and has no default:
+
+```sql
+insert into api_key (title, apikey, user_id, data, date)
+values ('local', 'ffmpeglab_sk_local', gen_random_uuid(), '{}', now());
+```
+
+```bash
+kubectl port-forward -n ffmpeglab svc/ffmpeglab-api 3000:3000 &
+API_HOST=http://localhost:3000 API_KEY=ffmpeglab_sk_local bash example.sh
+
+kubectl logs -n ffmpeglab -l app.kubernetes.io/component=render -f
+```
+
+The file runner uploads the result, and that is the last step. A render that
+finishes without an upload means that component is not running or has no storage
+configured.
+
+### Editing the chart
+
+```bash
+helm lint deploy/helm/ffmpeglab
+helm template test deploy/helm/ffmpeglab --set existingSecret=ffmpeglab-credentials
+```
+
+**Bump `version` in `Chart.yaml` when you change it.** Helm itself does not care,
+but anything driving it declaratively — Argo CD, Flux, Terraform's `helm_release`
+— compares chart versions and reports no changes without a bump.
 
 ## Remove
 
@@ -241,3 +294,68 @@ proves little on its own; [development.md](development.md) has a real render.
 ./deploy/deploy.sh local --destroy    # or on-prem
 k3d cluster delete ffmpeglab          # the local cluster as well
 ```
+
+## When something is wrong
+
+```bash
+kubectl get pods -n ffmpeglab
+kubectl describe pod -n ffmpeglab <pod>
+kubectl logs -n ffmpeglab <pod> --tail=50
+kubectl get events -n ffmpeglab --sort-by=.lastTimestamp | tail -20
+```
+
+### Pods stay in Init
+
+The init container waits for `DB_HOST` to resolve — the name is wrong, or cluster
+DNS cannot answer for it:
+
+```bash
+kubectl logs -n ffmpeglab <pod> -c wait-for-dns
+```
+
+A Supabase project answers only through its pooler host. `db.<ref>.supabase.co`
+has an IPv6 address and no A record, so nothing in a cluster reaches it.
+
+### Only render and file are Pending
+
+Those two are the only pods mounting the document volume, so an unbound claim
+stops exactly them while api and logs keep running:
+
+```bash
+kubectl get pvc -n ffmpeglab
+kubectl describe pvc ffmpeglab-documents -n ffmpeglab | sed -n '/Events:/,$p'
+```
+
+`NodePath only supports ReadWriteOnce` or `no persistent volumes available` means
+the class cannot serve the mode asked for. Set `DOCUMENT_ACCESS_MODE=ReadWriteOnce`,
+or `DOCUMENT_EXISTING_CLAIM` for a volume backed by NFS, EFS or Filestore.
+
+`no storage class is set` means the cluster has no default one — name it in
+`DOCUMENT_STORAGE_CLASS`.
+
+### Everything is Pending
+
+```bash
+kubectl describe node | grep -A5 "Allocated resources"
+```
+
+`Insufficient cpu` means the node is full. Three instances of four components fit
+on a two vCPU node with about 500m to spare; a fourth does not.
+
+### The rollout reports success but nothing works
+
+A Deployment with one replica and `maxUnavailable: 1` never breaches its
+availability budget, so `helm --wait` returns immediately with zero ready pods.
+`deploy.sh` uses `kubectl rollout status` instead.
+
+### The cluster looks empty in Lens
+
+Restarting a local cluster hands out a new API server port. `kubectl` follows the
+kubeconfig; GUI clients keep the old connection until reconnected.
+
+### minikube will not start: `certSANs: Invalid value: ""`
+
+The stored profile lost the node's address while the container has one, so
+minikube builds a certificate name list containing an empty string and kubeadm
+rejects it. `minikube delete` removes the profile; the next start writes a
+correct one. A minikube bug, not a deployment problem.

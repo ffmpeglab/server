@@ -11,6 +11,24 @@ deploy/
 └── docs/                architecture, deployment, development, troubleshooting
 ```
 
+## What runs
+
+One container image, four roles, chosen by environment variable:
+
+| Component | Variable | Does |
+|-----------|----------|------|
+| api | none | HTTP API on port 3000, the only component with a port |
+| render | `IS_RENDER_RUNNER=true` | runs ffmpeg, writes output to the document directory |
+| file | `IS_FILE_RUNNER=true` | reads that directory, uploads to object storage |
+| logs | `IS_LOGS_RUNNER=true` | collects render logs |
+
+Work passes through pgmq queues inside Postgres. The runners poll; there is no
+broker and nothing pushes to them.
+
+The application binds one database and one queue at startup, so it cannot serve
+two tenants. Another tenant is another release of this chart, which is why the
+chart knows nothing about tenants and simply takes its credentials from a Secret.
+
 ## Deploy
 
 ```bash
@@ -113,7 +131,5 @@ purpose, and this chart installs no storage provider of its own.
 
 | File | Contents |
 |------|----------|
-| [docs/architecture.md](docs/architecture.md) | components, why one release is one instance |
-| [docs/deployment.md](docs/deployment.md) | local and on-prem, by hand and by script |
-| [docs/development.md](docs/development.md) | working on the chart, running a real render |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | failures worth recognising |
+| [docs/deployment.md](docs/deployment.md) | local and on-prem, by script and by hand, verifying, and what to do when it breaks |
+| [vso/README.md](vso/README.md) | the tenant record, and what Vault needs |

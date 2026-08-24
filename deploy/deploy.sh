@@ -106,9 +106,16 @@ for i in items:
 }
 
 list_storage_classes() {
-  echo "Storage classes on this cluster:" >&2
-  kubectl get storageclass --no-headers -o custom-columns=NAME:.metadata.name,PROVISIONER:.provisioner \
-    2>/dev/null | sed 's/^/  /' >&2 || true
+  local found
+  found=$(kubectl get storageclass --no-headers \
+    -o custom-columns=NAME:.metadata.name,PROVISIONER:.provisioner 2>/dev/null)
+  if [ -z "$found" ]; then
+    echo "This cluster has no storage classes at all - install a provisioner first." >&2
+    echo "A bare k0s or kubeadm cluster ships none; k3s and minikube bring their own." >&2
+  else
+    echo "Storage classes on this cluster:" >&2
+    printf '%s\n' "$found" | sed 's/^/  /' >&2
+  fi
 }
 
 # .env, values-onprem.yaml and the chart all set this - ask helm, do not guess.
