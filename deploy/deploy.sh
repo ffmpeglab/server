@@ -14,7 +14,9 @@ readonly ROOT
 readonly CHART="$ROOT/deploy/helm/ffmpeglab"
 readonly RELEASE="${FFMPEGLAB_RELEASE:-ffmpeglab}"
 readonly NAMESPACE="${FFMPEGLAB_NAMESPACE:-ffmpeglab}"
+readonly ONPREM_VALUES="$ROOT/deploy/values-onprem.yaml"
 ACCESS_MODE=ReadWriteOnce
+CLAIM_CLASS=""
 
 usage() {
   sed -n '3,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -109,6 +111,18 @@ list_storage_classes() {
     2>/dev/null | sed 's/^/  /' >&2 || true
 }
 
+# What the claim will really ask for. The values can arrive from deploy/.env,
+# from values-onprem.yaml or from the chart default, so render it and read the
+# answer rather than guess at the precedence.
+read_claim_spec() {
+  local rendered
+  rendered=$(helm template "$RELEASE" "$CHART" --namespace "$NAMESPACE" "$@" 2>/dev/null \
+    | awk '/kind: PersistentVolumeClaim/{f=1} f{print} f&&/^---$/{exit}')
+  ACCESS_MODE=$(printf '%s' "$rendered" | grep -oE 'ReadWrite[A-Za-z]+' | head -1)
+  ACCESS_MODE="${ACCESS_MODE:-ReadWriteOnce}"
+  CLAIM_CLASS=$(printf '%s' "$rendered" | awk '/storageClassName:/{print $2; exit}')
+}
+
 # Checks what the claim will ask for against what the cluster can actually give,
 # so a mismatch fails here with a reason instead of leaving pods Pending.
 preflight_storage() {
@@ -122,17 +136,17 @@ preflight_storage() {
   fi
 
   local class provisioner nodes
-  class="${DOCUMENT_STORAGE_CLASS:-}"
+  class="$CLAIM_CLASS"
   if [ -n "$class" ]; then
     kubectl get storageclass "$class" >/dev/null 2>&1 || {
       list_storage_classes
-      die "DOCUMENT_STORAGE_CLASS=$class does not exist on this cluster"
+      die "storage class \"$class\" does not exist on this cluster - it comes from deploy/.env or deploy/values-onprem.yaml"
     }
   else
     class=$(default_storage_class)
     [ -n "$class" ] || {
       list_storage_classes
-      die "this cluster has no default StorageClass - set DOCUMENT_STORAGE_CLASS in deploy/.env, or DOCUMENT_EXISTING_CLAIM to use a volume you created yourself"
+      die "this cluster has no default StorageClass - name one in deploy/values-onprem.yaml or DOCUMENT_STORAGE_CLASS, or set DOCUMENT_EXISTING_CLAIM to use a volume you created yourself"
     }
   fi
 
@@ -146,8 +160,8 @@ preflight_storage() {
 
   nodes=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
   if [ "$ACCESS_MODE" = ReadWriteOnce ] && [ "${nodes:-1}" -gt 1 ]; then
-    echo "warning: this cluster has $nodes nodes - with ReadWriteOnce, render and file only share" >&2
-    echo "         the directory while they run on the same node" >&2
+    echo "warning: this cluster has $nodes nodes - render and file must sit on the same one" >&2
+    echo "         to hand files over. Pin both with a nodeSelector, as values-onprem.yaml does." >&2
   fi
 }
 
@@ -293,21 +307,31 @@ onprem_up() {
   step "Using $context"
   kubectl version -o json >/dev/null 2>&1 || die "cannot reach $context with the current kubeconfig"
 
-  ACCESS_MODE="${DOCUMENT_ACCESS_MODE:-ReadWriteOnce}"
-  case "$ACCESS_MODE" in
-    ReadWriteOnce|ReadWriteMany) ;;
-    *) die "DOCUMENT_ACCESS_MODE must be ReadWriteOnce or ReadWriteMany, not $ACCESS_MODE" ;;
-  esac
-  preflight_storage
-
-  step "Installing the chart"
-  local -a storage=(--set "documentDir.persistence.accessModes[0]=$ACCESS_MODE")
+  # The cluster's own storage class and the node its disk sits on belong in
+  # values-onprem.yaml; deploy/.env overrides it where an operator needs to.
+  local -a storage=()
+  if [ -f "$ONPREM_VALUES" ]; then
+    storage+=(-f "$ONPREM_VALUES")
+    echo "Values: deploy/values-onprem.yaml"
+  fi
+  if [ -n "${DOCUMENT_ACCESS_MODE:-}" ]; then
+    case "$DOCUMENT_ACCESS_MODE" in
+      ReadWriteOnce|ReadWriteMany) ;;
+      *) die "DOCUMENT_ACCESS_MODE must be ReadWriteOnce or ReadWriteMany, not $DOCUMENT_ACCESS_MODE" ;;
+    esac
+    storage+=(--set "documentDir.persistence.accessModes[0]=$DOCUMENT_ACCESS_MODE")
+  fi
   if [ -n "${DOCUMENT_STORAGE_CLASS:-}" ]; then
     storage+=(--set "documentDir.persistence.storageClass=$DOCUMENT_STORAGE_CLASS")
   fi
   if [ -n "${DOCUMENT_EXISTING_CLAIM:-}" ]; then
     storage+=(--set "documentDir.persistence.existingClaim=$DOCUMENT_EXISTING_CLAIM")
   fi
+
+  read_claim_spec "${storage[@]}"
+  preflight_storage
+
+  step "Installing the chart"
   install_chart "${storage[@]}"
 
   wait_ready

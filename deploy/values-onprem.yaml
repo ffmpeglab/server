@@ -1,0 +1,21 @@
+# Applied by ./deploy/deploy.sh on-prem, on top of the chart defaults.
+# Replace the storage class and the hostname with the ones your cluster uses.
+#
+# render writes the finished file into the document directory and the file
+# runner reads it back, so both are pinned to the node that carries the disk.
+# Storage that only serves one node makes this mandatory rather than an
+# optimisation.
+
+documentDir:
+  persistence:
+    storageClass: csi-rawfile-default
+    accessModes:
+      - ReadWriteOnce
+
+render:
+  nodeSelector:
+    kubernetes.io/hostname: drive
+
+file:
+  nodeSelector:
+    kubernetes.io/hostname: drive
