@@ -57,10 +57,14 @@ three-node k3s cluster in Docker, a dev Vault, the secrets operator, and a
 tenant record written into Vault. Credentials still reach the pods through the
 operator, so the local run exercises the same path as a real one.
 
-The record's values come from `deploy/tenant.local.env` — copy the example next
-to it and fill it in. Without the file the run seeds placeholders: the operator
+The record's values come from `deploy/tenant.local.env`, or from `deploy/.env`
+when that file is absent — everything in it except the settings that configure
+the deployment itself. Without either the run seeds placeholders: the operator
 still syncs the Secret and the pods still receive it, but they stop waiting for
 a database that does not exist.
+
+The dev Vault keeps everything in memory. Restarting Docker empties it, so run
+`./deploy/deploy.sh local` again to seed it back.
 
 `LOCAL_CLUSTER=minikube` keeps the older target. It installs neither Vault nor
 the operator, so it only works against a cluster where both already exist.

@@ -317,32 +317,46 @@ EOF' >/dev/null
     policies=ffmpeglab ttl=1h" >/dev/null
 
   local json
-  json=$(python3 - "$TENANT_FILE" <<'PYEOF'
-import json, os, sys
-path = sys.argv[1]
-record = {}
-if os.path.exists(path):
+  json=$(python3 - "$TENANT_FILE" "$ROOT/deploy/.env" <<'PYEOF'
+import json, os, re, sys
+
+# Everything that configures the deployment rather than the application. What
+# is left is the tenant's own, and that is what the platform would have written.
+SKIP = re.compile(r'^(VAULT_|TENANT_PATH$|IMAGE_TAG$|DOCUMENT_|LOCAL_CLUSTER$'
+                  r'|K3D_|MINIKUBE_|FFMPEGLAB_)')
+
+def read(path):
+    out = {}
+    if not os.path.exists(path):
+        return out
     for line in open(path):
         line = line.strip()
         if not line or line.startswith('#') or '=' not in line:
             continue
         k, v = line.split('=', 1)
-        if v:
-            record[k] = v
+        if v and not SKIP.match(k):
+            out[k] = v.strip('"\'')
+    return out
+
+record = read(sys.argv[1]) or read(sys.argv[2])
+source = 'deploy/tenant.local.env' if read(sys.argv[1]) else 'deploy/.env'
 if not record:
     record = {'DB_HOST': 'postgres.invalid', 'DB_PORT': '5432',
               'DB_USER': 'demo', 'DB_PASSWORD': 'demo', 'DB_NAME': 'postgres'}
-print(json.dumps(record))
+    source = 'placeholders'
+print(json.dumps({'record': record, 'source': source}))
 PYEOF
 )
-  printf '%s' "$json" | kubectl exec -i -n "$DEV_VAULT_NAMESPACE" vault-0 -- \
+  local record source
+  record=$(printf '%s' "$json" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["record"]))')
+  source=$(printf '%s' "$json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["source"])')
+  printf '%s' "$record" | kubectl exec -i -n "$DEV_VAULT_NAMESPACE" vault-0 -- \
     env VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root sh -c \
     "cat > /tmp/tenant.json && vault kv put -mount=secret '$TENANT_PATH' @/tmp/tenant.json && rm -f /tmp/tenant.json" >/dev/null
 
-  if [ -f "$TENANT_FILE" ]; then
-    echo "Record: deploy/tenant.local.env, $(printf '%s' "$json" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))') keys"
-  else
-    echo "Record: placeholders - the pods will not reach a database. Fill deploy/tenant.local.env for a real one."
+  echo "Record: $source, $(printf '%s' "$record" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))') keys"
+  if [ "$source" = placeholders ]; then
+    echo "         no database to reach - fill deploy/tenant.local.env or deploy/.env"
   fi
 }
 
