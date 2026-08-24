@@ -17,10 +17,6 @@ readonly CHART="$ROOT/deploy/helm/ffmpeglab"
 readonly RELEASE="${FFMPEGLAB_RELEASE:-ffmpeglab}"
 readonly NAMESPACE="${FFMPEGLAB_NAMESPACE:-ffmpeglab}"
 readonly ONPREM_VALUES="$ROOT/deploy/values-onprem.yaml"
-# k3d runs real k3s in containers. minikube stays available through
-# LOCAL_CLUSTER=minikube, but it is not the default any more: its provisioner
-# binds a ReadWriteMany claim that k3s and most on-prem storage refuse, so a
-# green run there says nothing about a real cluster.
 readonly LOCAL_CLUSTER="${LOCAL_CLUSTER:-k3d}"
 readonly K3D_CLUSTER="${K3D_CLUSTER:-ffmpeglab}"
 readonly K3D_AGENTS="${K3D_AGENTS:-2}"
@@ -54,21 +50,14 @@ load_env() {
     die "deploy/.env not found — copy deploy/.env.example and fill it in"
   fi
 
-  # Credentials come from Vault and only from Vault: the tenant record is the
-  # acceptance criterion of the issue, and a path around it would just be
-  # install.sh again.
   : "${VAULT_ADDR:?VAULT_ADDR missing from deploy/.env}"
   : "${VAULT_ROLE:?VAULT_ROLE missing from deploy/.env}"
   : "${TENANT_PATH:?TENANT_PATH missing from deploy/.env}"
 }
 
-# The operator reads the tenant record from Vault and writes the Secret the
-# release consumes, so no credential passes through here.
 install_vso_resources() {
   need envsubst
 
-  # Without this the failure is two lines of "no matches for kind VaultAuth"
-  # from kubectl, which says nothing about what to do.
   kubectl get crd vaultstaticsecrets.secrets.hashicorp.com >/dev/null 2>&1 \
     || die "the Vault Secrets Operator is not installed in this cluster - see deploy/vso/README.md"
   export VSO_NAMESPACE="$NAMESPACE" VSO_RELEASE="$RELEASE"
@@ -85,12 +74,7 @@ install_vso_resources() {
     || die "the operator could not sync the Secret — check the Vault role and path"
 }
 
-# Everything in .env becomes a key of the Secret except what configures the
-# deployment rather than the application.
-
-# A tag is a moving name: pushing over it changes nothing in the pod spec, so
-# Kubernetes never rolls. Deploying the digest a tag points at right now means a
-# new image is a new pod spec, and the release records exactly what runs.
+# A tag is a moving name, so pushing over it never rolls the pods. The digest does.
 resolve_digest() {
   local tag="$1" digest
   digest=$(curl -sf --max-time 20 \
@@ -102,10 +86,6 @@ resolve_digest() {
   esac
 }
 
-# render hands the finished file to the file runner through the document
-# directory, so both pods mount the same claim. Storage that only supports
-# ReadWriteOnce works while both land on one node; more than one node needs
-# ReadWriteMany, which no default StorageClass provides.
 readonly RWX_PROVISIONERS='efs\.csi\.aws\.com|filestore\.csi\.storage\.gke\.io|file\.csi\.azure\.com|nfs|cephfs|glusterfs|quobyte|azure-file|portworx'
 
 default_storage_class() {
@@ -131,9 +111,7 @@ list_storage_classes() {
     2>/dev/null | sed 's/^/  /' >&2 || true
 }
 
-# What the claim will really ask for. The values can arrive from deploy/.env,
-# from values-onprem.yaml or from the chart default, so render it and read the
-# answer rather than guess at the precedence.
+# .env, values-onprem.yaml and the chart all set this - ask helm, do not guess.
 read_claim_spec() {
   local rendered
   rendered=$(helm template "$RELEASE" "$CHART" --namespace "$NAMESPACE" "$@" 2>/dev/null \
@@ -143,8 +121,6 @@ read_claim_spec() {
   CLAIM_CLASS=$(printf '%s' "$rendered" | awk '/storageClassName:/{print $2; exit}')
 }
 
-# Checks what the claim will ask for against what the cluster can actually give,
-# so a mismatch fails here with a reason instead of leaving pods Pending.
 preflight_storage() {
   step "Checking the document volume"
 
@@ -185,9 +161,6 @@ preflight_storage() {
   fi
 }
 
-# A volume can bind and still fail to attach - a block device carrying a
-# ReadWriteMany claim cannot mount on two nodes at once, which leaves the pods in
-# ContainerCreating with the reason only in their events, never in their logs.
 report_stuck_pods() {
   local pods pod
   pods=$(kubectl get pods -n "$NAMESPACE" \
@@ -209,8 +182,6 @@ report_stuck_pods() {
   done <<< "$pods"
 }
 
-# Reported before pod logs: a Pending claim keeps its pods Pending, and Pending
-# pods have no logs to show.
 report_pending_claims() {
   local pending pvc
   pending=$(kubectl get pvc -n "$NAMESPACE" \
@@ -247,8 +218,7 @@ install_chart() {
     "${extra[@]}"
 }
 
-# Not helm --wait: it holds the release lock for the whole timeout, so a failed
-# deploy blocks the next attempt too.
+# Not helm --wait: it holds the release lock for the whole timeout on failure.
 wait_ready() {
   step "Waiting for pods"
   if ! kubectl rollout status -n "$NAMESPACE" deployment --timeout=5m; then
@@ -284,25 +254,20 @@ uninstall() {
   kubectl delete namespace "$NAMESPACE" --ignore-not-found
 }
 
-# A local k3s cluster, the operator and a Vault to read from - the same path a
-# real deployment takes, with the registry standing in a dev server instead of
-# the platform's.
 k3d_up() {
   if k3d cluster list "$K3D_CLUSTER" >/dev/null 2>&1; then
     step "Using the k3d cluster $K3D_CLUSTER"
     k3d cluster start "$K3D_CLUSTER" >/dev/null 2>&1 || true
   else
     step "Creating a $((K3D_AGENTS + 1))-node k3s cluster"
-    # No Ingress in the chart, so k3s's bundled Traefik and its per-node load
-    # balancer pods are four containers doing nothing.
+    # The chart has no Ingress; Traefik and its per-node pods do nothing here.
     k3d cluster create "$K3D_CLUSTER" --agents "$K3D_AGENTS" \
       --k3s-arg "--disable=traefik@server:*" --wait >/dev/null
   fi
   kubectl config use-context "k3d-$K3D_CLUSTER" >/dev/null
 }
 
-# Not "is the CRD there": a release left half-installed by an earlier failure
-# owns the CRDs and would be skipped.
+# Not "is the CRD there": a half-installed release owns the CRDs and gets skipped.
 install_operator() {
   step "Installing the secrets operator"
   helm repo add hashicorp https://helm.releases.hashicorp.com >/dev/null 2>&1 || true
@@ -338,9 +303,6 @@ vault_do() {
     env VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root sh -c "$1"
 }
 
-# The record the platform would have written. Values come from
-# deploy/tenant.local.env when it exists; without it the chain still runs and
-# the pods fail to reach a database, which is enough to prove the wiring.
 seed_dev_vault() {
   step "Seeding the tenant record"
   vault_do 'vault auth list | grep -q "^kubernetes/" || vault auth enable kubernetes' >/dev/null
@@ -395,8 +357,6 @@ local_up() {
 local_k3d_up() {
   need k3d kubectl helm docker python3
 
-  # Everything the cluster needs to read its own credentials, so the local run
-  # exercises the same path as a real one instead of going around it.
   export VAULT_ADDR="$DEV_VAULT_ADDR"
   export VAULT_ROLE="${VAULT_ROLE:-ffmpeglab}"
   export TENANT_PATH="${TENANT_PATH:-tenants/local/demo}"
@@ -404,15 +364,12 @@ local_k3d_up() {
   load_env
 
   k3d_up
-  # Vault first: the operator's default connection is checked on install and
-  # never becomes ready without something to connect to.
+  # Vault first: the operator checks its default connection on install.
   install_dev_vault
   install_operator
   seed_dev_vault
 
   step "Installing the chart"
-  # One node attaches a ReadWriteOnce volume to every pod on it, so render and
-  # file still share the document directory without ReadWriteMany storage.
   install_chart --set 'documentDir.persistence.accessModes[0]=ReadWriteOnce'
 
   wait_ready
@@ -464,8 +421,6 @@ onprem_up() {
   step "Using $context"
   kubectl version -o json >/dev/null 2>&1 || die "cannot reach $context with the current kubeconfig"
 
-  # The cluster's own storage class and the node its disk sits on belong in
-  # values-onprem.yaml; deploy/.env overrides it where an operator needs to.
   local -a storage=()
   if [ -f "$ONPREM_VALUES" ]; then
     storage+=(-f "$ONPREM_VALUES")

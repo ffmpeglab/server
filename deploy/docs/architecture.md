@@ -36,15 +36,20 @@ pushes to them. `result.url` is filled once the file runner has uploaded.
 ```
 ./deploy/deploy.sh local
         │
-        ├─ 1. checks minikube, kubectl, helm, docker are installed
-        ├─ 2. reads deploy/.env                    ← you fill this in
-        ├─ 3. starts minikube if it is not running
-        ├─ 4. helm upgrade --install
-        │        every non-empty variable from .env → keys of one Secret
-        │        S3_ENDPOINT empty → the file runner is not deployed
-        │        accessModes = ReadWriteOnce       (single node)
-        ├─ 5. kubectl rollout status               waits for every Deployment
-        └─ 6. prints pods, service, and how to reach the API
+        ├─ 1. checks k3d, kubectl, helm, docker, python3 are installed
+        ├─ 2. creates a three-node k3s cluster if there is none
+        ├─ 3. installs a dev Vault, then the secrets operator
+        ├─ 4. writes the policy, the role and the tenant record into Vault
+        │        values from deploy/tenant.local.env, placeholders without it
+        ├─ 5. applies VaultAuth and VaultStaticSecret
+        │        waits for the operator to write the Secret
+        ├─ 6. helm upgrade --install --set existingSecret=…
+        │        image tag resolved to a digest
+        ├─ 7. kubectl rollout status               waits for every Deployment
+        └─ 8. prints pods, service, and how to reach the API
+
+`on-prem` skips steps 2 to 4: the cluster, the operator and the Vault already
+exist, and `deploy/.env` says where to find them.
 ```
 
 `on-prem` is the same without steps 1 and 3: it uses the cluster your kubeconfig
@@ -81,9 +86,15 @@ runners share in docker-compose. Across pods that means the same volume in both,
 which needs `ReadWriteMany`.
 
 A single-node cluster attaches a `ReadWriteOnce` volume to every pod on that
-node, so minikube needs nothing extra. With more than one node the two runners
-land apart and the claim has to be `ReadWriteMany`, supplied by whoever runs the
-cluster.
+node, so nothing extra is needed. More than one node does not force
+`ReadWriteMany`: a volume bound to a node carries that affinity, and the
+scheduler puts every pod that mounts it on the same node. Measured on a
+three-node k3s cluster — render and file landed together while api and logs,
+which mount nothing, went elsewhere.
+
+Pin both runners with a `nodeSelector` where that has to be certain, as
+`values-onprem.yaml` does. `ReadWriteMany` is only required when the runners are
+deliberately spread, and then the storage comes from whoever runs the cluster.
 
 Turning persistence off does not work: each pod then gets its own `emptyDir` and
 the file runner never sees what render produced. There is no fallback path —
@@ -112,5 +123,5 @@ whether it can actually serve.
 
 The chart carries no assumption about which cluster it runs on. Storage class,
 resource sizing and which components are enabled are values, not templates, so
-the same chart serves minikube, a managed cluster, or anything else that
+the same chart serves a laptop k3s, a managed cluster, or anything else that
 consumes a Helm chart. The unit of reuse is the chart itself.
