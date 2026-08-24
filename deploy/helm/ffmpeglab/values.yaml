@@ -1,4 +1,4 @@
-# One release is one FFmpegLab instance. See deploy/docs/architecture.md.
+# One release is one FFmpegLab instance. See deploy/README.md.
 
 image:
   repository: ffmpeglab/server
@@ -43,7 +43,7 @@ dnsWait:
   attempts: 60
   intervalSeconds: 2
 
-# Shared between render and file. See deploy/docs/architecture.md.
+# Shared between render and file. See deploy/README.md.
 documentDir:
   mountPath: /tmp/ffmpeglab
   persistence:
