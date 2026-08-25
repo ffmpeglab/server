@@ -4,11 +4,10 @@ import { FilesService } from './files.service';
 import { AuthService } from '../auth/auth.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApiKey } from '../model/apikey.entity';
-import { TusService } from './tus';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ApiKey])],
-  providers: [FilesService, AuthService, TusService],
+  providers: [FilesService, AuthService],
   controllers: [FilesController],
 })
 export class FilesModule {}

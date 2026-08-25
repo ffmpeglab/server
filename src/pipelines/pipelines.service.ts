@@ -65,12 +65,12 @@ export class PipelinesService {
   }
 
   async transpile(pipeline: TranspilerRequest): Promise<TranspilerResponse> {
-    console.info('transpiler');
+    // console.info('transpiler');
     const id = randomUUID();
     const ymlDir = `${config.documentDir}/yml/`;
     const ymlPath = `${ymlDir}${id}.yml`;
     const sqlPath = `${config.documentDir}/sql/${id}`;
-    console.info('creating yml dir');
+    // console.info('creating yml dir');
     await new Promise((res) => {
       const ex = fs.existsSync(ymlDir);
       if (ex) return res(1);
@@ -79,18 +79,18 @@ export class PipelinesService {
         res(1);
       });
     });
-    console.info('creating sql dir');
+    // console.info('creating sql dir');
     await new Promise((res) =>
       fs.mkdir(sqlPath, () => {
         res(1);
       }),
     );
-    console.info('starting transpiling');
+    // console.info('starting transpiling');
     const files = (await new Promise((mainResolve, mainReject) => {
       fs.writeFile(ymlPath, pipeline.yml, (err) => {
         if (err) return mainReject(err);
 
-        console.info('after writing yml, starting transpiler');
+        // console.info('after writing yml, starting transpiler');
 
         const transpiler = spawn('deno', [
           'run',
@@ -113,7 +113,7 @@ export class PipelinesService {
           console.info('transpiler finished code:', code);
           fs.unlink(ymlPath, () => {});
           fs.readdir(sqlPath, (err, files) => {
-            console.info('readdir with result', files);
+            // console.info('readdir with result', files);
             if (err) return mainReject(err);
             const fileMap: { [key: string]: string } = {};
             Promise.all(

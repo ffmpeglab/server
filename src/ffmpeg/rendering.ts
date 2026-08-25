@@ -22,7 +22,7 @@ import { randomUUID } from 'crypto';
 import { syncMedia } from './util/syncMedia';
 
 const processCustomCode = (Code: string, ENV: typeof process.env) => {
-  const hasFilterComplex = Code.search('filter_complex') > -1;
+  const hasFilterComplex = Code?.search('filter_complex') > -1;
   if (hasFilterComplex) return processUserCode(replaceEnv(Code, ENV));
 
   return parseCommand(processUserCode(Code).join(' '), ENV);
@@ -42,7 +42,7 @@ export const execEncode = async (cmd: {
   assignedMedias: { [key: string]: string };
 }): Promise<string> => {
   try {
-    fs.mkdirSync(`${documentDir()}/${cmd.projectData.id}`, {
+    fs.mkdirSync(`${documentDir()}/${cmd.projectData?.id}`, {
       recursive: true,
     });
   } catch (err) {
@@ -51,16 +51,19 @@ export const execEncode = async (cmd: {
   try {
     const outFileId = cmd.outFileId;
     const execCode =
-      cmd.projectData.editor.selectedCode === CodeSelection.generated
+      cmd.projectData?.editor?.selectedCode === CodeSelection.generated
         ? cmd.execCmd
         : processCustomCode(
-            cmd.projectData.editor.code as string,
+            cmd.projectData?.editor?.code as string,
             cmd.assignedMedias,
           );
     const exec = cmd.ffmpeg.exec(execCode, cmd.assignedMedias);
-    console.info('processing', exec);
-    await exec;
-    console.info('after exec', exec, outFileId);
+    // console.info('processing', exec);
+    const code = await exec;
+    if (code !== 0 && code !== undefined) {
+      throw new Error(`ffmpeg exited with code ${code}`);
+    }
+    // console.info('after exec', exec, outFileId);
     const url = `${documentDir()}/${cmd.outFileId}`;
     cmd.mediaOut.filePath = url;
     const stats = fs.statSync(cmd.outputPath);
@@ -90,7 +93,7 @@ export const encodeProject = async (
     } = genRenderCmd(projectData, layers, newMediaId);
     const files = cmd.files.filter((i) => i !== '-i');
 
-    console.info('encodeProject', projectData, layers, isPrerender, cmd);
+    // console.info('encodeProject', projectData, layers, isPrerender, cmd);
 
     const encoded = await Promise.all(
       cmd.medias.map((media: EncoderProject) => syncMedia(media)),
@@ -108,7 +111,7 @@ export const encodeProject = async (
     cmd.files = files;
     const nmedia: MinimalMedia = {
       id: newMediaId,
-      duration: cmd.totalTime,
+      duration: totalTimeInitial,
       filename: cmd.outFileId as string,
       width: projectData.editor.width,
       height: projectData.editor.height,

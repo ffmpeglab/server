@@ -171,10 +171,12 @@ export const genRenderCmd = (
         const hasVideo = media?.width && media.width > 0;
         if (!hasVideo) continue;
 
-        const mediaSpeed =
-          media.encoding?.speed && media.encoding?.speed !== SpeedValue['100%']
-            ? SpeedValueAsetPts[media?.encoding?.speed]
-            : 1.0;
+        const mediaSpeed = parseFloat(
+          (media?.encoding?.speed && SpeedValueAsetPts[media.encoding?.speed]
+            ? SpeedValueAsetPts[media.encoding.speed]
+            : 1
+          ).toString(),
+        );
         const transition = media.encoding?.transitionIn;
         const transitionDuration = parseFloat(
           (media.encoding?.transitionInDuration || 3).toString(),

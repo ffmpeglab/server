@@ -15,10 +15,10 @@ export const createFFmpeg = async (
   logsCB?: LogsProgressCallback,
 ) => {
   const ffmpeg = {
-    exec: async (cmd: string[], env: typeof process.env) => {
-      await new Promise((resolve) => {
-        console.info('exec native ffmpeg', ffmpegPath, cmd, env);
-        env.FFMPEG_PATH = ffmpegPath;
+    exec: async (cmd: string[], env: typeof process.env = {}) => {
+      return await new Promise((resolve, reject) => {
+        // console.info('exec native ffmpeg', ffmpegPath, cmd, env);
+        const fullEnv = { ...env, FFMPEG_PATH: ffmpegPath };
         let ncmd = '';
         if (typeof cmd === 'string') {
           ncmd = cmd;
@@ -30,22 +30,19 @@ export const createFFmpeg = async (
           typeof cmd === 'string'
             ? [ncmd]
             : cmd.map((k) =>
-                env[k.replace('$', '')]
+                k && env[k?.replace('$', '')]
                   ? (env[k.replace('$', '')] as string)
                   : k,
               );
         const postmapcmd = cmdProcessed as string[];
-        console.info({ postmapcmd });
+        // console.info({ postmapcmd });
         const child = spawn(
-          path.join(
-            __dirname.replace('/dist', '/src').replace('/src/src', '/src'),
-            '/execffmpeg.sh',
-          ),
+          path.resolve(__dirname, 'execffmpeg.sh'),
           postmapcmd,
-          { env },
+          { env: fullEnv },
         );
         child.stdout.on('data', (data: Buffer) => {
-          console.error('native ffmpeg logs', data.toString('utf-8'));
+          // console.error('native ffmpeg logs', data.toString('utf-8'));
           logsCB && logsCB(data.toString('utf-8'));
         });
         child.stderr.on('data', (data: Buffer) => {
@@ -53,11 +50,12 @@ export const createFFmpeg = async (
           if (logs.search('time=') > -1) {
             const timeUnformatted = logs.split('time=')[1].split(' ')[0];
             const time = execToMilliseconds(timeUnformatted) * 1000000;
-            console.info('time logs', logs, time, timeUnformatted);
+            // console.info('time logs', logs, time, timeUnformatted);
             cb && cb({ time, progress: 0 });
           }
           logsCB && logsCB(data.toString('utf-8'));
         });
+        child.on('error', reject);
         child.on('close', (code: number) => {
           console.info('child finished', code);
           resolve(code);

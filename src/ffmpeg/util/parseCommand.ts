@@ -9,7 +9,7 @@
  */
 export function parseCommand(
   cmd: string,
-  variables: typeof process.env,
+  variables: typeof process.env = {},
 ): string[] {
   // 1. Replace placeholders
   const resolved = replaceEnv(cmd, variables);
@@ -70,7 +70,10 @@ export function parseCommand(
  * @param variables - Object mapping variable names to their values (e.g., { MEDIA_1: '/path/file.mp3', OUTPUT_PATH: '/out.mp3' })
  * @returns Array of arguments ready for spawn()
  */
-export function replaceEnv(cmd: string, variables: typeof process.env): string {
+export function replaceEnv(
+  cmd: string,
+  variables: typeof process.env = {},
+): string {
   // 1. Replace placeholders
   let resolved = cmd;
   for (const [key, value] of Object.entries(variables)) {
