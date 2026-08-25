@@ -1,3 +1,22 @@
+diff --git a/node_modules/nestjs-pgmq/dist/pgmq.explorer.js b/node_modules/nestjs-pgmq/dist/pgmq.explorer.js
+index cea8beb..36bd349 100644
+--- a/node_modules/nestjs-pgmq/dist/pgmq.explorer.js
++++ b/node_modules/nestjs-pgmq/dist/pgmq.explorer.js
+@@ -118,10 +118,10 @@ let PgmqExplorer = PgmqExplorer_1 = class PgmqExplorer {
+     async handleJob(queueName, job) {
+         const { jobName } = job.message;
+         const handler = this.handlers.get(queueName)?.get(jobName);
+-        if (job.read_ct > this.MAX_RETRIES + 1) {
+-            await this.moveToDlq(queueName, job, new Error('Max retries exceeded (Stale Message)'));
+-            return;
+-        }
++        // if (job.read_ct > this.MAX_RETRIES + 1) {
++        //     await this.moveToDlq(queueName, job, new Error('Max retries exceeded (Stale Message)'));
++        //     return;
++        // }
+         if (handler) {
+             try {
+                 this.logger.debug(`Processing job: ${jobName} [ID: ${job.msg_id}]`);
 diff --git a/node_modules/nestjs-pgmq/dist/pgmq.module.js b/node_modules/nestjs-pgmq/dist/pgmq.module.js
 index d192946..0faa85f 100644
 --- a/node_modules/nestjs-pgmq/dist/pgmq.module.js
