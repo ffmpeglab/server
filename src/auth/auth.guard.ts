@@ -12,12 +12,12 @@ export class AuthGuard implements CanActivate {
   constructor(private readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const token = extractTokenFromHeader(request);
-    if (!token) {
-      throw new UnauthorizedException();
-    }
     try {
+      const request = context.switchToHttp().getRequest();
+      const token = extractTokenFromHeader(request);
+      if (!token) {
+        throw new UnauthorizedException();
+      }
       const payload = await this.authService.findKey(token);
       if (!payload?.user_id) throw new UnauthorizedException();
       request['user'] = payload?.user_id;

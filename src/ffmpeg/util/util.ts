@@ -5,6 +5,6 @@ export const processFileName = (filename: string) =>
   filename?.replace(/[^a-zA-Z0-9_.-]/g, '') || '';
 
 export const getFileId = (media: Media) =>
-  `${media.id}_${processFileName(media.filename || media.title)}`;
+  `${processFileName(media.id)}_${processFileName(media.filename || media.title)}`;
 
 export const documentDir = () => config.documentDir;

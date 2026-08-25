@@ -60,7 +60,7 @@ export class FilesService {
 
   async getFile(fileId: string, userId: string) {
     const s3Client = await createS3Client();
-    const fileKey = `${userId}${fileId.replace(userId, '')}`;
+    const fileKey = `${userId}${fileId.replace(`${userId}`, '')}`;
     const getObjectCmd = new GetObjectCommand({
       Bucket: config.s3.bucketId,
       Key: fileKey,

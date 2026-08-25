@@ -23,7 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { FileListDto, FileResponseDto, FileUploadDto } from './file.dto';
 import { _Object$ } from '@aws-sdk/client-s3';
-import { TusService } from './tus';
+// import { TusService } from './tus';
 
 @UseGuards(AuthGuard)
 @Controller('files')
@@ -31,7 +31,7 @@ import { TusService } from './tus';
 export class FilesController {
   constructor(
     private readonly filesService: FilesService,
-    private readonly tusService: TusService,
+    // private readonly tusService: TusService,
   ) {}
 
   @Post('upload')
@@ -67,14 +67,14 @@ export class FilesController {
     return this.filesService.getFile(params.id, req.user);
   }
 
-  @ApiExcludeEndpoint(true)
-  @All('tus/*path')
-  async tusPath(@Request() req, @Response() res) {
-    if (req.user !== undefined) return this.tusService.handleRequest(req, res);
-  }
-  @ApiExcludeEndpoint(true)
-  @All('tus')
-  async tus(@Request() req, @Response() res) {
-    if (req.user !== undefined) return this.tusService.handleRequest(req, res);
-  }
+  // @ApiExcludeEndpoint(true)
+  // @All('tus/*path')
+  // async tusPath(@Request() req, @Response() res) {
+  //   if (req.user !== undefined) return this.tusService.handleRequest(req, res);
+  // }
+  // @ApiExcludeEndpoint(true)
+  // @All('tus')
+  // async tus(@Request() req, @Response() res) {
+  //   if (req.user !== undefined) return this.tusService.handleRequest(req, res);
+  // }
 }

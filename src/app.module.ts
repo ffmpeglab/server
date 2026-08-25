@@ -3,8 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PgmqModule } from 'nestjs-pgmq';
 import { config } from './config';
 import { RendersModule } from './renders/renders.module';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { PipelinesModule } from './pipelines/pipelines.module';
 import { FilesModule } from './files/files.module';
 
@@ -34,7 +32,7 @@ if (config.pipelinesEnabled) [optionalModules.push(PipelinesModule)];
     RendersModule,
     ...optionalModules,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
