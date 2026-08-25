@@ -217,10 +217,56 @@ helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
 ### A bare cluster
 
 This is the honest on-prem starting point. k0s and kubeadm ship no storage class
-and no ingress — a deliberate choice. Two things bite before
-the chart is reached, both measured on k0s v1.35.7:
+and no ingress — a deliberate choice, so a cluster comes up with nothing the
+chart needs.
+
+Standing one up on a Linux host, controller and worker on the same machine:
 
 ```bash
+curl -sSLf https://get.k0s.sh | sudo sh
+sudo k0s install controller --single
+sudo k0s start
+
+sudo k0s kubeconfig admin > ~/.kube/config
+```
+
+Add machines with a join token from the controller:
+
+```bash
+sudo k0s token create --role=worker > worker.token   # on the controller
+sudo k0s install worker --token-file worker.token    # on the new machine
+sudo k0s start
+```
+
+`--single` marks the one machine schedulable. Without it, a controller keeps its
+taint and nothing lands on it — including the storage provisioner:
+
+```bash
+kubectl taint node <node> node-role.kubernetes.io/control-plane:NoSchedule-
+```
+
+Then a storage class, since none exists. Any provisioner will do; this one needs
+no configuration and suits a single machine:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.30/deploy/local-path-storage.yaml
+kubectl patch storageclass local-path \
+  -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
+
+Spread over several machines it has to be storage every node can reach — NFS,
+Ceph, or the class your cluster already has. Name it in
+`deploy/values-onprem.yaml`.
+
+The secrets operator and a Vault the cluster can reach are the remaining two, and
+[By hand](#by-hand-1) above installs both.
+
+k3s and minikube bring a provisioner of their own, which is why neither shows
+these steps — and why a green run on them says less about on-prem than it looks.
+
+Both commands above were measured on k0s v1.35.7 running in Docker, which is how
+a Mac reaches a Linux cluster; on a Linux host they are the same, minus the
+container.
 
 ### The document volume
 
