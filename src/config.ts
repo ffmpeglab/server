@@ -11,7 +11,7 @@ export const config = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     entities: [Render, ApiKey, LogPiece, Pipeline],
-    synchronize: process.env.DB_MIGRATION_ENABLED === 'true' ? true : false,
+    synchronize: false, //SHOULD APPLY init.sql(for on prem) or the supabase migration(on e2e env) based on the setup
   },
   queue: {
     db: {
@@ -54,4 +54,13 @@ export const config = {
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY as string,
   platformHost: process.env.PLATFORM_HOST as string,
   supabaseProjectId: process.env.SUPABASE_PROJECT_ID as string,
+  supabaseSecretKey: process.env.SUPABASE_SECRET_KEY as string,
+};
+
+export const supabaseEnv = {
+  url: process.env.SUPABASE_URL as string,
+  publishableKeys: {
+    default: config.supabaseAnonKey,
+  },
+  secretKeys: { default: config.supabaseSecretKey },
 };

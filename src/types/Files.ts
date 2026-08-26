@@ -1,3 +1,27 @@
+import { ApiProperty } from '@nestjs/swagger';
+
+export class S3Credentials {
+  @ApiProperty()
+  accessKeyId: string;
+  @ApiProperty()
+  secretAccessKey: string;
+  @ApiProperty()
+  sessionToken: string;
+}
+
+export class S3Config {
+  @ApiProperty()
+  bucketId: string;
+  @ApiProperty()
+  region: string;
+  @ApiProperty()
+  endpoint: string;
+  @ApiProperty()
+  userId: string;
+  @ApiProperty({ type: S3Credentials })
+  credentials: S3Credentials;
+}
+
 export enum FileTypeApi {
   PNG = 'PNG',
   JPEG = 'JPEG',
