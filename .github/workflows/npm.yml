@@ -24,6 +24,9 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
   coverage:
+    permissions:
+      contents: read
+      checks: write   
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
