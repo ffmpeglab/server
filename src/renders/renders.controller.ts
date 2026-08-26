@@ -29,7 +29,7 @@ export class RendersController {
 
   @Get('')
   @ApiResponse({ type: [RenderResponse] })
-  async findAll(@Request() req) {
+  async findAll(@Request() req: Request & { user: string }) {
     return await this.renderService.findAll(req.user);
   }
 
@@ -41,7 +41,10 @@ export class RendersController {
     required: true,
     type: String,
   })
-  async findOne(@Param() params: { id: string }, @Request() req) {
+  async findOne(
+    @Param() params: { id: string },
+    @Request() req: Request & { user: string },
+  ) {
     return await this.renderService.findOne(params.id, req.user);
   }
 
@@ -55,7 +58,7 @@ export class RendersController {
   })
   async findAllRendersForProject(
     @Param() params: { id: string },
-    @Request() req,
+    @Request() req: Request & { user: string },
   ) {
     return await this.renderService.findAllRendersForProject(
       params.id,
@@ -86,7 +89,7 @@ export class RendersController {
   async renderLogs(
     @Param() params: { id: string },
     @Query() query: { from: string; direction: 'ASC' | 'DESC' },
-    @Request() req,
+    @Request() req: Request & { user: string },
   ) {
     return await this.renderService.getRenderLogs(
       params.id,
@@ -98,12 +101,18 @@ export class RendersController {
 
   @Post()
   @ApiResponse({ type: RenderResponse })
-  async create(@Body() createRender: RenderDto, @Request() req) {
+  async create(
+    @Body() createRender: RenderDto,
+    @Request() req: Request & { user: string },
+  ) {
     return await this.renderService.writeRender(createRender, req.user);
   }
 
   @Put('run')
-  async runRender(@Body() runRender: RunDto, @Request() req) {
+  async runRender(
+    @Body() runRender: RunDto,
+    @Request() req: Request & { user: string },
+  ) {
     return await this.renderService.enqueRender(runRender.id, req.user);
   }
 }

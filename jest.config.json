@@ -1,0 +1,33 @@
+{
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "rootDir": "src",
+  "testRegex": ".*\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "collectCoverageFrom": [
+      "**/*.(t|j)s"
+  ],
+  "coveragePathIgnorePatterns": [
+    "/node_modules/",
+    "\\.module\\.ts$",
+    "main\\.ts",
+    "src/model",
+    "src/migrations",
+    "data-source\\.ts",
+    "app\\.module\\.ts"
+  ],
+  "coverageThreshold": {
+    "global": {
+      "lines": 98,
+      "funcs": 100,
+      "branch": 100
+    }
+  },
+  "coverageDirectory": "../coverage",
+  "testEnvironment": "node"
+}

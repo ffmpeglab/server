@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum XFade {
+  none = 'none',
   //fade
   fade = 'fade',
   fadeblack = 'fadeblack',
@@ -91,7 +92,11 @@ export enum FFMpegOutputType {
   jpg = 'jpg',
 }
 
-export type XFADE = XFade & 'none';
+enum NoneFade {
+  none = 'none',
+}
+
+export type XFADE = XFade;
 
 export class PositionParams {
   @ApiProperty()

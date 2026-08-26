@@ -139,7 +139,7 @@ export class EncoderProjectEncoding {
   @ApiProperty({ enum: FFMpegOutputType })
   output: FFMpegOutputType;
   @ApiProperty()
-  code?: String[];
+  code?: string[];
   @ApiProperty()
   lastUpdated?: number;
   @ApiProperty()

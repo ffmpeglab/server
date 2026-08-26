@@ -86,55 +86,57 @@ export class PipelinesService {
       }),
     );
     // console.info('starting transpiling');
-    const files = (await new Promise((mainResolve, mainReject) => {
-      fs.writeFile(ymlPath, pipeline.yml, (err) => {
-        if (err) return mainReject(err);
+    const files: { [key: string]: string } = await new Promise(
+      (mainResolve, mainReject) => {
+        fs.writeFile(ymlPath, pipeline.yml, (err) => {
+          if (err) return mainReject(err);
 
-        // console.info('after writing yml, starting transpiler');
+          // console.info('after writing yml, starting transpiler');
 
-        const transpiler = spawn('deno', [
-          'run',
-          '-A',
-          pathToTranspiler,
-          ymlPath,
-          sqlPath,
-          '--svg',
-        ]);
+          const transpiler = spawn('deno', [
+            'run',
+            '-A',
+            pathToTranspiler,
+            ymlPath,
+            sqlPath,
+            '--svg',
+          ]);
 
-        transpiler.stdout.on('data', (data: Buffer) => {
-          console.error('yml transpiler stdout', data.toString('utf-8'));
-        });
+          transpiler.stdout.on('data', (data: Buffer) => {
+            console.error('yml transpiler stdout', data.toString('utf-8'));
+          });
 
-        transpiler.stderr.on('data', (data: Buffer) => {
-          console.error('yml transpiler stderr', data.toString('utf-8'));
-        });
+          transpiler.stderr.on('data', (data: Buffer) => {
+            console.error('yml transpiler stderr', data.toString('utf-8'));
+          });
 
-        transpiler.on('close', (code) => {
-          console.info('transpiler finished code:', code);
-          fs.unlink(ymlPath, () => {});
-          fs.readdir(sqlPath, (err, files) => {
-            // console.info('readdir with result', files);
-            if (err) return mainReject(err);
-            const fileMap: { [key: string]: string } = {};
-            Promise.all(
-              files.map(
-                async (fileName) =>
-                  await new Promise((res) => {
-                    const filePath = `${sqlPath}/${fileName}`;
-                    fs.readFile(filePath, 'utf-8', (err, file) => {
-                      if (err) return mainReject(err);
-                      fileMap[fileName] = file;
-                      fs.unlink(filePath, () => {
-                        res(1);
+          transpiler.on('close', (code) => {
+            console.info('transpiler finished code:', code);
+            fs.unlink(ymlPath, () => {});
+            fs.readdir(sqlPath, (err, files) => {
+              // console.info('readdir with result', files);
+              if (err) return mainReject(err);
+              const fileMap: { [key: string]: string } = {};
+              Promise.all(
+                files.map(
+                  async (fileName) =>
+                    await new Promise((res) => {
+                      const filePath = `${sqlPath}/${fileName}`;
+                      fs.readFile(filePath, 'utf-8', (err, file) => {
+                        if (err) return mainReject(err);
+                        fileMap[fileName] = file;
+                        fs.unlink(filePath, () => {
+                          res(1);
+                        });
                       });
-                    });
-                  }),
-              ),
-            ).then(() => mainResolve(fileMap));
+                    }),
+                ),
+              ).then(() => mainResolve(fileMap));
+            });
           });
         });
-      });
-    })) as { [key: string]: string };
+      },
+    );
 
     return { files };
   }

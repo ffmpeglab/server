@@ -7,7 +7,9 @@ import { PipelinesModule } from './pipelines/pipelines.module';
 import { FilesModule } from './files/files.module';
 
 const optionalModules: (typeof AppModule)[] = [FilesModule];
-if (config.pipelinesEnabled) [optionalModules.push(PipelinesModule)];
+if (config.pipelinesEnabled) {
+  optionalModules.push(PipelinesModule);
+}
 @Module({
   imports: [
     TypeOrmModule.forRoot({

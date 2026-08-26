@@ -3,17 +3,11 @@ import { config } from '../config';
 import type { PgmqJob } from 'nestjs-pgmq';
 import { Media, MinimalMedia } from '../types';
 import { RendersService } from './renders.service';
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-} from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'node:fs';
 import { getFileId } from '../ffmpeg/util/util';
 import { getMimeType } from '../files/mime-utils';
-import https from 'node:https';
-import http from 'node:http';
 import { createS3Client } from '../s3client';
 @Processor(config.queue.file)
 export class ResultProcessor {

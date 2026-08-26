@@ -6,6 +6,8 @@ import {
   Media,
   SpeedValue,
   SpeedValueAsetPts,
+  XFade,
+  XFADE,
 } from '../../types';
 import { getTotalTime } from './getTotalTime';
 import { genExecTime } from './genExecTime';
@@ -54,13 +56,13 @@ export const genRenderCmd = (
     `pad=${width}:${height}:(ow-iw)/${diff[0]}:(oh-ih)/${diff[1]}:black,setsar=1,format=rgba`;
 
   let videoFilterChains: string[] = [];
-  let audioFilterChains: string[] = [];
+  const audioFilterChains: string[] = [];
   const audioStreams: string[] = [];
   let mediaIndex = 0;
   const layerStreams: string[] = [];
 
   layerMedia?.forEach((layer, layerIndex) => {
-    let videoPipeline: string[] = [];
+    const videoPipeline: string[] = [];
     let prevVideoStream: string | null = null;
     let timelinePosition = 0;
     const makeVideoChain = (index: number, media: EncoderProject) => {
@@ -182,7 +184,7 @@ export const genRenderCmd = (
           (media.encoding?.transitionInDuration || 3).toString(),
         );
         const transitionOffset =
-          transition && transition !== 'none' ? transitionDuration : 0.0;
+          transition && transition !== XFade.none ? transitionDuration : 0.0;
         const duration =
           ((media.encoding?.end || media.duration || 0) -
             (media.encoding?.start || 0) -
@@ -193,7 +195,7 @@ export const genRenderCmd = (
         if (prevVideoStream) {
           const transitionOffset = timelinePosition - transitionDuration - 1;
 
-          if (transition && transition !== 'none' && transitionOffset > 0) {
+          if (transition && transition !== XFade.none && transitionOffset > 0) {
             videoPipeline.push(
               `[${prevVideoStream}?][v${mediaIndex}?]` +
                 `xfade=transition=${transition}:duration=${transitionDuration}:offset=${transitionOffset},` +

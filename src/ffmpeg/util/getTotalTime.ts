@@ -2,6 +2,7 @@ import {
   EditorLayer,
   SpeedValue,
   SpeedValueAsetPts,
+  XFade,
   defaultVideoDuration,
 } from '../../types';
 
@@ -14,12 +15,12 @@ export const getTotalTime = (layers: EditorLayer[]): number => {
         const mediaSpeed =
           media?.encoding?.speed &&
           media?.encoding?.speed !== SpeedValue['100%']
-            ? parseFloat(SpeedValueAsetPts[media?.encoding?.speed] as string)
+            ? parseFloat(SpeedValueAsetPts[media?.encoding?.speed])
             : 1.0;
 
         const transitionOffset =
           layer.media?.[index + 1]?.encoding?.transitionIn &&
-          layer.media?.[index + 1]?.encoding?.transitionIn !== 'none'
+          layer.media?.[index + 1]?.encoding?.transitionIn !== XFade.none
             ? layer.media?.[index + 1]?.encoding?.transitionInDuration || 3
             : 0;
 
