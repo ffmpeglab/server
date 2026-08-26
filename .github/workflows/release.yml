@@ -34,13 +34,9 @@ jobs:
             const originalBody = context.payload.release.body || "";
             
             const coverageSection = `
-            
-            <details>
-            <summary>📊 View Jest Test Coverage Report</summary>
+            #📊 Jest Test Coverage Report
             
             ${process.env.REPORT}
-            
-            </details>
             `;
             
             await github.rest.repos.updateRelease({
