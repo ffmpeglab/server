@@ -1434,6 +1434,11 @@
   dependencies:
     "@tybys/wasm-util" "^0.10.3"
 
+"@nest-lab/or-guard@^2.6.0":
+  version "2.6.0"
+  resolved "https://registry.yarnpkg.com/@nest-lab/or-guard/-/or-guard-2.6.0.tgz#ac1d869bea4297c9710b0da9fa0cd971ae19bd87"
+  integrity sha512-HSAe8jwbtJgUdRPSMEkaFbFI7Lczznm6KS/73o1GHe9qALsfE/hFdvpEnnFifDhYDELJw+56+HPYxhjCnPHy3g==
+
 "@nestjs/axios@4.0.1":
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/@nestjs/axios/-/axios-4.0.1.tgz#7ff73f47727b67dc04410ac6e9b3329401ebbb65"

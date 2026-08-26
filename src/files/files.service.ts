@@ -8,6 +8,7 @@ import { config } from '../config';
 import { getMimeType } from './mime-utils';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createS3Client } from '../s3client';
+import { SupabaseContext } from '@supabase/server';
 
 @Injectable()
 export class FilesService {
