@@ -50,5 +50,5 @@ jobs:
           version: latest
       - run: |
           supabase start
-          ./e2e.sh
+          ./e2e/e2e.sh
         

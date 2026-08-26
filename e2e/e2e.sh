@@ -82,4 +82,4 @@ export FFMPEG_PATH=$(which ffmpeg)
 echo -e "${GREEN} Preparing server...${NC}"
 yarn
 yarn build
-yarn start:prod & echo -e "${BLUE} Starting E2E...${NC}" & (sleep 5 && ./example.sh)
+yarn start:prod & echo -e "${BLUE} Starting E2E...${NC}" & (sleep 5 && ./example.sh && ./dnn.sh)
