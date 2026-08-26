@@ -27,6 +27,7 @@ jobs:
     permissions:
       contents: read
       checks: write   
+      pull-requests: write   # Required to comment on PRs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
