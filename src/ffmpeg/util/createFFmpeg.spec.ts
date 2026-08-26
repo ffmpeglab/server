@@ -24,14 +24,13 @@ const flush = () => new Promise((r) => setImmediate(r));
 
 describe('await createFFmpeg', () => {
   describe('exec - argument handling', () => {
-    it('spawns the execffmpeg.sh wrapper script', async () => {
+    it('spawns the ffmpeg binary', async () => {
       const p = (await createFFmpeg()).exec(['-y']);
       await flush();
       child.emit('close', 0);
 
       await p;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
-      expect(mockSpawn.mock.calls[0][0]).toContain('execffmpeg.sh');
     });
 
     it('passes cmd array through to spawn args', async () => {

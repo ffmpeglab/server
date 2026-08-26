@@ -37,11 +37,7 @@ export const createFFmpeg = async (
               );
         const postmapcmd = cmdProcessed;
         // console.info({ postmapcmd });
-        const child = spawn(
-          path.resolve(__dirname, 'execffmpeg.sh'),
-          postmapcmd,
-          { env: fullEnv },
-        );
+        const child = spawn(ffmpegPath, postmapcmd, { env: fullEnv });
         child.stdout.on('data', (data: Buffer) => {
           // console.error('native ffmpeg logs', data.toString('utf-8'));
           if (logsCB) logsCB(data.toString('utf-8'));
