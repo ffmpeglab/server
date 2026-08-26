@@ -44,24 +44,40 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const release_id = context.payload.release.id;
-            const originalBody = context.payload.release.body || "";
             
-            // Build the collapsible coverage section
-            const coverageSection = `
+            // Get the tag name from the git reference (e.g., refs/tags/v1.0.0 -> v1.0.0)
+            const tagName = context.ref.replace('refs/tags/', '');
             
-            <details>
-            <summary>📊 View Jest Test Coverage Report</summary>
-            
-            ${process.env.REPORT}
-            
-            </details>
-            `;
-            
-            // Update the release body on GitHub
-            await github.rest.repos.updateRelease({
-              owner,
-              repo,
-              release_id,
-              body: originalBody + coverageSection
-            });
+            try {
+              // 1. Find the release associated with this specific tag
+              const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag: tagName,
+              });
+              
+              const originalBody = release.body || "";
+              
+              const coverageSection = `
+              
+              <details>
+              <summary>📊 View Jest Test Coverage Report</summary>
+              
+              ${process.env.REPORT}
+              
+              </details>
+              `;
+              
+              // 2. Update that specific release body
+              await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.id,
+                body: originalBody + coverageSection
+              });
+              
+              console.log(`Successfully appended coverage report to release: ${tagName}`);
+            } catch (error) {
+              console.error(`Could not find or update a release for tag: ${tagName}`);
+              throw error;
+            }
