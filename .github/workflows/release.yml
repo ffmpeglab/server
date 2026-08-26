@@ -1,0 +1,51 @@
+name: Embed Coverage on Release
+
+on:
+  release:
+    types: [published] # Triggers instantly when a release is published
+
+jobs:
+  coverage:
+    permissions:
+      contents: write   # Allows updating the release notes body
+      checks: write     
+      pull-requests: write 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # Upgraded to v4 for Node 24 support
+
+      - name: Generate Jest Coverage Report
+        uses: ArtiomTr/jest-coverage-report-action@v2
+        id: coverage_report
+        with:
+          output: report-markdown
+          skip-step: none
+
+      - name: Append Coverage to Release Body
+        uses: actions/github-script@v7
+        env:
+          REPORT: ${{ steps.coverage_report.outputs.report }}
+        with:
+          # Works with the default token now!
+          github-token: ${{ secrets.GITHUB_TOKEN }} 
+          script: |
+            const { owner, repo } = context.repo;
+            const release_id = context.payload.release.id;
+            const originalBody = context.payload.release.body || "";
+            
+            const coverageSection = `
+            
+            <details>
+            <summary>📊 View Jest Test Coverage Report</summary>
+            
+            ${process.env.REPORT}
+            
+            </details>
+            `;
+            
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id,
+              body: originalBody + coverageSection
+            });
