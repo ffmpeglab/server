@@ -11,7 +11,6 @@ export async function createS3Client() {
 
     const {
       data: { session },
-      error,
     } = await supabaseClient.auth.signInWithPassword({
       email: config.supabaseWorkerLogin,
       password: config.tenantSecretKey,

@@ -7,7 +7,7 @@ import {
   MinimalMedia,
 } from '../types';
 import { documentDir } from './util/util';
-export let currentSessionId = 0;
+export const currentSessionId = 0;
 import {
   createFFmpeg,
   CBProgressCallback,
@@ -49,7 +49,6 @@ export const execEncode = async (cmd: {
     console.error(err);
   }
   try {
-    const outFileId = cmd.outFileId;
     const execCode =
       cmd.projectData?.editor?.selectedCode === CodeSelection.generated
         ? cmd.execCmd
@@ -101,7 +100,7 @@ export const encodeProject = async (
     const totalTimeInitial = layers?.length ? getTotalTime(layers) : 0;
     const totalTime = totalTimeInitial * 10000;
     const totalTimePercent = totalTime / 100;
-    const ffmpeg = await createFFmpeg(({ time, progress }) => {
+    const ffmpeg = await createFFmpeg(({ time }) => {
       if (!cb) return;
       const progress2 = parseFloat(
         ((time - totalTime) / totalTimePercent / 10000).toFixed(2),

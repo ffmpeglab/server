@@ -41,7 +41,11 @@ export class FilesController {
     description: 'File',
     type: FileUploadDto,
   })
-  async upload(@UploadedFile() file, @Request() req) {
+  async upload(
+    @UploadedFile()
+    file: { buffer: Buffer<ArrayBufferLike>; originalname: string },
+    @Request() req: Request & { user: string },
+  ) {
     return this.filesService.uploadFile(
       req.user,
       file.originalname,
@@ -51,7 +55,7 @@ export class FilesController {
 
   @Get('list')
   @ApiResponse({ type: FileListDto, isArray: true })
-  async list(@Request() req) {
+  async list(@Request() req: Request & { user: string }) {
     return this.filesService.listFiles(req.user);
   }
 
@@ -63,18 +67,10 @@ export class FilesController {
     type: String,
   })
   @ApiResponse({ type: FileResponseDto })
-  async file(@Param() params: { id: string }, @Request() req) {
+  async file(
+    @Param() params: { id: string },
+    @Request() req: Request & { user: string },
+  ) {
     return this.filesService.getFile(params.id, req.user);
   }
-
-  // @ApiExcludeEndpoint(true)
-  // @All('tus/*path')
-  // async tusPath(@Request() req, @Response() res) {
-  //   if (req.user !== undefined) return this.tusService.handleRequest(req, res);
-  // }
-  // @ApiExcludeEndpoint(true)
-  // @All('tus')
-  // async tus(@Request() req, @Response() res) {
-  //   if (req.user !== undefined) return this.tusService.handleRequest(req, res);
-  // }
 }

@@ -24,10 +24,10 @@ export class RenderProcessor {
       runId?: string;
     }>,
   ) {
-    console.log('starting render ', job);
+    // console.log('starting render ', job);
     const { renderId, userId, bucket, outputPath, runId } = job.message.data;
     const render = await this.renderService.findOne(renderId, userId);
-    console.log('start encoding', render);
+    // console.log('start encoding', render);
     try {
       await this.renderService.updateRenderStatus(renderId, 'rendering');
       const encoding = await encodeProject(
@@ -59,7 +59,7 @@ export class RenderProcessor {
       });
       await this.renderService.updateRenderStatus(renderId, 'done');
     } catch (err) {
-      console.error('rnder failed', renderId);
+      console.error('rnder failed', renderId, err);
       await this.renderService.updateRenderStatus(renderId, 'error');
     }
   }

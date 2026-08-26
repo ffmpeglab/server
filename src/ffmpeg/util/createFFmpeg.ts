@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { config } from '../../config';
 import path from 'node:path';
 
-export type CBProgressParams = { progress: number; time: number };
+export type CBProgressParams = { progress?: number; time: number };
 export type CBProgressCallback = (progress: CBProgressParams) => void;
 export type LogsProgressCallback = (line: string) => void;
 
@@ -15,7 +15,10 @@ export const createFFmpeg = async (
   logsCB?: LogsProgressCallback,
 ) => {
   const ffmpeg = {
-    exec: async (cmd: string[], env: typeof process.env = {}) => {
+    exec: async (
+      cmd: string[],
+      env: { [key: string]: string } = {},
+    ): Promise<number | string> => {
       return await new Promise((resolve, reject) => {
         // console.info('exec native ffmpeg', ffmpegPath, cmd, env);
         const fullEnv = { ...env, FFMPEG_PATH: ffmpegPath };
@@ -23,18 +26,16 @@ export const createFFmpeg = async (
         if (typeof cmd === 'string') {
           ncmd = cmd;
           Object.keys(env).map((k) => {
-            ncmd = ncmd.replace('$' + k, (env as any)[k as any]);
+            ncmd = ncmd.replace('$' + k, env[k]);
           });
         }
         const cmdProcessed =
           typeof cmd === 'string'
             ? [ncmd]
             : cmd.map((k) =>
-                k && env[k?.replace('$', '')]
-                  ? (env[k.replace('$', '')] as string)
-                  : k,
+                k && env[k?.replace('$', '')] ? env[k.replace('$', '')] : k,
               );
-        const postmapcmd = cmdProcessed as string[];
+        const postmapcmd = cmdProcessed;
         // console.info({ postmapcmd });
         const child = spawn(
           path.resolve(__dirname, 'execffmpeg.sh'),
@@ -43,7 +44,7 @@ export const createFFmpeg = async (
         );
         child.stdout.on('data', (data: Buffer) => {
           // console.error('native ffmpeg logs', data.toString('utf-8'));
-          logsCB && logsCB(data.toString('utf-8'));
+          if (logsCB) logsCB(data.toString('utf-8'));
         });
         child.stderr.on('data', (data: Buffer) => {
           const logs = data.toString('utf-8');
@@ -51,7 +52,7 @@ export const createFFmpeg = async (
             const timeUnformatted = logs.split('time=')[1].split(' ')[0];
             const time = execToMilliseconds(timeUnformatted) * 1000000;
             // console.info('time logs', logs, time, timeUnformatted);
-            cb && cb({ time, progress: 0 });
+            cb && cb({ time });
           }
           logsCB && logsCB(data.toString('utf-8'));
         });
@@ -65,7 +66,6 @@ export const createFFmpeg = async (
     readAsBase64: (filePath: string) =>
       fs.readFileSync(filePath, { encoding: 'base64' }),
     readFile: (fileName: string) => fs.readFileSync(fileName),
-    writeFile: (fileName: string, file: File) => {},
   };
   return ffmpeg;
 };

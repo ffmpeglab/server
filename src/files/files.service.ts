@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
-  S3Client,
   PutObjectCommand,
   GetObjectCommand,
-  ListObjectAnnotationsCommand,
   ListObjectsCommand,
 } from '@aws-sdk/client-s3';
 import { config } from '../config';

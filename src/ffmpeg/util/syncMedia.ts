@@ -10,7 +10,13 @@ import { createS3Client } from '../../s3client';
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
-export const downloadFile = ({ filePath, dirPath, url }) =>
+export const downloadFile = ({
+  filePath,
+  dirPath,
+  url,
+}: {
+  [key: string]: string;
+}) =>
   new Promise((resolve, reject) => {
     try {
       try {
@@ -19,8 +25,6 @@ export const downloadFile = ({ filePath, dirPath, url }) =>
         // EEXIST etc. — directory may already exist
       }
 
-      // URL-parsing protocol detection (substring .search('https') misfires
-      // on URLs like http://proxy/?redirect=https://other)
       const client = url.startsWith('https') ? https : http;
       let file: fs.WriteStream | undefined; // declared where fail can see it
 
@@ -65,7 +69,7 @@ export const downloadFile = ({ filePath, dirPath, url }) =>
       );
     } catch (err) {
       console.error('downloadFile err', err);
-      reject(err);
+      reject(err as Error);
     }
   });
 
@@ -73,9 +77,8 @@ export const syncMedia = async (media: EncoderProject) => {
   const filename = getFileId(media);
   const dirPath = `${documentDir()}/${media.folderId}`;
   const filePath = `${dirPath}/${filename}`;
-  // CACHE FIRST — skip presigning entirely when we already have the file
+
   if (fs.existsSync(filePath)) {
-    console.info('file exists', filePath);
     return filePath;
   }
 
@@ -91,8 +94,7 @@ export const syncMedia = async (media: EncoderProject) => {
     media.url = presignedUrl; // bearer-token handoff to the downloader
   }
 
-  console.info('start download file', filePath, media.url);
-  await downloadFile({ filePath, dirPath, url: media.url });
+  await downloadFile({ filePath, dirPath, url: media.url as string });
 
   return filePath;
 };

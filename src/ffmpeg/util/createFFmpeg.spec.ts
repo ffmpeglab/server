@@ -144,7 +144,6 @@ describe('await createFFmpeg', () => {
       // execToMilliseconds('00:00:01.50') === 1500 → ×1000000
       expect(progressCB).toHaveBeenCalledWith({
         time: 1_500_000,
-        progress: 0,
       });
     });
 

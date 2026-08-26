@@ -21,7 +21,7 @@ export class RendersService {
   async findAll(userId: string): Promise<Render[]> {
     return (await this.rendersRepository.findBy({ user_id: userId })).map(
       (render) => {
-        render.data = {} as any;
+        render.data = {} as Render['data'];
         return render;
       },
     );
@@ -49,7 +49,7 @@ export class RendersService {
 
   async updateMediaResult(renderId: string, media: MinimalMedia) {
     await this.rendersRepository.update({ id: renderId }, { result: media });
-    return await this.findOne(renderId, media.userId as string);
+    return await this.findOne(renderId, media.userId);
   }
 
   async updateRenderStatus(
@@ -70,7 +70,7 @@ export class RendersService {
         project: projectId,
       })
     ).map((render) => {
-      render.data = {} as any;
+      render.data = {} as Render['data'];
       return render;
     });
   }
