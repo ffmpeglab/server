@@ -100,6 +100,13 @@
          "data-source\\.ts",
          "app\\.module\\.ts"
       ],
+      "coverageThreshold": {
+        "global": {
+            "lines": 98,
+            "funcs": 93,
+            "branch": 86
+        }
+      },
       "coverageDirectory": "../coverage",
       "testEnvironment": "node"
    }
