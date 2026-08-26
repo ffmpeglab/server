@@ -25,7 +25,8 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
   coverage:
     permissions:
-      contents: write       # CRUCIAL: Grants permission to update the release body      checks: write   
+      contents: write
+      checks: write   
       pull-requests: write   # Required to comment on PRs
     runs-on: ubuntu-latest
     steps:
