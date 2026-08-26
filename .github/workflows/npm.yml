@@ -30,13 +30,13 @@ jobs:
       pull-requests: write   # Required to comment on PRs
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: Generate Jest Coverage Report
         uses: ArtiomTr/jest-coverage-report-action@v2
         id: coverage_report
         with:
           output: report-markdown # Generates markdown instead of a PR comment
           skip-step: none
-
       - name: Append Coverage to Release Body
         uses: actions/github-script@v7
         env:
