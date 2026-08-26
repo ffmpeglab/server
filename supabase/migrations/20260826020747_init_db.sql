@@ -1,44 +1,7 @@
-create or replace function public.insert_vault_secret(secret_value text)
-returns uuid
-language plpgsql
-security definer -- Elevates permissions to write to vault schema
-as $$
-declare
-  current_user_id uuid;
-begin
-  -- 1. Grab the actual logged-in user's ID from the Supabase auth JWT context
-  current_user_id := auth.uid();
-  
-  -- 2. Reject the request if the user is not authenticated
-  if current_user_id is null then
-    raise exception 'Not authorized';
-  end if;
+-- Always‑available extensions
+CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;
 
-  -- 3. Automatically use their user ID as the secret name so they can't hijack other profiles
-  return vault.create_secret(secret_value, current_user_id::text);
-end;
-$$;
-
-create or replace function public.get_my_secret()
-returns text
-language plpgsql
-security definer -- Elevates permissions to read from vault.decrypted_secrets
-as $$
-declare
-  user_secret text;
-begin
-  -- 1. Get the authenticated user's ID from the request context
-  -- 2. Find the secret where the name matches the user's ID string
-  select decrypted_secret into user_secret
-  from vault.decrypted_secrets
-  where name = auth.uid()::text
-  limit 1;
-
-  -- 3. Return the secret (returns null if no secret exists)
-  return user_secret;
-end;
-$$;
-
+-- Tables (unchanged)
 CREATE TABLE "api_key" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "apikey" character varying(200) NOT NULL, "user_id" uuid NOT NULL, "data" text NOT NULL, "date" TIMESTAMP NOT NULL, CONSTRAINT "UQ_3105fa6c448e8846c395244f438" UNIQUE ("apikey"), CONSTRAINT "PK_b1bd840641b8acbaad89c3d8d11" PRIMARY KEY ("id"));
 CREATE INDEX "IDX_b1bd840641b8acbaad89c3d8d1" ON "api_key"  ("id") ;
 CREATE INDEX "IDX_3105fa6c448e8846c395244f43" ON "api_key"  ("apikey") ;
@@ -58,7 +21,51 @@ CREATE INDEX "IDX_e320d150d8f0119e9dda0167a9" ON "render"  ("project") ;
 CREATE INDEX "IDX_094c1eb759b086be91b6656883" ON "render"  ("public") ;
 CREATE INDEX "IDX_1640c5627c5d3141a6eb5caa40" ON "render"  ("user_id") ;
 CREATE INDEX "IDX_58c6b1221195ef87c2c4d62c84" ON "render"  ("date") ;
-CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;
+
+-- Conditionally create vault functions if vault extension is installed
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vault') THEN
+        CREATE OR REPLACE FUNCTION public.insert_vault_secret(secret_value text)
+        RETURNS uuid
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $func$
+        DECLARE
+          current_user_id uuid;
+        BEGIN
+          current_user_id := auth.uid();
+          IF current_user_id IS NULL THEN
+            RAISE EXCEPTION 'Not authorized';
+          END IF;
+          RETURN vault.create_secret(secret_value, current_user_id::text);
+        END;
+        $func$;
+
+        CREATE OR REPLACE FUNCTION public.get_my_secret()
+        RETURNS text
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $func$
+        DECLARE
+          user_secret text;
+        BEGIN
+          SELECT decrypted_secret INTO user_secret
+          FROM vault.decrypted_secrets
+          WHERE name = auth.uid()::text
+          LIMIT 1;
+          RETURN user_secret;
+        END;
+        $func$;
+
+        RAISE NOTICE 'Vault functions created';
+    ELSE
+        RAISE NOTICE 'Vault not available, skipping vault functions';
+    END IF;
+END;
+$$;
+
+-- PGMQ queues
 SELECT pgmq.create('renders');
 SELECT pgmq.create('render');
 SELECT pgmq.create('file');

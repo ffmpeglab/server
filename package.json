@@ -12,7 +12,7 @@
       "start:dev": "nest start --watch",
       "start:debug": "nest start --debug --watch",
       "start:prod": "node dist/main",
-     "lint": "eslint \"src/**/*.ts\" --ignore-pattern \"**/*.spec.ts\" --ignore-pattern \"**/*.test.ts\"",
+      "lint": "eslint \"src/**/*.ts\" --ignore-pattern \"**/*.spec.ts\" --ignore-pattern \"**/*.test.ts\"",
       "migrations:gen": "yarn build && node ./node_modules/typeorm/cli -d dist/data-source.js migration:generate src/migrations/init",
       "migrations:dry": "node ./node_modules/typeorm/cli -d dist/data-source.js migration:show",
       "migrations:run": "node ./node_modules/typeorm/cli -d dist/data-source.js migration:run",
@@ -50,6 +50,7 @@
       "postinstall-postinstall": "^2.1.0",
       "reflect-metadata": "^0.2.2",
       "rxjs": "^7.8.1",
+      "supabase": "^2.115.0",
       "typeorm": "1.1.0"
    },
    "devDependencies": {
