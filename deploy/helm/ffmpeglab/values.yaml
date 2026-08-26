@@ -60,6 +60,13 @@ documentDir:
   sizeLimit: 10Gi
   medium: ""
 
+# Reloader watches the Secret each component reads through envFrom and rolls the
+# pods when a credential changes. The annotation belongs on the Deployment, not
+# the pod template - Reloader does not look at the template. Harmless when
+# Reloader is not installed.
+reloader:
+  enabled: true
+
 api:
   enabled: true
   replicaCount: 1
@@ -92,6 +99,7 @@ api:
   tolerations: []
   affinity: {}
   podAnnotations: {}
+  deploymentAnnotations: {}
 
 # No CPU limit on purpose: a limit throttles rather than reallocates.
 render:
@@ -110,6 +118,7 @@ render:
   tolerations: []
   affinity: {}
   podAnnotations: {}
+  deploymentAnnotations: {}
 
 file:
   enabled: true
@@ -127,6 +136,7 @@ file:
   tolerations: []
   affinity: {}
   podAnnotations: {}
+  deploymentAnnotations: {}
 
 
 logs:
@@ -145,6 +155,7 @@ logs:
   tolerations: []
   affinity: {}
   podAnnotations: {}
+  deploymentAnnotations: {}
 
 podSecurityContext: {}
 securityContext: {}

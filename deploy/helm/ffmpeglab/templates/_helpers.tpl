@@ -75,6 +75,15 @@ metadata:
   labels:
     {{- include "ffmpeglab.labels" $ctx | nindent 4 }}
     app.kubernetes.io/component: {{ $component }}
+  {{- if or $ctx.Values.reloader.enabled $cfg.deploymentAnnotations }}
+  annotations:
+    {{- if $ctx.Values.reloader.enabled }}
+    reloader.stakater.com/auto: "true"
+    {{- end }}
+    {{- with $cfg.deploymentAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
 spec:
   replicas: {{ $cfg.replicaCount | default 1 }}
   {{- with $ctx.Values.updateStrategy }}
