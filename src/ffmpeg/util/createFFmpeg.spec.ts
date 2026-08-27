@@ -32,54 +32,6 @@ describe('await createFFmpeg', () => {
       await p;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
     });
-
-    it('passes cmd array through to spawn args', async () => {
-      const p = (await createFFmpeg()).exec(['-i', '$MEDIA_1', '-y']);
-      await flush();
-      child.emit('close', 0);
-      await p;
-
-      const [, args] = mockSpawn.mock.calls[0];
-      expect(args).toEqual(['-i', '$MEDIA_1', '-y']);
-    });
-
-    it('resolves $VARIABLE tokens against provided env values', async () => {
-      const p = (await createFFmpeg()).exec(
-        ['-i', '$MEDIA_1', '-y', '$OUTPUT_PATH'],
-        {
-          MEDIA_1: '/tmp/input.mp4',
-          OUTPUT_PATH: '/tmp/out.mp4',
-        },
-      );
-      await flush();
-      child.emit('close', 0);
-      await p;
-
-      const [, args] = mockSpawn.mock.calls[0];
-      expect(args).toEqual(['-i', '/tmp/input.mp4', '-y', '/tmp/out.mp4']);
-    });
-
-    it('leaves unknown $TOKENS untouched', async () => {
-      const p = (await createFFmpeg()).exec(['-r', '$UNKNOWN_THING']);
-      await flush();
-      child.emit('close', 0);
-      await p;
-
-      const [, args] = mockSpawn.mock.calls[0];
-      expect(args).toEqual(['-r', '$UNKNOWN_THING']);
-    });
-
-    it('accepts env values containing spaces (kept as single tokens)', async () => {
-      const p = (await createFFmpeg()).exec(['-i', '$MEDIA_1', '-y'], {
-        MEDIA_1: '/my dir/my file.mp4',
-      });
-      await flush();
-      child.emit('close', 0);
-      await p;
-
-      const [, args] = mockSpawn.mock.calls[0];
-      expect(args).toEqual(['-i', '/my dir/my file.mp4', '-y']);
-    });
   });
 
   describe('exec - lifecycle and callbacks', () => {

@@ -24,6 +24,7 @@ export type MinimalMedia = Pick<
   | 'filePath'
   | 'url'
   | 'userId'
+  | 'size'
 >;
 
 export class Media {
