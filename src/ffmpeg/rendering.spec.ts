@@ -151,7 +151,7 @@ describe('execEncode', () => {
 
     expect(mediaOut.filePath).toBe(`${DOC}/out.mp4`);
     expect(mediaOut.size).toBe(12345);
-    expect(fs.statSync).toHaveBeenCalledWith(`${DOC}/out.mp4`);
+    expect(fs.statSync).toHaveBeenCalledWith(`${DOC}/proj-1/out.mp4`);
   });
 
   it('returns outputPath', async () => {
