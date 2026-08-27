@@ -214,5 +214,3 @@ if [[ "$HTTP_FILE" -ne 200 ]]; then
     exit 1
 fi
 echo -e "${GREEN}✅ Result file accessible${NC}"
-
-echo -e "${GREEN}🎉 All E2E tests passed!${NC}"
