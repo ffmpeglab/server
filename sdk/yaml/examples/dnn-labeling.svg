@@ -29,7 +29,7 @@
           <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="0.3s + 0.4s" repeatCount="indefinite"/>
           <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="0.3s + 0.4s" repeatCount="indefinite"/>
         </path>
-<g opacity="0"><rect x="306.5" y="300" width="123" height="22" rx="11" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="368" y="312" text-anchor="middle" dominant-baseline="central" fill="#A9A4C2" font-size="10">private-uploads</text>
+<g opacity="0">
             <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.6s" fill="freeze"/>
           </g>
 <path d="M308,400 L428,400" pathLength="1" fill="none" stroke="#322C49" stroke-width="1.5" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)">
@@ -41,7 +41,7 @@
           <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="0.3s + 0.4s" repeatCount="indefinite"/>
           <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="0.3s + 0.4s" repeatCount="indefinite"/>
         </path>
-<g opacity="0"><rect x="313.5" y="389" width="109" height="22" rx="11" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="368" y="401" text-anchor="middle" dominant-baseline="central" fill="#A9A4C2" font-size="10">private-uplo…</text>
+<g opacity="0">
             <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.6s" fill="freeze"/>
           </g>
 <path d="M308,400 L358,400 Q368,400 368,410 L368,568 Q368,578 378,578 L428,578" pathLength="1" fill="none" stroke="#322C49" stroke-width="1.5" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)">
@@ -53,7 +53,7 @@
           <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="0.3s + 0.4s" repeatCount="indefinite"/>
           <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="0.3s + 0.4s" repeatCount="indefinite"/>
         </path>
-<g opacity="0"><rect x="303" y="478" width="130" height="22" rx="11" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="368" y="490" text-anchor="middle" dominant-baseline="central" fill="#A9A4C2" font-size="10">public-processed</text>
+<g opacity="0">
             <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.6s" fill="freeze"/>
           </g>
 <g opacity="0">
@@ -66,7 +66,6 @@
 <rect x="61" y="347" width="246" height="106" rx="9" fill="none" stroke="#FC6D26" stroke-width="2" opacity="0">
           <animate attributeName="opacity" values="0;0.45;0" dur="3.0s" begin="0.55s" repeatCount="indefinite"/>
         </rect>
-<rect x="60" y="346" width="3" height="108" rx="1.5" fill="#FC6D26" opacity="0.7"/>
 <text x="76" y="370" dominant-baseline="central" fill="#FC6D26" font-size="12" font-weight="700">dnn-uploads</text>
 <text x="76" y="408" dominant-baseline="central" fill="#6F6A87" font-size="10">▸ drop files here to begin</text>
 <rect x="56" y="342" width="256" height="116" rx="13" fill="none" stroke="#FC6D26" stroke-width="1.5" opacity="0">
@@ -84,7 +83,6 @@
 <rect x="429" y="169" width="246" height="106" rx="9" fill="none" stroke="#2C2741" stroke-width="2" opacity="0">
           <animate attributeName="opacity" values="0;0.45;0" dur="3.7s" begin="0.85s" repeatCount="indefinite"/>
         </rect>
-<rect x="428" y="168" width="3" height="108" rx="1.5" fill="#2C2741" opacity="0.7"/>
 <text x="444" y="192" dominant-baseline="central" fill="#D6D2E6" font-size="12" font-weight="700">detect_objects</text>
 <text x="444" y="218" dominant-baseline="central" fill="#A9A4C2" font-size="9.5">{userId}/video-labeling/{filename}…</text>
 <rect x="444" y="234" width="38" height="18" rx="9" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="463" y="243.5" text-anchor="middle" dominant-baseline="central" fill="#6F6A87" font-size="8" letter-spacing="0.5">json</text>
@@ -99,7 +97,6 @@
 <rect x="429" y="347" width="246" height="106" rx="9" fill="none" stroke="#2C2741" stroke-width="2" opacity="0">
           <animate attributeName="opacity" values="0;0.45;0" dur="4.4s" begin="0.85s" repeatCount="indefinite"/>
         </rect>
-<rect x="428" y="346" width="3" height="108" rx="1.5" fill="#2C2741" opacity="0.7"/>
 <text x="444" y="370" dominant-baseline="central" fill="#D6D2E6" font-size="12" font-weight="700">classify_scenes</text>
 <text x="444" y="396" dominant-baseline="central" fill="#A9A4C2" font-size="9.5">{userId}/video-labeling/{filename}…</text>
 <rect x="444" y="412" width="38" height="18" rx="9" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="463" y="421.5" text-anchor="middle" dominant-baseline="central" fill="#6F6A87" font-size="8" letter-spacing="0.5">json</text>
@@ -114,7 +111,6 @@
 <rect x="429" y="525" width="246" height="106" rx="9" fill="none" stroke="#2E4A36" stroke-width="2" opacity="0">
           <animate attributeName="opacity" values="0;0.45;0" dur="3.1s" begin="0.85s" repeatCount="indefinite"/>
         </rect>
-<rect x="428" y="524" width="3" height="108" rx="1.5" fill="#2E4A36" opacity="0.7"/>
 <text x="444" y="548" dominant-baseline="central" fill="#8FCF9B" font-size="12" font-weight="700">overlay_labels</text>
 <rect x="624" y="536" width="40" height="18" rx="9" fill="#221E33" stroke="#2E4A36" stroke-width="1"/><text x="644" y="545.5" text-anchor="middle" dominant-baseline="central" fill="#8FCF9B" font-size="8" letter-spacing="0.5">keep</text>
 <text x="444" y="574" dominant-baseline="central" fill="#8FCF9B" font-size="9.5">{userId}/video-labeling/{filename}…</text>

@@ -22,16 +22,6 @@ jobs:
           node-version: '22.x'
       - run: yarn
       - run: yarn lint
-  db:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: supabase/setup-cli@v3
-        with:
-          version: latest
-      - run: |
-          supabase db start 
-          supabase test db
   e2e:
     runs-on: ubuntu-latest
     steps:
@@ -40,6 +30,7 @@ jobs:
         with:
           version: latest
       - run: |
-          supabase start
+          supabase start 
+          supabase test db
           ./e2e/start.sh
         

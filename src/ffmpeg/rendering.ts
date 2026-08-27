@@ -22,8 +22,8 @@ import { randomUUID } from 'crypto';
 import { syncMedia } from './util/syncMedia';
 
 const processCustomCode = (Code: string, ENV: Record<string, string>) => {
-  const hasFilterComplex = Code?.search('filter_complex') > -1;
-  if (hasFilterComplex) return processUserCode(replaceEnv(Code, ENV));
+  // const hasFilterComplex = Code?.search('filter_complex') > -1;
+  // if (hasFilterComplex) return processUserCode(replaceEnv(Code, ENV));
 
   return parseCommand(processUserCode(Code).join(' '), ENV);
 };
