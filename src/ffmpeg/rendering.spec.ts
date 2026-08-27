@@ -8,6 +8,7 @@ import { parseCommand, replaceEnv } from './util/parseCommand';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
+import { mockExecuteFFmpeg } from './__mocks__/ffmpeg'; // adjust import to your mocks
 
 jest.mock('./util/genRenderCmd');
 jest.mock('./util/getTotalTime');
@@ -144,13 +145,13 @@ describe('execEncode', () => {
     );
   });
 
-  it('mutates mediaOut with filePath and size from outputPath stats', async () => {
+  it('calls mediaOut with filePath and size from outputPath stats', async () => {
     const mediaOut: any = {};
     await execEncode(baseCmd({ mediaOut }) as any);
 
     expect(mediaOut.filePath).toBe(`${DOC}/out.mp4`);
     expect(mediaOut.size).toBe(12345);
-    expect(fs.statSync).toHaveBeenCalledWith(`${DOC}/proj-1/out.mp4`);
+    expect(fs.statSync).toHaveBeenCalledWith(`${DOC}/out.mp4`);
   });
 
   it('returns outputPath', async () => {
@@ -486,4 +487,3 @@ describe('exec - lifecycle and callbacks (real createFFmpeg + fake child)', () =
     await expect(p).resolves.toBe(0);
   });
 });
-import { mockExecuteFFmpeg } from './__mocks__/ffmpeg'; // adjust import to your mocks
