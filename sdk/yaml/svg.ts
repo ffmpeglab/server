@@ -139,7 +139,8 @@ function resolveTheme(options: SVGOptions): Required<ThemeColors> {
   const { theme, background } = options;
   let base: Required<ThemeColors>;
   if (theme === 'dark') base = { ...darkTheme };
-  else if (typeof theme === 'object' && theme !== null) base = { ...lightTheme, ...theme };
+  else if (typeof theme === 'object' && theme !== null)
+    base = { ...lightTheme, ...theme };
   else base = { ...lightTheme };
   if (background !== undefined) base.bg = background;
   return base;
@@ -152,10 +153,19 @@ function getStepDestination(step: any, outputBucket: string): string {
 }
 
 const esc = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
 // Rounded orthogonal connector: never overshoots/loops past the node.
-function orthogonalPath(x1: number, y1: number, x2: number, y2: number): string {
+function orthogonalPath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): string {
   const r = 10;
   const mid = (x1 + x2) / 2;
   if (Math.abs(y2 - y1) < 1) {
@@ -183,7 +193,9 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   const steps = config.steps || [];
   const outputBucket = config.storage?.output_bucket;
   const pipelineId =
-    config.pipelineId || config.name?.toLowerCase().replace(/\s+/g, '-') || 'pipeline';
+    config.pipelineId ||
+    config.name?.toLowerCase().replace(/\s+/g, '-') ||
+    'pipeline';
   const runIdTemplate = config.runId?.template || '{uuid}';
 
   // --- Build graph -----------------------------------------------------------
@@ -199,7 +211,9 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     if (outBucket) (outputToSteps[outBucket] ??= []).push(step.id);
   });
 
-  const startBuckets = Object.keys(triggerToSteps).filter((b) => !outputToSteps[b]);
+  const startBuckets = Object.keys(triggerToSteps).filter(
+    (b) => !outputToSteps[b],
+  );
 
   const nodes: any[] = steps.map((s: any) => {
     const editor = s.editor || {};
@@ -221,7 +235,10 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       wait_for: s.wait_for,
       outputFormat: editor.output || 'mp4',
       preset: editor.preset || 'medium',
-      resolution: editor.width && editor.height ? `${editor.width}x${editor.height}` : null,
+      resolution:
+        editor.width && editor.height
+          ? `${editor.width}x${editor.height}`
+          : null,
       outputPath: outputPathPattern,
       nextBucket: s.next_bucket,
       step: s,
@@ -235,7 +252,8 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     nodes.unshift({ id: startNodeId, label, type: 'start', keep: false });
   }
 
-  const edges: { from: string; to: string; label: string; dashed?: boolean }[] = [];
+  const edges: { from: string; to: string; label: string; dashed?: boolean }[] =
+    [];
   const depMap: Record<string, Set<string>> = {};
   steps.forEach((s: any) => (depMap[s.id] = new Set()));
 
@@ -310,10 +328,15 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   }
 
   // --- Viewbox ---------------------------------------------------------------
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   const expand = (x: number, y: number) => {
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
   };
   nodes.forEach((n) => {
     const p = positions[n.id];
@@ -322,7 +345,8 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     expand(p.x + NODE_W, p.y + NODE_H);
   });
   edges.forEach((e) => {
-    const f = positions[e.from], to = positions[e.to];
+    const f = positions[e.from],
+      to = positions[e.to];
     if (!f || !to) return;
     const mid = (f.x + NODE_W + to.x) / 2;
     expand(f.x + NODE_W, f.y + NODE_H / 2);
@@ -332,8 +356,10 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   });
 
   const PAD = 50;
-  const vbX = minX - PAD, vbY = minY - PAD;
-  const vbW = maxX - minX + PAD * 2, vbH = maxY - minY + PAD * 2;
+  const vbX = minX - PAD,
+    vbY = minY - PAD;
+  const vbW = maxX - minX + PAD * 2,
+    vbH = maxY - minY + PAD * 2;
 
   // --- Timing ------------------------------------------------------------------
   const LEVEL_MS = 300;
@@ -432,8 +458,8 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       // Dynamically truncate label to fit within horizontal gaps
       let labelText = e.label;
       let w = Math.max(34, labelText.length * 7 + 18);
-      const availableGap = isHorizontal ? (x2 - x1) : Infinity;
-      
+      const availableGap = isHorizontal ? x2 - x1 : Infinity;
+
       if (isHorizontal && availableGap - 10 < w) {
         const maxLabelWidth = Math.max(34, availableGap - 10);
         const maxChars = Math.floor((maxLabelWidth - 18) / 7);
@@ -461,7 +487,14 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   parts.push(...edgeSvg);
 
   // --- Nodes -------------------------------------------------------------------
-  const pill = (x: number, y: number, w: number, text: string, fg: string, border: string) =>
+  const pill = (
+    x: number,
+    y: number,
+    w: number,
+    text: string,
+    fg: string,
+    border: string,
+  ) =>
     `<rect x="${x}" y="${y}" width="${w}" height="18" rx="9" fill="${t.pillBg}" stroke="${border}" stroke-width="1"/>` +
     `<text x="${x + w / 2}" y="${y + 9.5}" text-anchor="middle" dominant-baseline="central" fill="${fg}" font-size="8" letter-spacing="0.5">${esc(text)}</text>`;
 
@@ -493,13 +526,22 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       textColor = t.startText;
     } else {
       if (node.hasWaitFor) {
-        fill = t.waitBg; stroke = t.waitBorder; textColor = t.waitText; dashed = true;
+        fill = t.waitBg;
+        stroke = t.waitBorder;
+        textColor = t.waitText;
+        dashed = true;
       } else if (node.hasTemplate) {
-        fill = t.templateBg; stroke = t.templateBorder; textColor = t.templateText;
+        fill = t.templateBg;
+        stroke = t.templateBorder;
+        textColor = t.templateText;
       } else if (node.hasSource) {
-        fill = t.sourceBg; stroke = t.sourceBorder; textColor = t.sourceText;
+        fill = t.sourceBg;
+        stroke = t.sourceBorder;
+        textColor = t.sourceText;
       } else if (node.keep) {
-        fill = t.keepBg; stroke = t.keepBorder; textColor = t.keepText;
+        fill = t.keepBg;
+        stroke = t.keepBorder;
+        textColor = t.keepText;
       }
     }
 
@@ -537,10 +579,22 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
 
     // Status pills
     const statusPills: { text: string; fg: string; border: string }[] = [];
-    if (node.keep) statusPills.push({ text: 'keep', fg: t.keepText, border: t.keepBorder });
-    if (node.hasWaitFor) statusPills.push({ text: 'wait', fg: t.waitText, border: t.waitBorder });
-    if (node.hasTemplate) statusPills.push({ text: 'template', fg: t.templateText, border: t.templateBorder });
-    if (node.hasSource) statusPills.push({ text: 'source', fg: t.sourceText, border: t.sourceBorder });
+    if (node.keep)
+      statusPills.push({ text: 'keep', fg: t.keepText, border: t.keepBorder });
+    if (node.hasWaitFor)
+      statusPills.push({ text: 'wait', fg: t.waitText, border: t.waitBorder });
+    if (node.hasTemplate)
+      statusPills.push({
+        text: 'template',
+        fg: t.templateText,
+        border: t.templateBorder,
+      });
+    if (node.hasSource)
+      statusPills.push({
+        text: 'source',
+        fg: t.sourceText,
+        border: t.sourceBorder,
+      });
 
     let pillX = x + NODE_W - 12;
     statusPills.forEach((p) => {
@@ -572,7 +626,9 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     // Output path
     if (node.outputPath) {
       const pathText =
-        node.outputPath.length > 36 ? node.outputPath.slice(0, 34) + '…' : node.outputPath;
+        node.outputPath.length > 36
+          ? node.outputPath.slice(0, 34) + '…'
+          : node.outputPath;
       parts.push(
         `<text x="${x + 16}" y="${y + 50}" dominant-baseline="central" fill="${node.keep ? t.keepText : t.textDim}" font-size="9.5">${esc(pathText)}</text>`,
       );
@@ -581,7 +637,8 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     // Editor meta
     const meta: string[] = [];
     if (node.resolution) meta.push(node.resolution);
-    if (node.outputFormat && node.outputFormat !== 'mp4') meta.push(node.outputFormat);
+    if (node.outputFormat && node.outputFormat !== 'mp4')
+      meta.push(node.outputFormat);
     if (node.preset && node.preset !== 'medium') meta.push(node.preset);
     if (meta.length) {
       let mx = x + 16;
@@ -595,7 +652,8 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     // Wait-for footnote
     if (node.hasWaitFor && node.wait_for?.length) {
       const waitText = node.wait_for.join(', ');
-      const trunc = waitText.length > 24 ? waitText.slice(0, 22) + '…' : waitText;
+      const trunc =
+        waitText.length > 24 ? waitText.slice(0, 22) + '…' : waitText;
       parts.push(
         `<text x="${x + 16}" y="${y + NODE_H - 10}" dominant-baseline="central" fill="${t.waitText}" font-size="8">⌛ ${esc(trunc)}</text>`,
       );

@@ -6,10 +6,14 @@
  * Replaces environment variable placeholders like $VAR in a command string.
  * Uses a function replacer to avoid `$&` substitution issues.
  */
-export function replaceEnv(cmd: string, vars: Record<string, string>): string {
+export function replaceEnv(
+  cmd: string,
+  vars: Record<string, string | undefined>,
+): string {
   if (!vars) return cmd;
-  return cmd.replace(/\$(\w+)/g, (_, key) => {
-    return Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : `$${key}`;
+  return cmd.replace(/\$(\w+)/g, (_, key: string) => {
+    const value = vars[key];
+    return value !== undefined ? value : `$${key}`;
   });
 }
 
