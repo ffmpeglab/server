@@ -60,7 +60,6 @@ describe('FilesService', () => {
         Bucket: config.s3.bucketId,
         Key: 'user-1/video.mp4',
         Body: buffer,
-        ACL: 'public-read',
         ContentType: 'video/mp4',
       });
     });

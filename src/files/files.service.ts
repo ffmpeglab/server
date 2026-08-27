@@ -24,7 +24,6 @@ export class FilesService {
           Bucket: config.s3.bucketId,
           Key: fileKey,
           Body: file,
-          ACL: 'public-read',
           ContentType: contentType,
         }),
       );

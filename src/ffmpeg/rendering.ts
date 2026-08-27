@@ -21,7 +21,7 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { syncMedia } from './util/syncMedia';
 
-const processCustomCode = (Code: string, ENV: typeof process.env) => {
+const processCustomCode = (Code: string, ENV: Record<string, string>) => {
   const hasFilterComplex = Code?.search('filter_complex') > -1;
   if (hasFilterComplex) return processUserCode(replaceEnv(Code, ENV));
 
@@ -62,10 +62,9 @@ export const execEncode = async (cmd: {
     if (code !== 0 && code !== undefined) {
       throw new Error(`ffmpeg exited with code ${code}`);
     }
-    // console.info('after exec', exec, outFileId);
     const url = `${documentDir()}/${cmd.outFileId}`;
     cmd.mediaOut.filePath = url;
-    const stats = fs.statSync(cmd.outputPath);
+    const stats = fs.statSync(url);
     cmd.mediaOut.size = stats?.size;
     return cmd.outputPath;
   } catch (err) {
