@@ -21,11 +21,11 @@ import {
 } from '@nestjs/swagger';
 import { FileListDto, FileResponseDto, FileUploadDto } from './file.dto';
 import { _Object$ } from '@aws-sdk/client-s3';
-import { withSupabase, SupabaseCtx } from '@supabase/server/adapters/nestjs';
-import type { SupabaseContext } from '@supabase/server';
 import { User } from '@supabase/supabase-js';
 import { S3Config } from '../types';
 import { config, supabaseEnv } from '../config';
+
+import { createClient } from '@supabase/supabase-js';
 
 @UseGuards(AuthGuard)
 @Controller('files')
@@ -74,27 +74,30 @@ export class FilesController {
   }
 
   @Get('s3config')
-  @UseGuards(withSupabase({ auth: 'none', env: supabaseEnv }))
   @ApiResponse({ type: S3Config })
-  async s3(
-    @Request() req: Request & { user: string },
-    @SupabaseCtx() ctx: SupabaseContext,
-  ): Promise<S3Config> {
+  async s3(@Request() req: Request & { user: string }): Promise<S3Config> {
+    const supabaseAdmin = createClient(
+      supabaseEnv.url,
+      supabaseEnv.secretKeys.default,
+    );
     const {
       data: { users },
       error,
-    } = await ctx.supabaseAdmin.auth.admin.listUsers();
+    } = await supabaseAdmin.auth.admin.listUsers();
     const userId = req.user;
-    console.info({ userId, users, error });
+
+    if (error) {
+      console.info({ userId, users, error });
+    }
+
     const existingUser = users.find((user) => (user as User).id === userId);
-    console.info({ existingUser });
     const { email } = existingUser || {};
     if (!email) {
       throw new UnauthorizedException();
     }
 
     const { data: linkData, error: createUserLinkError } =
-      await ctx.supabaseAdmin.auth.admin.generateLink({
+      await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email,
       });
@@ -105,7 +108,7 @@ export class FilesController {
     }
 
     const { data: otpData, error: otpError } =
-      await ctx.supabaseAdmin.auth.verifyOtp({
+      await supabaseAdmin.auth.verifyOtp({
         token_hash: linkData.properties.hashed_token,
         type: 'magiclink',
       });

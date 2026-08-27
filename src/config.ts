@@ -49,7 +49,7 @@ export const config = {
   tenantSecretKey: process.env.TENANT_SECRET_KEY as string,
   tenantUserId: process.env.TENANT_USER_ID as string,
   tenantId: process.env.TENANT_ID as string,
-  supabaseHost: process.env.SUPABASE_HOST as string,
+  supabaseHost: process.env.SUPABASE_URL as string,
   supabaseWorkerLogin: process.env.TENANT_WORKER_LOGIN as string,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY as string,
   platformHost: process.env.PLATFORM_HOST as string,
@@ -63,4 +63,5 @@ export const supabaseEnv = {
     default: config.supabaseAnonKey,
   },
   secretKeys: { default: config.supabaseSecretKey },
+  // jwks: new URL(process.env.SUPABASE_JWKS_URL as string),
 };

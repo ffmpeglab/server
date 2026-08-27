@@ -1,9 +1,9 @@
 #!/bin/sh
-export SUPABASE_URL="http://127.0.0.1:54323"
+export SUPABASE_URL="http://127.0.0.1:54321"
 export DB_PASSWORD=postgres
 export DB_NAME=postgres
 export DB_USER=postgres
-export S3_BUCKET=${S3_BUCKET:-ffmpeglab-assets}
+export S3_BUCKET="ffmpeglab-assets"
 export CONN_STRING="postgresql://${DB_USER}:${DB_PASSWORD}@127.0.0.1:54322/postgres"
 # Build DATABASE_URL
 echo $S3_BUCKET
@@ -14,15 +14,18 @@ export S3_BUCKET_ID="${S3_BUCKET}"
 export S3_ACCESS_KEY="625729a08b95bf1b7ff351a663f3a23c"
 export S3_SECRET_KEY="850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907"
 export S3_ENDPOINT="http://127.0.0.1:54321/storage/v1/s3"
-export SUPABASE_SECRET_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q"
+export SECRET_PREFIX="sb_secret_"
+export SECRET_POSTFIX="VK-Uodkm0Hg_xSvEMPvz"
+export SUPABASE_SECRET_KEY="${SECRET_PREFIX}N7UND0UgjKT${SECRET_POSTFIX}"
 export S3_REGION=local
 export DB_HOST="127.0.0.1"
 export DB_PORT=54322  
 export IS_RENDER_RUNNER="true"
 export IS_LOGS_RUNNER="true"
 export IS_FILE_RUNNER="true"
+export SUPABASE_JWKS_URL="http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
 export SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE"
-
+export SUPABASE_PROJECT_ID="local"
 #SERVER .env
 export SERVER_DIR="."
 echo "DATABASE_URL=${DATABASE_URL}" >> $SERVER_DIR/.env;
@@ -39,6 +42,8 @@ echo "DB_PORT=54322" >> $SERVER_DIR/.env;
 echo "SUPABASE_URL=${SUPABASE_URL}" >> $SERVER_DIR/.env;
 echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> $SERVER_DIR/.env;
 echo "SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}" >> $SERVER_DIR/.env;
+echo "SUPABASE_JWKS_URL=${SUPABASE_JWKS_URL}" >> $SERVER_DIR/.env;
+echo "SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_ID}" >> $SERVER_DIR/.env;
 cat .env
 ls -1 .
 
@@ -151,7 +156,7 @@ EOF
 echo -e "${GREEN} Preparing ffmpeg...${NC}"
 sudo apt-get install -y ffmpeg
 export FFMPEG_PATH=$(which ffmpeg)
-echo "${GREEN} Path to ffmpeg: ${FFMPEG_PATH}"
+echo -e "${GREEN} Path to ffmpeg: ${FFMPEG_PATH}"
 
 echo -e "${BLUE}💾 Installing python s3 sdk${NC}"
 pip install boto3
@@ -160,10 +165,15 @@ echo -e "${GREEN} Preparing server...${NC}"
 
 yarn
 yarn build
+# Start server
 yarn start:prod &
 SERVER_PID=$!
-sleep 5
+trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+
+sleep 2
+
+# Run E2E tests (they will exit on failure)
 ./e2e/render.sh
 ./e2e/s3.sh
-kill $SERVER_PID
+
 echo -e "${GREEN}🎉 All E2E tests passed!${NC}"

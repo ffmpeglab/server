@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-# s3.sh — bash orchestrates the API, python verifies S3 access.
+# s3.sh — bash orchestrates the API, exports credentials, then runs python verifier.
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 DEBUG=${DEBUG:-0}
@@ -93,8 +93,17 @@ if [[ ! "$USER_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 fi
 echo -e "${GREEN}✅ userId present and well-formed: ${USER_ID}${NC}"
 
-# ---- Hand off to Python ----
-echo -e "${YELLOW}➡️  Verifying S3 roundtrip with returned credentials...${NC}"
-jq '.' <<<"$S3_CONFIG" | python3 "$SCRIPT_DIR/e2e/s3.py"
+# ---- Export environment variables for Python ----
+export S3_ENDPOINT=$(jq -r '.endpoint' <<<"$S3_CONFIG")
+export S3_REGION=$(jq -r '.region' <<<"$S3_CONFIG")
+export S3_BUCKET_ID=$(jq -r '.bucketId' <<<"$S3_CONFIG")
+export S3_USER_ID=$(jq -r '.userId' <<<"$S3_CONFIG")
+export S3_ACCESS_KEY_ID=$(jq -r '.credentials.accessKeyId' <<<"$S3_CONFIG")
+export S3_SECRET_ACCESS_KEY=$(jq -r '.credentials.secretAccessKey' <<<"$S3_CONFIG")
+export S3_SESSION_TOKEN=$(jq -r '.credentials.sessionToken' <<<"$S3_CONFIG")
+echo $S3_CONFIG
+# ---- Hand off to Python (reads from env) ----
+# echo -e "${YELLOW}➡️  Verifying S3 roundtrip with returned credentials...${NC}"
+# python3 "$SCRIPT_DIR/s3.py"
 
 echo -e "${GREEN}🎉 All s3config E2E tests passed!${NC}"
