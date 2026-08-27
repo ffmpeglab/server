@@ -486,3 +486,4 @@ describe('exec - lifecycle and callbacks (real createFFmpeg + fake child)', () =
     await expect(p).resolves.toBe(0);
   });
 });
+import { mockExecuteFFmpeg } from './__mocks__/ffmpeg'; // adjust import to your mocks

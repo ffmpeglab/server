@@ -180,10 +180,10 @@ $OUTPUT_PATH
 
     // The filter graph is not quoted, so it will be split into multiple tokens.
     // We can check that some key parts appear.
-    expect(result.some(token => token.includes('[v0?]'))).toBe(true);
-    expect(result.some(token => token.includes('[v_layer0]'))).toBe(true);
-    expect(result.some(token => token.includes('[v_concat]'))).toBe(true);
-    expect(result.some(token => token.includes('[a_concat]'))).toBe(true);
+    expect(result.some((token) => token.includes('[v0?]'))).toBe(true);
+    expect(result.some((token) => token.includes('[v_layer0]'))).toBe(true);
+    expect(result.some((token) => token.includes('[v_concat]'))).toBe(true);
+    expect(result.some((token) => token.includes('[a_concat]'))).toBe(true);
 
     // Check -aspect and its value
     const aspectIndex = result.indexOf('-aspect');
@@ -197,8 +197,8 @@ $OUTPUT_PATH
     expect(result.includes('+faststart')).toBe(true);
 
     const mapIndices = result
-      .map((t, i) => t === '-map' ? i : -1)
-      .filter(i => i >= 0);
+      .map((t, i) => (t === '-map' ? i : -1))
+      .filter((i) => i >= 0);
     expect(mapIndices.length).toBe(2);
     expect(result[mapIndices[0] + 1]).toBe('[v_concat]');
     expect(result[mapIndices[1] + 1]).toBe('[a_concat]');
@@ -232,7 +232,8 @@ describe('processUserCode', () => {
   });
 
   it('handles flags with underscores (e.g., -filter_complex) and preserves quotes', () => {
-    const cmd = '-filter_complex "[0:v]trim=...; [v_concat]" -map "[v]" -y out.mp4';
+    const cmd =
+      '-filter_complex "[0:v]trim=...; [v_concat]" -map "[v]" -y out.mp4';
     expect(processUserCode(cmd)).toEqual([
       '-filter_complex',
       '"[0:v]trim=...; [v_concat]"',
@@ -309,7 +310,8 @@ describe('processUserCode', () => {
   });
 
   it('handles complex filter graphs with semicolons and brackets, preserving quotes', () => {
-    const cmd = '-filter_complex "[0:v]trim=0:5,scale=1280:720[v0];[1:a]adelay=1000[a1]" -map "[v0]" -map "[a1]"';
+    const cmd =
+      '-filter_complex "[0:v]trim=0:5,scale=1280:720[v0];[1:a]adelay=1000[a1]" -map "[v0]" -map "[a1]"';
     expect(processUserCode(cmd)).toEqual([
       '-filter_complex',
       '"[0:v]trim=0:5,scale=1280:720[v0];[1:a]adelay=1000[a1]"',

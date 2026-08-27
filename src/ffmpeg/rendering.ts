@@ -62,10 +62,9 @@ export const execEncode = async (cmd: {
     if (code !== 0 && code !== undefined) {
       throw new Error(`ffmpeg exited with code ${code}`);
     }
-    // console.info('after exec', exec, outFileId);
     const url = `${documentDir()}/${cmd.outFileId}`;
     cmd.mediaOut.filePath = url;
-    const stats = fs.statSync(cmd.outputPath);
+    const stats = fs.statSync(url);
     cmd.mediaOut.size = stats?.size;
     return cmd.outputPath;
   } catch (err) {
