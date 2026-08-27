@@ -1,29 +1,129 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 110 360 580" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;background:transparent;font-family:system-ui,-apple-system,sans-serif;">
-  <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L0,6 L9,3 z" fill="#6b7280"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 118 348 564" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;background:transparent;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">
+<defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#6F6A87"/>
     </marker>
-    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
-      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.15"/>
-    </filter>
-    <linearGradient id="startGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a2a4a"/>
-      <stop offset="100%" stop-color="#1a2a4a"/>
+    <linearGradient id="shimmer" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FC6D26" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#FC6D26" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FC6D26" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="keepGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a3a2a"/>
-      <stop offset="100%" stop-color="#1a3a2a"/>
-    </linearGradient>
-    <linearGradient id="templateGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3a2a1a"/>
-      <stop offset="100%" stop-color="#3a2a1a"/>
-    </linearGradient>
-    <linearGradient id="sourceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a1a3a"/>
-      <stop offset="100%" stop-color="#1a1a3a"/>
-    </linearGradient>
-    <linearGradient id="waitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3a1a1a"/>
-      <stop offset="100%" stop-color="#3a1a1a"/>
-    </linearGradient>
-  </defs><path d="M300,220 Q180,310 60,400" fill="none" stroke="#6b7280" stroke-width="2" stroke-dasharray="" marker-end="url(#arrow)"/><rect x="135" y="286" width="90" height="24" rx="4" fill="#2d2d44" stroke="#6b7280" stroke-width="1.5" opacity="0.95"/><text x="180" y="302" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="11" font-weight="600">→ private-uploads</text><path d="M300,220 Q180,400 60,580" fill="none" stroke="#6b7280" stroke-width="2" stroke-dasharray="" marker-end="url(#arrow)"/><rect x="135" y="376" width="90" height="24" rx="4" fill="#2d2d44" stroke="#6b7280" stroke-width="1.5" opacity="0.95"/><text x="180" y="392" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="11" font-weight="600">→ private-uploads</text><path d="M300,400 Q180,310 60,220" fill="none" stroke="#6b7280" stroke-width="2" stroke-dasharray="" marker-end="url(#arrow)"/><rect x="135" y="286" width="90" height="24" rx="4" fill="#2d2d44" stroke="#6b7280" stroke-width="1.5" opacity="0.95"/><text x="180" y="302" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="11" font-weight="600">→ private-uploads</text><path d="M300,400 Q180,490 60,580" fill="none" stroke="#6b7280" stroke-width="2" stroke-dasharray="" marker-end="url(#arrow)"/><rect x="135" y="466" width="90" height="24" rx="4" fill="#2d2d44" stroke="#6b7280" stroke-width="1.5" opacity="0.95"/><text x="180" y="482" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="11" font-weight="600">→ private-uploads</text><rect x="60" y="170" width="240" height="100" rx="10" fill="#2d2d44" stroke="#4a4a6a" stroke-width="2"  filter="url(#shadow)"/><text x="180" y="188" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="12" font-weight="600">extract_audio</text><text x="180" y="212" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="9" font-family="monospace">📁 {userId}/subtitle-pipeline/{filename}/…</text><text x="180" y="228" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="8">→ private-uploads</text><text x="180" y="244" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="8">wav (fast)</text><rect x="60" y="350" width="240" height="100" rx="10" fill="#2d2d44" stroke="#4a4a6a" stroke-width="2"  filter="url(#shadow)"/><text x="180" y="368" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="12" font-weight="600">transcribe</text><text x="180" y="392" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="9" font-family="monospace">📁 {userId}/subtitle-pipeline/{filename}/…</text><text x="180" y="408" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="8">→ private-uploads</text><text x="180" y="424" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="8">srt</text><rect x="60" y="530" width="240" height="100" rx="10" fill="url(#keepGrad)" stroke="#4a8a5a" stroke-width="2"  filter="url(#shadow)"/><text x="180" y="548" text-anchor="middle" dominant-baseline="central" fill="#a5d6a7" font-size="12" font-weight="600">burn_subtitles</text><rect x="254" y="538" width="36" height="18" rx="4" fill="#4a8a5a" opacity="0.9"/><text x="272" y="547" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="8" font-weight="bold">KEEP</text><text x="180" y="572" text-anchor="middle" dominant-baseline="central" fill="#a5d6a7" font-size="9" font-family="monospace">📁 {userId}/subtitle-pipeline/{filename}/…</text><text x="180" y="588" text-anchor="middle" dominant-baseline="central" fill="#e5e7eb" font-size="8">→ public-processed</text></svg>
+  </defs>
+
+    <rect x="10" y="118" width="348" height="44" fill="#100D19"/>
+    <line x1="10" y1="162" x2="358" y2="162" stroke="#2C2741"/>
+    <rect x="10" y="160" width="120" height="2.5" fill="url(#shimmer)" rx="1">
+        <animate attributeName="x" from="10" to="238" dur="6s" repeatCount="indefinite"/>
+      </rect>
+    <circle cx="36" cy="140" r="6" fill="#FC6D26"><animate attributeName="opacity" values="1;0.35;1" dur="2.4s" repeatCount="indefinite"/></circle>
+    <text x="54" y="141" dominant-baseline="central" fill="#FC6D26" font-size="12" font-weight="700" letter-spacing="1">pipeline</text>
+    <text x="128" y="141" dominant-baseline="central" fill="#6F6A87" font-size="11">subtitle-pipeline</text>
+    <rect x="228" y="128" width="110" height="24" rx="12" fill="#221E33" stroke="#322C49"/>
+    <text x="283" y="140" text-anchor="middle" dominant-baseline="central" fill="#A9A4C2" font-size="10">3 steps</text>
+<path d="M308,222 L174,222 Q184,222 184,232 L184,390 Q184,400 194,400 L60,400" pathLength="1" fill="none" stroke="#322C49" stroke-width="1.5" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)">
+          <animate attributeName="stroke-dashoffset" from="1" to="0" dur="0.45s" begin="0s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1" values="1;0"/>
+          <animate attributeName="opacity" values="0.7;1;0.7" dur="3.2s" begin="0.65s" repeatCount="indefinite"/>
+        </path>
+<path d="M308,222 L174,222 Q184,222 184,232 L184,390 Q184,400 194,400 L60,400" pathLength="100" fill="none" stroke="#FC6D26" stroke-width="1.5" stroke-linecap="round" opacity="0">
+          <animate attributeName="opacity" values="0;0.35;0.35;0" keyTimes="0;0.12;0.88;1" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+        </path>
+<g opacity="0"><rect x="122.5" y="300" width="123" height="22" rx="11" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="184" y="312" text-anchor="middle" dominant-baseline="central" fill="#A9A4C2" font-size="10">private-uploads</text>
+            <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze"/>
+          </g>
+<path d="M308,222 L174,222 Q184,222 184,232 L184,568 Q184,578 194,578 L60,578" pathLength="1" fill="none" stroke="#322C49" stroke-width="1.5" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)">
+          <animate attributeName="stroke-dashoffset" from="1" to="0" dur="0.45s" begin="0s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1" values="1;0"/>
+          <animate attributeName="opacity" values="0.7;1;0.7" dur="3.2s" begin="0.65s" repeatCount="indefinite"/>
+        </path>
+<path d="M308,222 L174,222 Q184,222 184,232 L184,568 Q184,578 194,578 L60,578" pathLength="100" fill="none" stroke="#FC6D26" stroke-width="1.5" stroke-linecap="round" opacity="0">
+          <animate attributeName="opacity" values="0;0.35;0.35;0" keyTimes="0;0.12;0.88;1" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+        </path>
+<g opacity="0"><rect x="122.5" y="389" width="123" height="22" rx="11" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="184" y="401" text-anchor="middle" dominant-baseline="central" fill="#A9A4C2" font-size="10">private-uploads</text>
+            <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze"/>
+          </g>
+<path d="M308,400 L174,400 Q184,400 184,390 L184,232 Q184,222 194,222 L60,222" pathLength="1" fill="none" stroke="#322C49" stroke-width="1.5" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)">
+          <animate attributeName="stroke-dashoffset" from="1" to="0" dur="0.45s" begin="0s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1" values="1;0"/>
+          <animate attributeName="opacity" values="0.7;1;0.7" dur="3.2s" begin="0.65s" repeatCount="indefinite"/>
+        </path>
+<path d="M308,400 L174,400 Q184,400 184,390 L184,232 Q184,222 194,222 L60,222" pathLength="100" fill="none" stroke="#FC6D26" stroke-width="1.5" stroke-linecap="round" opacity="0">
+          <animate attributeName="opacity" values="0;0.35;0.35;0" keyTimes="0;0.12;0.88;1" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+        </path>
+<g opacity="0"><rect x="122.5" y="300" width="123" height="22" rx="11" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="184" y="312" text-anchor="middle" dominant-baseline="central" fill="#A9A4C2" font-size="10">private-uploads</text>
+            <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze"/>
+          </g>
+<path d="M308,400 L174,400 Q184,400 184,410 L184,568 Q184,578 194,578 L60,578" pathLength="1" fill="none" stroke="#322C49" stroke-width="1.5" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)">
+          <animate attributeName="stroke-dashoffset" from="1" to="0" dur="0.45s" begin="0s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1" values="1;0"/>
+          <animate attributeName="opacity" values="0.7;1;0.7" dur="3.2s" begin="0.65s" repeatCount="indefinite"/>
+        </path>
+<path d="M308,400 L174,400 Q184,400 184,410 L184,568 Q184,578 194,578 L60,578" pathLength="100" fill="none" stroke="#FC6D26" stroke-width="1.5" stroke-linecap="round" opacity="0">
+          <animate attributeName="opacity" values="0;0.35;0.35;0" keyTimes="0;0.12;0.88;1" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="0s + 0.4s" repeatCount="indefinite"/>
+        </path>
+<g opacity="0"><rect x="122.5" y="478" width="123" height="22" rx="11" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="184" y="490" text-anchor="middle" dominant-baseline="central" fill="#A9A4C2" font-size="10">private-uploads</text>
+            <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.3s" fill="freeze"/>
+          </g>
+<g opacity="0">
+        <animateTransform attributeName="transform" type="translate"
+          from="0 10" to="0 0" dur="0.35s" begin="0.2s"
+          fill="freeze" calcMode="spline" keySplines=".22 1 0.36 1" keyTimes="0;1" values="0 10;0 0"/>
+        <animate attributeName="opacity" from="0" to="1" dur="0.35s" begin="0.2s" fill="freeze"/>
+      
+<rect x="60" y="168" width="248" height="108" rx="10" fill="#17141F" stroke="#2C2741" stroke-width="1.5"/>
+<rect x="61" y="169" width="246" height="106" rx="9" fill="none" stroke="#2C2741" stroke-width="2" opacity="0">
+          <animate attributeName="opacity" values="0;0.45;0" dur="3.0s" begin="0.55s" repeatCount="indefinite"/>
+        </rect>
+<rect x="60" y="168" width="3" height="108" rx="1.5" fill="#2C2741" opacity="0.7"/>
+<text x="76" y="192" dominant-baseline="central" fill="#D6D2E6" font-size="12" font-weight="700">extract_audio</text>
+<text x="76" y="218" dominant-baseline="central" fill="#A9A4C2" font-size="9.5">{userId}/subtitle-pipeline/{filena…</text>
+<rect x="76" y="234" width="32" height="18" rx="9" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="92" y="243.5" text-anchor="middle" dominant-baseline="central" fill="#6F6A87" font-size="8" letter-spacing="0.5">wav</text>
+<rect x="114" y="234" width="38" height="18" rx="9" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="133" y="243.5" text-anchor="middle" dominant-baseline="central" fill="#6F6A87" font-size="8" letter-spacing="0.5">fast</text>
+</g>
+<g opacity="0">
+        <animateTransform attributeName="transform" type="translate"
+          from="0 10" to="0 0" dur="0.35s" begin="0.2s"
+          fill="freeze" calcMode="spline" keySplines=".22 1 0.36 1" keyTimes="0;1" values="0 10;0 0"/>
+        <animate attributeName="opacity" from="0" to="1" dur="0.35s" begin="0.2s" fill="freeze"/>
+      
+<rect x="60" y="346" width="248" height="108" rx="10" fill="#17141F" stroke="#2C2741" stroke-width="1.5"/>
+<rect x="61" y="347" width="246" height="106" rx="9" fill="none" stroke="#2C2741" stroke-width="2" opacity="0">
+          <animate attributeName="opacity" values="0;0.45;0" dur="3.7s" begin="0.55s" repeatCount="indefinite"/>
+        </rect>
+<rect x="60" y="346" width="3" height="108" rx="1.5" fill="#2C2741" opacity="0.7"/>
+<text x="76" y="370" dominant-baseline="central" fill="#D6D2E6" font-size="12" font-weight="700">transcribe</text>
+<text x="76" y="396" dominant-baseline="central" fill="#A9A4C2" font-size="9.5">{userId}/subtitle-pipeline/{filena…</text>
+<rect x="76" y="412" width="32" height="18" rx="9" fill="#221E33" stroke="#322C49" stroke-width="1"/><text x="92" y="421.5" text-anchor="middle" dominant-baseline="central" fill="#6F6A87" font-size="8" letter-spacing="0.5">srt</text>
+</g>
+<g opacity="0">
+        <animateTransform attributeName="transform" type="translate"
+          from="0 10" to="0 0" dur="0.35s" begin="0.2s"
+          fill="freeze" calcMode="spline" keySplines=".22 1 0.36 1" keyTimes="0;1" values="0 10;0 0"/>
+        <animate attributeName="opacity" from="0" to="1" dur="0.35s" begin="0.2s" fill="freeze"/>
+      
+<rect x="60" y="524" width="248" height="108" rx="10" fill="rgba(143,207,155,.06)" stroke="#2E4A36" stroke-width="1.5"/>
+<rect x="61" y="525" width="246" height="106" rx="9" fill="none" stroke="#2E4A36" stroke-width="2" opacity="0">
+          <animate attributeName="opacity" values="0;0.45;0" dur="4.4s" begin="0.55s" repeatCount="indefinite"/>
+        </rect>
+<rect x="60" y="524" width="3" height="108" rx="1.5" fill="#2E4A36" opacity="0.7"/>
+<text x="76" y="548" dominant-baseline="central" fill="#8FCF9B" font-size="12" font-weight="700">burn_subtitles</text>
+<rect x="256" y="536" width="40" height="18" rx="9" fill="#221E33" stroke="#2E4A36" stroke-width="1"/><text x="276" y="545.5" text-anchor="middle" dominant-baseline="central" fill="#8FCF9B" font-size="8" letter-spacing="0.5">keep</text>
+<text x="76" y="574" dominant-baseline="central" fill="#8FCF9B" font-size="9.5">{userId}/subtitle-pipeline/{filena…</text>
+<circle cx="288" cy="616" r="3" fill="#8FCF9B" opacity="0">
+          <animate attributeName="opacity" values="0.9;0.9;0" keyTimes="0;0.3;1" dur="2.8s" begin="0.75s" repeatCount="indefinite"/>
+          <animate attributeName="r" values="2;2;5" keyTimes="0;0.3;1" dur="2.8s" begin="0.75s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="288" cy="616" r="2" fill="#8FCF9B">
+          <animate attributeName="opacity" values="1;0.4;1" dur="3.6s" begin="0.75s" repeatCount="indefinite"/>
+        </circle>
+</g>
+
+    <rect x="10" y="646" width="348" height="36" fill="#100D19"/>
+    <line x1="10" y1="646" x2="358" y2="646" stroke="#2C2741"/>
+    <circle cx="34" cy="664" r="3.5" fill="#8FCF9B"><animate attributeName="opacity" values="0.6;1;0.6" dur="3.5s" repeatCount="indefinite"/></circle>
+    <text x="46" y="664" dominant-baseline="central" fill="#6F6A87" font-size="10">output: public-processed</text>
+</svg>

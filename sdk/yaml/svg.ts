@@ -46,7 +46,7 @@ export interface SVGOptions {
 }
 
 // ----------------------------------------------------------------------------
-// THEMES — dark theme mirrors the GitWidget `T` palette exactly
+// THEMES
 // ----------------------------------------------------------------------------
 
 const darkTheme: Required<ThemeColors> = {
@@ -153,6 +153,24 @@ function getStepDestination(step: any, outputBucket: string): string {
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Rounded orthogonal connector: never overshoots/loops past the node.
+function orthogonalPath(x1: number, y1: number, x2: number, y2: number): string {
+  const r = 10;
+  const mid = (x1 + x2) / 2;
+  if (Math.abs(y2 - y1) < 1) {
+    return `M${x1},${y1} L${x2},${y2}`;
+  }
+  const dir = y2 > y1 ? 1 : -1;
+  return [
+    `M${x1},${y1}`,
+    `L${mid - r},${y1}`,
+    `Q${mid},${y1} ${mid},${y1 + dir * r}`,
+    `L${mid},${y2 - dir * r}`,
+    `Q${mid},${y2} ${mid + r},${y2}`,
+    `L${x2},${y2}`,
+  ].join(' ');
+}
 
 // ----------------------------------------------------------------------------
 // MAIN EXPORT
@@ -270,7 +288,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   // --- Positioning ------------------------------------------------------------
   const NODE_W = 248;
   const NODE_H = 108;
-  const H_GAP = 90;
+  const H_GAP = 120; // Increased to prevent horizontal label collisions
   const V_GAP = 70;
   const CANVAS_H = 800;
 
@@ -306,8 +324,11 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   edges.forEach((e) => {
     const f = positions[e.from], to = positions[e.to];
     if (!f || !to) return;
+    const mid = (f.x + NODE_W + to.x) / 2;
     expand(f.x + NODE_W, f.y + NODE_H / 2);
     expand(to.x, to.y + NODE_H / 2);
+    expand(mid, Math.min(f.y, to.y) + NODE_H / 2);
+    expand(mid, Math.max(f.y, to.y) + NODE_H / 2);
   });
 
   const PAD = 50;
@@ -315,9 +336,9 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   const vbW = maxX - minX + PAD * 2, vbH = maxY - minY + PAD * 2;
 
   // --- Timing ------------------------------------------------------------------
-  const LEVEL_MS = 300; // per-level stagger
-  const EDGE_MS = 450; // edge draw duration
-  const NODE_MS = 350; // node rise duration
+  const LEVEL_MS = 300;
+  const EDGE_MS = 450;
+  const NODE_MS = 350;
   const levelStart = (level: number) => 200 + level * LEVEL_MS;
 
   // --- SVG assembly -----------------------------------------------------------
@@ -332,22 +353,33 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L0,6 L9,3 z" fill="${t.textMute}"/>
     </marker>
+    <linearGradient id="shimmer" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="${t.accent}" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="${t.accent}" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="${t.accent}" stop-opacity="0"/>
+    </linearGradient>
   </defs>`);
 
-  // Header band — echoes the GitWidget titlebar
+  // Header band
   const dotPulse = animate
     ? `<animate attributeName="opacity" values="1;0.35;1" dur="2.4s" repeatCount="indefinite"/>`
+    : '';
+  const shimmer = animate
+    ? `<rect x="${vbX}" y="${vbY + 42}" width="120" height="2.5" fill="url(#shimmer)" rx="1">
+        <animate attributeName="x" from="${vbX}" to="${vbX + vbW - 120}" dur="6s" repeatCount="indefinite"/>
+      </rect>`
     : '';
   parts.push(`
     <rect x="${vbX}" y="${vbY}" width="${vbW}" height="44" fill="${t.bgFoot}"/>
     <line x1="${vbX}" y1="${vbY + 44}" x2="${vbX + vbW}" y2="${vbY + 44}" stroke="${t.border}"/>
+    ${shimmer}
     <circle cx="${vbX + 26}" cy="${vbY + 22}" r="6" fill="${t.accent}">${dotPulse}</circle>
     <text x="${vbX + 44}" y="${vbY + 23}" dominant-baseline="central" fill="${t.accent}" font-size="12" font-weight="700" letter-spacing="1">pipeline</text>
     <text x="${vbX + 118}" y="${vbY + 23}" dominant-baseline="central" fill="${t.textMute}" font-size="11">${esc(pipelineId)}</text>
     <rect x="${vbX + vbW - 130}" y="${vbY + 10}" width="110" height="24" rx="12" fill="${t.pillBg}" stroke="${t.pillBorder}"/>
     <text x="${vbX + vbW - 75}" y="${vbY + 22}" text-anchor="middle" dominant-baseline="central" fill="${t.textDim}" font-size="10">${steps.length} steps</text>`);
 
-  // --- Edges (drawn first, under nodes) ---------------------------------------
+  // --- Edges -------------------------------------------------------------------
   const edgeSvg: string[] = [];
   edges.forEach((e) => {
     const from = positions[e.from];
@@ -357,24 +389,24 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     const y1 = from.y + NODE_H / 2;
     const x2 = to.x;
     const y2 = to.y + NODE_H / 2;
-    const cx = (x1 + x2) / 2;
-    const d = `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
+    const mid = (x1 + x2) / 2;
+    const d = orthogonalPath(x1, y1, x2, y2);
     const dash = e.dashed ? ' stroke-dasharray="5,4"' : '';
     const level = levels[e.to] ?? 0;
+    const begin = `${(levelStart(level - 1) + 100) / 1000}s`;
 
     if (animate) {
-      const begin = `${(levelStart(level - 1) + 100) / 1000}s`;
       edgeSvg.push(
-        // Main edge with draw-in and subtle pulsing opacity
-        `<path d="${d}" pathLength="1" fill="none" stroke="${t.edgeColor}" stroke-width="1.5" marker-end="url(#arrow)">
+        // Main edge with a real draw-in (pathLength + dasharray) and subtle breathing
+        `<path d="${d}" pathLength="1" fill="none" stroke="${t.edgeColor}" stroke-width="1.5"${dash} stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)">
           <animate attributeName="stroke-dashoffset" from="1" to="0" dur="${EDGE_MS / 1000}s" begin="${begin}" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1" values="1;0"/>
-          <animate attributeName="opacity" values="0.7;1;0.7" dur="2.8s" begin="${begin}" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.7;1;0.7" dur="3.2s" begin="${(levelStart(level) + EDGE_MS) / 1000}s" repeatCount="indefinite"/>
         </path>`,
-        // Flow particle – more subtle
+        // Marching flow dashes travelling source → target, forever
         `<path d="${d}" pathLength="100" fill="none" stroke="${t.accent}" stroke-width="1.5" stroke-linecap="round" opacity="0">
-          <animate attributeName="stroke-dasharray" values="0 100" dur="0.01s" begin="${begin}" fill="freeze"/>
-          <animate attributeName="opacity" values="0;0.3;0.3;0" keyTimes="0;0.1;0.9;1" dur="2.2s" begin="${begin} + 0.4s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dashoffset" from="16" to="0" dur="1.6s" begin="${begin} + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;0.35;0.35;0" keyTimes="0;0.12;0.88;1" dur="2.4s" begin="${begin} + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="${begin} + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="${begin} + 0.4s" repeatCount="indefinite"/>
         </path>`,
       );
     } else {
@@ -384,12 +416,36 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     }
 
     if (e.label) {
-      const lx = (x1 + x2) / 2;
-      const ly = (y1 + y2) / 2;
-      const w = Math.max(34, e.label.length * 7 + 18);
+      // --- Collision-safe Label Placement ---
+      // Place labels at the exact midpoint of the longest segment (horizontal or vertical)
+      // to completely avoid overlapping the nodes or each other.
+      const isHorizontal = Math.abs(y2 - y1) < 1;
+      let lx, ly;
+      if (isHorizontal) {
+        lx = (x1 + x2) / 2;
+        ly = y1;
+      } else {
+        lx = mid; // The X coordinate of the vertical segment
+        ly = (y1 + y2) / 2; // Exact midpoint between source and target Y
+      }
+
+      // Dynamically truncate label to fit within horizontal gaps
+      let labelText = e.label;
+      let w = Math.max(34, labelText.length * 7 + 18);
+      const availableGap = isHorizontal ? (x2 - x1) : Infinity;
+      
+      if (isHorizontal && availableGap - 10 < w) {
+        const maxLabelWidth = Math.max(34, availableGap - 10);
+        const maxChars = Math.floor((maxLabelWidth - 18) / 7);
+        if (maxChars > 0 && labelText.length > maxChars) {
+          labelText = labelText.slice(0, Math.max(1, maxChars - 1)) + '…';
+        }
+        w = Math.max(34, labelText.length * 7 + 18);
+      }
+
       const labelG =
         `<rect x="${lx - w / 2}" y="${ly - 11}" width="${w}" height="22" rx="11" fill="${t.edgeLabelBg}" stroke="${t.pillBorder}" stroke-width="1"/>` +
-        `<text x="${lx}" y="${ly + 1}" text-anchor="middle" dominant-baseline="central" fill="${t.edgeLabelText}" font-size="10">${esc(e.label)}</text>`;
+        `<text x="${lx}" y="${ly + 1}" text-anchor="middle" dominant-baseline="central" fill="${t.edgeLabelText}" font-size="10">${esc(labelText)}</text>`;
       if (animate) {
         const fadeBegin = `${(levelStart(level) + 100) / 1000}s`;
         edgeSvg.push(
@@ -409,17 +465,19 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     `<rect x="${x}" y="${y}" width="${w}" height="18" rx="9" fill="${t.pillBg}" stroke="${border}" stroke-width="1"/>` +
     `<text x="${x + w / 2}" y="${y + 9.5}" text-anchor="middle" dominant-baseline="central" fill="${fg}" font-size="8" letter-spacing="0.5">${esc(text)}</text>`;
 
-  nodes.forEach((node) => {
+  nodes.forEach((node, nodeIdx) => {
     const pos = positions[node.id];
     if (!pos) return;
     const { x, y } = pos;
     const level = levels[node.id] ?? 0;
+    // tiny per-node offset so ambient pulses aren't synchronised
+    const phase = (nodeIdx * 0.7) % 2;
 
     if (animate) {
       parts.push(`<g opacity="0">
         <animateTransform attributeName="transform" type="translate"
           from="0 10" to="0 0" dur="${NODE_MS / 1000}s" begin="${levelStart(level) / 1000}s"
-          fill="freeze" calcMode="spline" keySplines="0.22 1 0.36 1" keyTimes="0;1" values="0 10;0 0"/>
+          fill="freeze" calcMode="spline" keySplines=".22 1 0.36 1" keyTimes="0;1" values="0 10;0 0"/>
         <animate attributeName="opacity" from="0" to="1" dur="${NODE_MS / 1000}s" begin="${levelStart(level) / 1000}s" fill="freeze"/>
       `);
     }
@@ -450,7 +508,16 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       `<rect x="${x}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="1.5"${dashed ? ' stroke-dasharray="6,4"' : ''}/>`,
     );
 
-    // Accent left rail – pulsing for wait nodes
+    // Ambient card stroke breathing (all nodes, desynchronised) – inset by 1px to avoid fringe
+    if (animate) {
+      parts.push(
+        `<rect x="${x + 1}" y="${y + 1}" width="${NODE_W - 2}" height="${NODE_H - 2}" rx="9" fill="none" stroke="${stroke}" stroke-width="2" opacity="0">
+          <animate attributeName="opacity" values="0;0.45;0" dur="${(3 + phase).toFixed(1)}s" begin="${(levelStart(level) + NODE_MS) / 1000}s" repeatCount="indefinite"/>
+        </rect>`,
+      );
+    }
+
+    // Accent left rail
     if (node.hasWaitFor && animate) {
       parts.push(
         `<rect x="${x}" y="${y}" width="3" height="${NODE_H}" rx="1.5" fill="${stroke}">
@@ -487,6 +554,17 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       parts.push(
         `<text x="${x + 16}" y="${y + 62}" dominant-baseline="central" fill="${t.textMute}" font-size="10">▸ drop files here to begin</text>`,
       );
+      // Pulsing halo around the start node — runs forever after intro
+      // (No scale transform – uses stroke-width animation instead to stay centered)
+      if (animate) {
+        const haloBegin = `${(levelStart(0) + NODE_MS) / 1000}s`;
+        parts.push(
+          `<rect x="${x - 4}" y="${y - 4}" width="${NODE_W + 8}" height="${NODE_H + 8}" rx="13" fill="none" stroke="${t.startBorder}" stroke-width="1.5" opacity="0">
+            <animate attributeName="opacity" values="0.6;0;0" keyTimes="0;0.55;1" dur="2.6s" begin="${haloBegin}" repeatCount="indefinite"/>
+            <animate attributeName="stroke-width" values="2.5;0.75;0.75" keyTimes="0;0.55;1" dur="2.6s" begin="${haloBegin}" repeatCount="indefinite"/>
+          </rect>`,
+        );
+      }
       if (animate) parts.push(`</g>`);
       return;
     }
@@ -523,14 +601,32 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       );
     }
 
+    // Success ping on keep nodes — a soft check-dot pulse in the top-left rail
+    if (node.keep && animate) {
+      const pingBegin = `${(levelStart(level) + NODE_MS + 200) / 1000}s`;
+      parts.push(
+        `<circle cx="${x + NODE_W - 20}" cy="${y + NODE_H - 16}" r="3" fill="${t.keepText}" opacity="0">
+          <animate attributeName="opacity" values="0.9;0.9;0" keyTimes="0;0.3;1" dur="2.8s" begin="${pingBegin}" repeatCount="indefinite"/>
+          <animate attributeName="r" values="2;2;5" keyTimes="0;0.3;1" dur="2.8s" begin="${pingBegin}" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="${x + NODE_W - 20}" cy="${y + NODE_H - 16}" r="2" fill="${t.keepText}">
+          <animate attributeName="opacity" values="1;0.4;1" dur="${(2.2 + phase).toFixed(1)}s" begin="${pingBegin}" repeatCount="indefinite"/>
+        </circle>`,
+      );
+    }
+
     if (animate) parts.push(`</g>`);
   });
 
   // Footer band
+  const footPulse = animate
+    ? `<animate attributeName="opacity" values="0.6;1;0.6" dur="3.5s" repeatCount="indefinite"/>`
+    : '';
   parts.push(`
     <rect x="${vbX}" y="${vbY + vbH - 36}" width="${vbW}" height="36" fill="${t.bgFoot}"/>
     <line x1="${vbX}" y1="${vbY + vbH - 36}" x2="${vbX + vbW}" y2="${vbY + vbH - 36}" stroke="${t.border}"/>
-    <text x="${vbX + 20}" y="${vbY + vbH - 18}" dominant-baseline="central" fill="${t.textMute}" font-size="10">output: ${esc(outputBucket || '—')}</text>`);
+    <circle cx="${vbX + 24}" cy="${vbY + vbH - 18}" r="3.5" fill="${t.ok}">${footPulse}</circle>
+    <text x="${vbX + 36}" y="${vbY + vbH - 18}" dominant-baseline="central" fill="${t.textMute}" font-size="10">output: ${esc(outputBucket || '—')}</text>`);
 
   parts.push(`</svg>`);
   return parts.join('\n');
