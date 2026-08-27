@@ -1,87 +1,188 @@
-// src/ffmpeg/command-parser.ts
+// parseCommand.ts
+// Provides safe parsing of FFmpeg commands with environment variable substitution
+// and robust tokenization that strips outer quotes and preserves inner quotes.
 
 /**
- * Parse a command string into an array of arguments, preserving quoted strings as single arguments.
- * Replaces $VARIABLE placeholders with their values before parsing.
- * @param cmd - The command string (e.g., `-i $MEDIA_1 -af "loudnorm=I=-16" -y $OUTPUT_PATH`)
- * @param variables - Object mapping variable names to their values (e.g., { MEDIA_1: '/path/file.mp3', OUTPUT_PATH: '/out.mp3' })
- * @returns Array of arguments ready for spawn()
+ * Replaces environment variable placeholders like $VAR in a command string.
+ * Uses a function replacer to avoid `$&` substitution issues.
+ */
+export function replaceEnv(cmd: string, vars: Record<string, string>): string {
+  if (!vars) return cmd;
+  return cmd.replace(/\$(\w+)/g, (_, key) => {
+    return Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : `$${key}`;
+  });
+}
+
+/**
+ * Tokenize a command string, handling quoted arguments and stripping outer quotes.
+ * - Outer quotes (single or double) are removed.
+ * - Inner quotes of the opposite type are preserved as literal characters.
+ * - Spaces inside quotes are preserved in the same token.
+ * - Adjacent quoted segments are concatenated without the quotes.
  */
 export function parseCommand(
   cmd: string,
-  variables: typeof process.env = {},
+  vars: Record<string, string>,
 ): string[] {
-  // 1. Replace placeholders
-  const resolved = replaceEnv(cmd, variables);
-  // 2. Split into arguments while respecting quotes
-  const args: string[] = [];
+  const substituted = replaceEnv(cmd, vars);
+  if (!substituted.trim()) return [];
+
+  const tokens: string[] = [];
   let current = '';
-  let inQuotes = false;
-  let quoteChar = '';
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
   let i = 0;
 
-  while (i < resolved.length) {
-    const char = resolved[i];
+  while (i < substituted.length) {
+    const ch = substituted[i];
 
-    if (char === '"' || char === "'") {
-      if (!inQuotes) {
-        inQuotes = true;
-        quoteChar = char;
-        i++;
-        continue;
-      } else if (char === quoteChar) {
-        // End of quoted block
-        inQuotes = false;
-        quoteChar = '';
+    if (inSingleQuote) {
+      // Inside single quotes: add everything except the closing quote.
+      if (ch === "'") {
+        inSingleQuote = false;
         i++;
         continue;
       }
+      current += ch;
+      i++;
+      continue;
     }
 
-    if (!inQuotes && char === ' ') {
-      // End of argument
-      if (current.length > 0) {
-        args.push(current);
+    if (inDoubleQuote) {
+      // Inside double quotes: add everything except the closing quote.
+      if (ch === '"') {
+        inDoubleQuote = false;
+        i++;
+        continue;
+      }
+      current += ch;
+      i++;
+      continue;
+    }
+
+    // Outside quotes
+    if (ch === "'") {
+      inSingleQuote = true;
+      i++;
+      continue; // do not add the opening quote
+    }
+
+    if (ch === '"') {
+      inDoubleQuote = true;
+      i++;
+      continue; // do not add the opening quote
+    }
+
+    if (/\s/.test(ch)) {
+      if (current) {
+        tokens.push(current);
         current = '';
       }
       i++;
       continue;
     }
 
-    // If we're inside quotes or char is not a space, accumulate
-    current += char;
+    current += ch;
     i++;
   }
 
-  // Push the last argument if any
-  if (current.length > 0) {
-    args.push(current);
-  }
-
-  return args;
+  if (current) tokens.push(current);
+  return tokens;
 }
 
-// src/ffmpeg/command-parser.ts
-
 /**
- * Parse a command string into an array of arguments, preserving quoted strings as single arguments.
- * Replaces $VARIABLE placeholders with their values before parsing.
- * @param cmd - The command string (e.g., `-i $MEDIA_1 -af "loudnorm=I=-16" -y $OUTPUT_PATH`)
- * @param variables - Object mapping variable names to their values (e.g., { MEDIA_1: '/path/file.mp3', OUTPUT_PATH: '/out.mp3' })
- * @returns Array of arguments ready for spawn()
+ * A simpler, more relaxed parser that preserves quotes and pairs flags with values.
+ * Use this when you need to handle flags like -filter_complex and want to keep
+ * quotes exactly as they appear.
  */
-export function replaceEnv(
-  cmd: string,
-  variables: typeof process.env = {},
-): string {
-  // 1. Replace placeholders
-  let resolved = cmd;
-  for (const [key, value] of Object.entries(variables)) {
-    // Replace $KEY with value (respecting word boundaries)
-    resolved = resolved.replace(
-      new RegExp(`\\$${key}\\b`, 'g'),
-      value as string,
-    );
+export function processUserCode(
+  cmdString: string | null | undefined,
+): string[] {
+  if (!cmdString || typeof cmdString !== 'string') return [];
+
+  // Tokenize with quotes preserved (no stripping).
+  const tokens: string[] = [];
+  let current = '';
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let i = 0;
+
+  while (i < cmdString.length) {
+    const ch = cmdString[i];
+
+    if (inSingleQuote) {
+      if (ch === "'") {
+        inSingleQuote = false;
+        current += ch;
+      } else {
+        current += ch;
+      }
+      i++;
+      continue;
+    }
+
+    if (inDoubleQuote) {
+      if (ch === '"') {
+        inDoubleQuote = false;
+        current += ch;
+      } else {
+        current += ch;
+      }
+      i++;
+      continue;
+    }
+
+    if (ch === "'") {
+      inSingleQuote = true;
+      current += ch;
+      i++;
+      continue;
+    }
+
+    if (ch === '"') {
+      inDoubleQuote = true;
+      current += ch;
+      i++;
+      continue;
+    }
+
+    if (/\s/.test(ch)) {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      i++;
+      continue;
+    }
+
+    current += ch;
+    i++;
   }
-  return resolved;
+
+  if (current) tokens.push(current);
+
+  // Pair flags with their following non‑flag values.
+  const finalArgs: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const isFlag =
+      token.startsWith('-') &&
+      token.length > 1 &&
+      !token.startsWith('"-') &&
+      !token.startsWith("'-");
+
+    if (isFlag) {
+      if (i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
+        finalArgs.push(token);
+        finalArgs.push(tokens[i + 1]);
+        i++;
+      } else {
+        finalArgs.push(token);
+      }
+    } else {
+      finalArgs.push(token);
+    }
+  }
+
+  return finalArgs;
 }
