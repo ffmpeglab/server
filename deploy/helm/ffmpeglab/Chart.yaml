@@ -1,0 +1,14 @@
+apiVersion: v2
+name: ffmpeglab
+description: FFmpegLab server — API and render, file and log runners
+type: application
+version: 0.6.2
+appVersion: "0.4.1"
+keywords:
+  - ffmpeg
+  - video
+  - supabase
+  - pgmq
+home: https://ffmpeglab.com
+sources:
+  - https://github.com/ffmpeglab/server
