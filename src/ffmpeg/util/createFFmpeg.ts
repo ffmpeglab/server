@@ -20,24 +20,9 @@ export const createFFmpeg = async (
       env: { [key: string]: string } = {},
     ): Promise<number | string> => {
       return await new Promise((resolve, reject) => {
-        // console.info('exec native ffmpeg', ffmpegPath, cmd, env);
         const fullEnv = { ...env, FFMPEG_PATH: ffmpegPath };
-        let ncmd = '';
-        if (typeof cmd === 'string') {
-          ncmd = cmd;
-          Object.keys(env).map((k) => {
-            ncmd = ncmd.replace('$' + k, env[k]);
-          });
-        }
-        const cmdProcessed =
-          typeof cmd === 'string'
-            ? [ncmd]
-            : cmd.map((k) =>
-                k && env[k?.replace('$', '')] ? env[k.replace('$', '')] : k,
-              );
-        const postmapcmd = cmdProcessed;
-        // console.info({ postmapcmd });
-        const child = spawn(ffmpegPath, postmapcmd, { env: fullEnv });
+        console.info({ ffmpegRun: cmd });
+        const child = spawn(ffmpegPath, cmd, { env: fullEnv });
         child.stdout.on('data', (data: Buffer) => {
           // console.error('native ffmpeg logs', data.toString('utf-8'));
           if (logsCB) logsCB(data.toString('utf-8'));

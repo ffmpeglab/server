@@ -4,21 +4,17 @@ import { getTotalTime } from './util/getTotalTime';
 import { createFFmpeg } from './util/createFFmpeg';
 import { syncMedia } from './util/syncMedia';
 import { processUserCode } from './util/processUserCode';
-import { parseCommand, replaceEnv } from './util/parseCommand';
+import { parseCommand } from './util/parseCommand';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
-import { mockExecuteFFmpeg } from './__mocks__/ffmpeg'; // adjust import to your mocks
 
 jest.mock('./util/genRenderCmd');
 jest.mock('./util/getTotalTime');
 jest.mock('./util/createFFmpeg');
 jest.mock('./util/syncMedia');
 jest.mock('./util/processUserCode');
-jest.mock('./util/parseCommand', () => ({
-  parseCommand: jest.fn(),
-  replaceEnv: jest.fn(),
-}));
+jest.mock('./util/parseCommand');
 jest.mock('fs');
 jest.mock('crypto', () => ({ randomUUID: jest.fn() }));
 jest.mock('./util/util', () => ({
@@ -33,7 +29,6 @@ const mockCreateFFmpeg = createFFmpeg as jest.Mock;
 const mockSyncMedia = syncMedia as jest.Mock;
 const mockProcessUserCode = processUserCode as jest.Mock;
 const mockParseCommand = parseCommand as jest.Mock;
-const mockReplaceEnv = replaceEnv as jest.Mock;
 const mockUUID = randomUUID as jest.Mock;
 
 // ---------- fixtures ----------
@@ -98,16 +93,7 @@ describe('execEncode', () => {
     encoded: [],
     outFileId: 'out.mp4',
     outputPath: `${DOC}/proj-1/out.mp4`,
-    execCmd: [
-      '-i',
-      '$MEDIA1',
-      '-i',
-      '$MEDIA_1',
-      '-i',
-      '$MEDIA1',
-      '-y',
-      'OUTPUT_PATH',
-    ],
+    execCmd: ['-i', '$MEDIA_1', '-y', '$OUTPUT_PATH'],
     mediaOut: {},
     projectData: makeProject(),
     totalTime: 10,
@@ -118,7 +104,7 @@ describe('execEncode', () => {
     },
     ...overrides,
   });
-
+  const baseCmdAfter = ['-i', '/in/a.mp4', '-y', '/tmp/docdir/proj-1/out.mp4'];
   it('creates the project output directory recursively', async () => {
     await execEncode(baseCmd() as any);
     expect(fs.mkdirSync).toHaveBeenCalledWith(`${DOC}/proj-1`, {
@@ -135,17 +121,18 @@ describe('execEncode', () => {
     );
   });
 
-  it('runs ffmpeg.exec with the provided execCmd for generated code', async () => {
+  it('runs ffmpeg.exec with the substituted arguments for generated code', async () => {
     const cmd = baseCmd();
+    // Replace the exec mock to capture the actual arguments after substitution
+    const execMock = jest.fn().mockResolvedValue(0);
+    cmd.ffmpeg.exec = execMock;
+
     await execEncode(cmd as any);
 
-    expect(cmd.ffmpeg.exec).toHaveBeenCalledWith(
-      cmd.execCmd,
-      cmd.assignedMedias,
-    );
+    expect(execMock).toHaveBeenCalledWith(baseCmdAfter);
   });
 
-  it('calls mediaOut with filePath and size from outputPath stats', async () => {
+  it('mutates mediaOut with filePath and size from outputPath stats', async () => {
     const mediaOut: any = {};
     await execEncode(baseCmd({ mediaOut }) as any);
 
@@ -161,54 +148,45 @@ describe('execEncode', () => {
 
   describe('custom code selection', () => {
     beforeEach(() => {
-      mockReplaceEnv.mockImplementation((c) => c);
+      // Mock processUserCode and parseCommand to return specific arrays
       mockProcessUserCode.mockReturnValue(['-crf', '20']);
       mockParseCommand.mockReturnValue(['-crf', '20']);
     });
 
-    it('routes through replaceEnv + processUserCode when code contains filter_complex', async () => {
+    it('routes through processUserCode when code contains filter_complex', async () => {
       const cmd = baseCmd({
         projectData: makeProject({
           selectedCode: CodeSelection.custom,
-          code: '-vf "filter_complex stuff"',
+          code: '-filter_complex stuff"',
         }),
       });
-
+      // Replace exec mock
+      const execMock = jest.fn().mockResolvedValue(0);
+      cmd.ffmpeg.exec = execMock;
+      console.info({ cmd });
       await execEncode(cmd as any);
 
-      expect(mockReplaceEnv).toHaveBeenCalledWith(
-        '-vf "filter_complex stuff"',
-        cmd.assignedMedias,
+      expect(mockProcessUserCode).toHaveBeenCalledWith(
+        cmd.projectData.editor.code,
       );
-      expect(mockProcessUserCode).toHaveBeenCalled();
-      // hasFilterComplex branch returns processUserCode directly — no parseCommand
       expect(mockParseCommand).not.toHaveBeenCalled();
-      expect(cmd.ffmpeg.exec).toHaveBeenCalledWith(
-        ['-crf', '20'],
-        cmd.assignedMedias,
-      );
+      expect(execMock).toHaveBeenCalledWith(['-crf', '20']);
     });
 
-    it('routes through processUserCode → join → parseCommand when no filter_complex', async () => {
+    it('routes through parseCommand when no filter_complex', async () => {
       const cmd = baseCmd({
         projectData: makeProject({
           selectedCode: CodeSelection.custom,
           code: '-crf 20',
         }),
       });
+      const execMock = jest.fn().mockResolvedValue(0);
+      cmd.ffmpeg.exec = execMock;
 
       await execEncode(cmd as any);
 
-      expect(mockReplaceEnv).not.toHaveBeenCalled();
-      expect(mockProcessUserCode).toHaveBeenCalledWith('-crf 20');
-      expect(mockParseCommand).toHaveBeenCalledWith(
-        '-crf 20',
-        cmd.assignedMedias,
-      );
-      expect(cmd.ffmpeg.exec).toHaveBeenCalledWith(
-        ['-crf', '20'],
-        cmd.assignedMedias,
-      );
+      expect(mockParseCommand).toHaveBeenCalledWith('-crf 20');
+      expect(execMock).toHaveBeenCalledWith(['-crf', '20']);
     });
 
     it('custom-code branch IGNORES the generated execCmd entirely', async () => {
@@ -218,13 +196,16 @@ describe('execEncode', () => {
           code: '-y out.mp4',
         }),
       });
+      const execMock = jest.fn().mockResolvedValue(0);
+      cmd.ffmpeg.exec = execMock;
+
       await execEncode(cmd as any);
-      // only the parsed user code reaches exec:
-      expect(cmd.ffmpeg.exec).toHaveBeenCalledTimes(1);
-      expect((cmd.ffmpeg.exec as jest.Mock).mock.calls[0][0]).toEqual([
-        '-crf',
-        '20',
-      ]);
+
+      expect(execMock).toHaveBeenCalledTimes(1);
+      // The exec should be called with the parsed custom command, not the generated one
+      expect(execMock).toHaveBeenCalledWith(['-crf', '20']);
+      // Ensure the generated execCmd was NOT used
+      expect(execMock).not.toHaveBeenCalledWith(cmd.execCmd);
     });
   });
 
@@ -245,7 +226,6 @@ describe('execEncode', () => {
       await expect(execEncode(baseCmd({ ffmpeg }) as any)).rejects.toThrow(
         'ffmpeg exited with code 1',
       );
-      // must fail fast BEFORE statSync ever runs:
       expect(fs.statSync).not.toHaveBeenCalled();
     });
 
@@ -290,10 +270,8 @@ describe('encodeProject', () => {
     });
 
     const result = await encodeProject(makeProject(), [layer]);
-    expect(result.filename).toBe('out.mp4'); // sanity
+    expect(result.filename).toBe('out.mp4');
 
-    // Implementation REASSIGNES cmd.files (cmd.files = files),
-    // mutating the same object genRenderCmd returned. Pin that behavior:
     const returnedFiles = mockGenRenderCmd.mock.results[0].value.files;
     expect(returnedFiles.filter((f: string) => f === '-i')).toHaveLength(0);
     expect(returnedFiles).toEqual(['MEDIA1', 'MEDIA_1', 'MEDIA1', 'MEDIA_2']);
@@ -360,7 +338,7 @@ describe('encodeProject', () => {
       return makeFfmpegMock();
     });
 
-    await encodeProject(makeProject(), [layer]); // no cb
+    await encodeProject(makeProject(), [layer]);
     expect(() => capturedCb({ time: 1, progress: 0 })).not.toThrow();
   });
 
@@ -379,17 +357,12 @@ describe('encodeProject', () => {
 
   it('passes totalTimeInitial (seconds), not the scaled ms value, to duration', async () => {
     const result = await encodeProject(makeProject(), [layer]);
-    expect(result.duration).toBe(10); // seconds, per current contract
+    expect(result.duration).toBe(10);
   });
 });
 
 // =====================================================================
-// exec — lifecycle and callbacks
-//
-// These tests exercise the REAL createFFmpeg implementation against a
-// fake child process, so close/stdout/stderr/error wiring and time=
-// parsing are covered end-to-end. Loaded via isolateModules so the
-// module-level jest.mock above does not apply here.
+// exec — lifecycle and callbacks (real createFFmpeg + fake child)
 // =====================================================================
 describe('exec - lifecycle and callbacks (real createFFmpeg + fake child)', () => {
   const makeChild = () => {
@@ -419,10 +392,7 @@ describe('exec - lifecycle and callbacks (real createFFmpeg + fake child)', () =
     jest.dontMock('child_process');
   });
 
-  it('⚠️ passes RAW stderr through to cb — time= is NOT parsed into ms×1e6 here', async () => {
-    // Documents CURRENT behavior: the progress cb receives the unmodified
-    // stderr chunk. If parsing happens elsewhere (e.g. caller side), this
-    // test is your guardrail that createFFmpeg itself stays a passthrough.
+  it('passes RAW stderr through to cb — time= is NOT parsed into ms×1e6 here', async () => {
     const cb = jest.fn();
     const ffmpeg = await createFFmpegReal(undefined, cb);
 

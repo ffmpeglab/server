@@ -16,31 +16,32 @@ import {
 import { genRenderCmd } from './util/genRenderCmd';
 import { getTotalTime } from './util/getTotalTime';
 import { processUserCode } from './util/processUserCode';
-import { parseCommand, replaceEnv } from './util/parseCommand';
+import { parseCommand } from './util/parseCommand';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { syncMedia } from './util/syncMedia';
 
-const processCustomCode = (Code: string, ENV: Record<string, string>) => {
+const processCustomCode = (Code: string) => {
   const hasFilterComplex = Code?.search('filter_complex') > -1;
-  if (hasFilterComplex) return processUserCode(replaceEnv(Code, ENV));
+  if (hasFilterComplex) return processUserCode(Code);
 
-  return parseCommand(processUserCode(Code).join(' '), ENV);
+  return parseCommand(Code);
 };
-export const execEncode = async (cmd: {
+export interface ExecCMD {
   files: (string | undefined)[];
   encoded: string[];
   outFileId: string;
   outputPath: string;
   execCmd: string[];
-  mediaOut: Media;
+  mediaOut: MinimalMedia;
   cb?: CBProgressCallback;
   logs?: LogsProgressCallback;
   projectData: EditorProject;
   totalTime: number;
   ffmpeg: Awaited<ReturnType<typeof createFFmpeg>>;
   assignedMedias: { [key: string]: string };
-}): Promise<string> => {
+}
+export const execEncode = async (cmd: ExecCMD): Promise<string> => {
   try {
     fs.mkdirSync(`${documentDir()}/${cmd.projectData?.id}`, {
       recursive: true,
@@ -50,13 +51,29 @@ export const execEncode = async (cmd: {
   }
   try {
     const execCode =
-      cmd.projectData?.editor?.selectedCode === CodeSelection.generated
-        ? cmd.execCmd
-        : processCustomCode(
-            cmd.projectData?.editor?.code as string,
-            cmd.assignedMedias,
-          );
-    const exec = cmd.ffmpeg.exec(execCode, cmd.assignedMedias);
+      cmd.projectData?.editor?.selectedCode === CodeSelection.custom &&
+      typeof cmd.projectData.editor.code === 'string'
+        ? processCustomCode(cmd.projectData.editor.code)
+        : cmd.execCmd;
+
+    const env = cmd.assignedMedias;
+    let ncmd = '';
+    if (typeof execCode === 'string') {
+      ncmd = execCode;
+      Object.keys(env).map((k) => {
+        const value = env[k];
+        ncmd = ncmd.replace('$' + k, value);
+      });
+    }
+    const cmdProcessed =
+      typeof cmd === 'string'
+        ? ncmd
+        : execCode?.map((arg: string | number) => {
+            const key = arg.toString().replace('$', '');
+            return env[key] ? env[key] : arg;
+          });
+
+    const exec = cmd.ffmpeg.exec(cmdProcessed as string[]);
     // console.info('processing', exec);
     const code = await exec;
     if (code !== 0 && code !== undefined) {
@@ -125,7 +142,7 @@ export const encodeProject = async (
     cmd.totalTime = totalTimeInitial;
 
     try {
-      const media = await execEncode(cmd as any);
+      const media = await execEncode(cmd as ExecCMD);
 
       nmedia.filePath = media;
     } catch (err) {

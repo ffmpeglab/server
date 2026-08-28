@@ -475,7 +475,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       if (animate) {
         const fadeBegin = `${(levelStart(level) + 100) / 1000}s`;
         edgeSvg.push(
-          `<g opacity="0">${labelG}
+          `<g opacity="0">${''}
             <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="${fadeBegin}" fill="freeze"/>
           </g>`,
         );
@@ -567,9 +567,9 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
         </rect>`,
       );
     } else {
-      parts.push(
-        `<rect x="${x}" y="${y}" width="3" height="${NODE_H}" rx="1.5" fill="${stroke}" opacity="0.7"/>`,
-      );
+      // parts.push(
+      //   `<rect x="${x}" y="${y}" width="3" height="${NODE_H}" rx="1.5" fill="${stroke}" opacity="0.7"/>`,
+      // );
     }
 
     // Title

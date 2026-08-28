@@ -6,7 +6,7 @@ export const processUserCode = (
     return [];
   }
 
-  const segments = cmdString.trim().split(/[\r\n\s]+(?=-[a-zA-Z0-9.:]+)/);
+  const segments = cmdString.trim().split(/[\r\n\s]+(?=-\w+)/);
   const finalArray: string[] = [];
 
   for (const segment of segments) {
@@ -15,9 +15,7 @@ export const processUserCode = (
     // Skip empty segments if they occur during splitting
     if (!trimmedSegment) continue;
 
-    const match = trimmedSegment.match(
-      /^(-[a-zA-Z0-9.:]+)([\r\n\s]+)([\s\S]*)$/,
-    );
+    const match = trimmedSegment.match(/^(-\w+)([\r\n\s]+)([\s\S]*)$/);
 
     if (match) {
       const flag = match[1];
