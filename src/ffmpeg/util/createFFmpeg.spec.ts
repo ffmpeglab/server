@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { spawn } from 'child_process';
 import { createFFmpeg } from './createFFmpeg';
+import { describe } from 'node:test';
 jest.mock('child_process');
 jest.mock('./util', () => ({
   documentDir: jest.fn(() => '/tmp/docdir'),

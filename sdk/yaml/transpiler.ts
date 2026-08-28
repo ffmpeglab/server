@@ -618,7 +618,7 @@ if (import.meta.main) {
       console.log(`   SVG:  ${svgPath}`);
     }
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('❌ Error:', err);
     Deno.exit(1);
   }
 }

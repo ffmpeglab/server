@@ -1,4 +1,4 @@
-// svg.ts – Pipeline graph to SVG (matches GitWidget design system, SMIL-animated)
+// svg.ts – Pipeline graph to SVG (GitWidget design system, SMIL-animated, click-to-run)
 // No external dependencies
 
 // ----------------------------------------------------------------------------
@@ -42,7 +42,9 @@ export interface ThemeColors {
 export interface SVGOptions {
   theme?: 'light' | 'dark' | ThemeColors;
   background?: string;
-  animated?: boolean; // default: true
+  animated?: boolean;   // default: true
+  autoStart?: boolean;  // default: false – if true, run animation without click
+  renderUrl?: string;   // base URL used by the "open render" buttons
 }
 
 // ----------------------------------------------------------------------------
@@ -159,18 +161,10 @@ const esc = (s: string) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-// Rounded orthogonal connector: never overshoots/loops past the node.
-function orthogonalPath(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-): string {
+function orthogonalPath(x1: number, y1: number, x2: number, y2: number): string {
   const r = 10;
   const mid = (x1 + x2) / 2;
-  if (Math.abs(y2 - y1) < 1) {
-    return `M${x1},${y1} L${x2},${y2}`;
-  }
+  if (Math.abs(y2 - y1) < 1) return `M${x1},${y1} L${x2},${y2}`;
   const dir = y2 > y1 ? 1 : -1;
   return [
     `M${x1},${y1}`,
@@ -189,6 +183,8 @@ function orthogonalPath(
 export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   const t = resolveTheme(options);
   const animate = options.animated !== false;
+  const autoStart = options.autoStart === true;
+  const renderBase = options.renderUrl || config.renderUrl || '';
 
   const steps = config.steps || [];
   const outputBucket = config.storage?.output_bucket;
@@ -306,7 +302,7 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   // --- Positioning ------------------------------------------------------------
   const NODE_W = 248;
   const NODE_H = 108;
-  const H_GAP = 120; // Increased to prevent horizontal label collisions
+  const H_GAP = 120;
   const V_GAP = 70;
   const CANVAS_H = 800;
 
@@ -361,20 +357,27 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   const vbW = maxX - minX + PAD * 2,
     vbH = maxY - minY + PAD * 2;
 
-  // --- Timing ------------------------------------------------------------------
-  const LEVEL_MS = 300;
-  const EDGE_MS = 450;
-  const NODE_MS = 350;
-  const levelStart = (level: number) => 200 + level * LEVEL_MS;
+  // --- Timing (all chained off the click on the start node) -------------------
+  const LEVEL_MS = 380;   // per-level stagger
+  const EDGE_MS = 450;    // edge draw-in
+  const NODE_MS = 350;    // card fade/rise
+  const FILL_MS = 700;    // liquid fill left → right
+  const PRESS_MS = 260;   // press flash before cascade
+  const levelAt = (level: number) => PRESS_MS + Math.max(0, level) * LEVEL_MS;
+
+  // begin= value: absolute (autoStart) or relative to the click event
+  const at = (ms: number) =>
+    autoStart ? `${ms / 1000}s` : `startHit.click + ${ms / 1000}s`;
 
   // --- SVG assembly -----------------------------------------------------------
   const FONT = `ui-monospace,SFMono-Regular,Menlo,monospace`;
 
   const parts: string[] = [];
   parts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;background:${t.bg};font-family:${FONT};">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;background:${t.bg};font-family:${FONT};">`,
   );
 
+  // clipPaths for the liquid fills
   parts.push(`<defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L0,6 L9,3 z" fill="${t.textMute}"/>
@@ -384,7 +387,19 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       <stop offset="0.5" stop-color="${t.accent}" stop-opacity="0.55"/>
       <stop offset="1" stop-color="${t.accent}" stop-opacity="0"/>
     </linearGradient>
+    <linearGradient id="liquidG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
   </defs>`);
+
+  nodes.forEach((n) => {
+    const p = positions[n.id];
+    if (!p) return;
+    parts.push(
+      `<clipPath id="clip-${esc(n.id)}"><rect x="${p.x}" y="${p.y}" width="${NODE_W}" height="${NODE_H}" rx="10"/></clipPath>`,
+    );
+  });
 
   // Header band
   const dotPulse = animate
@@ -419,20 +434,18 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     const d = orthogonalPath(x1, y1, x2, y2);
     const dash = e.dashed ? ' stroke-dasharray="5,4"' : '';
     const level = levels[e.to] ?? 0;
-    const begin = `${(levelStart(level - 1) + 100) / 1000}s`;
+    const begin = at(levelAt(level - 1) + 100);
 
     if (animate) {
       edgeSvg.push(
-        // Main edge with a real draw-in (pathLength + dasharray) and subtle breathing
         `<path d="${d}" pathLength="1" fill="none" stroke="${t.edgeColor}" stroke-width="1.5"${dash} stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)">
           <animate attributeName="stroke-dashoffset" from="1" to="0" dur="${EDGE_MS / 1000}s" begin="${begin}" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1" values="1;0"/>
-          <animate attributeName="opacity" values="0.7;1;0.7" dur="3.2s" begin="${(levelStart(level) + EDGE_MS) / 1000}s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.7;1;0.7" dur="3.2s" begin="${at(levelAt(level) + EDGE_MS)}" repeatCount="indefinite"/>
         </path>`,
-        // Marching flow dashes travelling source → target, forever
         `<path d="${d}" pathLength="100" fill="none" stroke="${t.accent}" stroke-width="1.5" stroke-linecap="round" opacity="0">
-          <animate attributeName="opacity" values="0;0.35;0.35;0" keyTimes="0;0.12;0.88;1" dur="2.4s" begin="${begin} + 0.4s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="${begin} + 0.4s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="${begin} + 0.4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;0.35;0.35;0" keyTimes="0;0.12;0.88;1" dur="2.4s" begin="${at(levelAt(level - 1) + 500)}" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="3 97;3 97" dur="2.4s" begin="${at(levelAt(level - 1) + 500)}" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2.4s" begin="${at(levelAt(level - 1) + 500)}" repeatCount="indefinite"/>
         </path>`,
       );
     } else {
@@ -442,20 +455,16 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     }
 
     if (e.label) {
-      // --- Collision-safe Label Placement ---
-      // Place labels at the exact midpoint of the longest segment (horizontal or vertical)
-      // to completely avoid overlapping the nodes or each other.
       const isHorizontal = Math.abs(y2 - y1) < 1;
       let lx, ly;
       if (isHorizontal) {
         lx = (x1 + x2) / 2;
         ly = y1;
       } else {
-        lx = mid; // The X coordinate of the vertical segment
-        ly = (y1 + y2) / 2; // Exact midpoint between source and target Y
+        lx = mid;
+        ly = (y1 + y2) / 2;
       }
 
-      // Dynamically truncate label to fit within horizontal gaps
       let labelText = e.label;
       let w = Math.max(34, labelText.length * 7 + 18);
       const availableGap = isHorizontal ? x2 - x1 : Infinity;
@@ -473,9 +482,9 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
         `<rect x="${lx - w / 2}" y="${ly - 11}" width="${w}" height="22" rx="11" fill="${t.edgeLabelBg}" stroke="${t.pillBorder}" stroke-width="1"/>` +
         `<text x="${lx}" y="${ly + 1}" text-anchor="middle" dominant-baseline="central" fill="${t.edgeLabelText}" font-size="10">${esc(labelText)}</text>`;
       if (animate) {
-        const fadeBegin = `${(levelStart(level) + 100) / 1000}s`;
+        const fadeBegin = at(levelAt(level) + 100);
         edgeSvg.push(
-          `<g opacity="0">${''}
+          `<g opacity="0">
             <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="${fadeBegin}" fill="freeze"/>
           </g>`,
         );
@@ -503,17 +512,12 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     if (!pos) return;
     const { x, y } = pos;
     const level = levels[node.id] ?? 0;
-    // tiny per-node offset so ambient pulses aren't synchronised
     const phase = (nodeIdx * 0.7) % 2;
+    const fireAt = levelAt(level); // when this node "fires"
 
-    if (animate) {
-      parts.push(`<g opacity="0">
-        <animateTransform attributeName="transform" type="translate"
-          from="0 10" to="0 0" dur="${NODE_MS / 1000}s" begin="${levelStart(level) / 1000}s"
-          fill="freeze" calcMode="spline" keySplines=".22 1 0.36 1" keyTimes="0;1" values="0 10;0 0"/>
-        <animate attributeName="opacity" from="0" to="1" dur="${NODE_MS / 1000}s" begin="${levelStart(level) / 1000}s" fill="freeze"/>
-      `);
-    }
+    // Liquid color: red for wait/pending nodes, green for the rest
+    const isRed = node.type !== 'start' && node.hasWaitFor;
+    const liquidColor = isRed ? t.err : t.ok;
 
     let fill = t.stepBg;
     let stroke = t.border;
@@ -545,31 +549,25 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
       }
     }
 
+    if (animate) {
+      // Cards idle dim, fire up on cascade
+      parts.push(`<g opacity="${node.type === 'start' ? 1 : 0.25}">
+        ${node.type !== 'start' ? `<animate attributeName="opacity" from="0.25" to="1" dur="${NODE_MS / 1000}s" begin="${at(fireAt)}" fill="freeze" calcMode="spline" keySplines=".22 1 0.36 1" keyTimes="0;1" values="0.25;1"/>` : ''}
+      `);
+    }
+
     // Card
     parts.push(
       `<rect x="${x}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="1.5"${dashed ? ' stroke-dasharray="6,4"' : ''}/>`,
     );
 
-    // Ambient card stroke breathing (all nodes, desynchronised) – inset by 1px to avoid fringe
+    // Ambient stroke breathing (only after the node has fired)
     if (animate) {
       parts.push(
         `<rect x="${x + 1}" y="${y + 1}" width="${NODE_W - 2}" height="${NODE_H - 2}" rx="9" fill="none" stroke="${stroke}" stroke-width="2" opacity="0">
-          <animate attributeName="opacity" values="0;0.45;0" dur="${(3 + phase).toFixed(1)}s" begin="${(levelStart(level) + NODE_MS) / 1000}s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;0.45;0" dur="${(3 + phase).toFixed(1)}s" begin="${at(fireAt + NODE_MS)}" repeatCount="indefinite"/>
         </rect>`,
       );
-    }
-
-    // Accent left rail
-    if (node.hasWaitFor && animate) {
-      parts.push(
-        `<rect x="${x}" y="${y}" width="3" height="${NODE_H}" rx="1.5" fill="${stroke}">
-          <animate attributeName="opacity" values="0.7;0.25;0.7" dur="1.8s" repeatCount="indefinite"/>
-        </rect>`,
-      );
-    } else {
-      // parts.push(
-      //   `<rect x="${x}" y="${y}" width="3" height="${NODE_H}" rx="1.5" fill="${stroke}" opacity="0.7"/>`,
-      // );
     }
 
     // Title
@@ -584,17 +582,9 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     if (node.hasWaitFor)
       statusPills.push({ text: 'wait', fg: t.waitText, border: t.waitBorder });
     if (node.hasTemplate)
-      statusPills.push({
-        text: 'template',
-        fg: t.templateText,
-        border: t.templateBorder,
-      });
+      statusPills.push({ text: 'template', fg: t.templateText, border: t.templateBorder });
     if (node.hasSource)
-      statusPills.push({
-        text: 'source',
-        fg: t.sourceText,
-        border: t.sourceBorder,
-      });
+      statusPills.push({ text: 'source', fg: t.sourceText, border: t.sourceBorder });
 
     let pillX = x + NODE_W - 12;
     statusPills.forEach((p) => {
@@ -606,19 +596,38 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
 
     if (node.type === 'start') {
       parts.push(
-        `<text x="${x + 16}" y="${y + 62}" dominant-baseline="central" fill="${t.textMute}" font-size="10">▸ drop files here to begin</text>`,
+        `<text id="startHint" x="${x + 16}" y="${y + 62}" dominant-baseline="central" fill="${t.textMute}" font-size="10">▸ drop files here to begin</text>`,
       );
-      // Pulsing halo around the start node — runs forever after intro
-      // (No scale transform – uses stroke-width animation instead to stay centered)
+
+      // ---- CLICK TARGET + PRESS ANIMATION ----
       if (animate) {
-        const haloBegin = `${(levelStart(0) + NODE_MS) / 1000}s`;
+        // Idle "press me" halo pulsing until clicked
         parts.push(
           `<rect x="${x - 4}" y="${y - 4}" width="${NODE_W + 8}" height="${NODE_H + 8}" rx="13" fill="none" stroke="${t.startBorder}" stroke-width="1.5" opacity="0">
-            <animate attributeName="opacity" values="0.6;0;0" keyTimes="0;0.55;1" dur="2.6s" begin="${haloBegin}" repeatCount="indefinite"/>
-            <animate attributeName="stroke-width" values="2.5;0.75;0.75" keyTimes="0;0.55;1" dur="2.6s" begin="${haloBegin}" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.6;0;0" keyTimes="0;0.55;1" dur="2.6s" begin="0s" repeatCount="indefinite" end="startHit.click"/>
+            <animate attributeName="stroke-width" values="2.5;0.75;0.75" keyTimes="0;0.55;1" dur="2.6s" begin="0s" repeatCount="indefinite" end="startHit.click"/>
+          </rect>`,
+        );
+
+        // Press flash: white inner glow + expanding halo, fires once on click
+        parts.push(
+          `<rect x="${x}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="10" fill="${t.accent}" opacity="0">
+            <animate attributeName="opacity" values="0.45;0" dur="0.5s" begin="${at(0)}" fill="freeze"/>
+          </rect>
+          <rect x="${x - 4}" y="${y - 4}" width="${NODE_W + 8}" height="${NODE_H + 8}" rx="13" fill="none" stroke="${t.startBorder}" stroke-width="2.5" opacity="0">
+            <animate attributeName="opacity" values="0.9;0" dur="0.7s" begin="${at(0)}" fill="freeze"/>
+            <animate attributeName="stroke-width" values="4;2;0.5;0.5" keyTimes="0;0.55;0.85;1" dur="0.7s" begin="${at(0)}" fill="freeze"/>
           </rect>`,
         );
       }
+
+      // Transparent click target — everything chains off this event
+      parts.push(
+        `<rect id="startHit" x="${x}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="10" fill="transparent" style="cursor:pointer">
+          <title>Run pipeline</title>
+        </rect>`,
+      );
+
       if (animate) parts.push(`</g>`);
       return;
     }
@@ -652,16 +661,77 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
     // Wait-for footnote
     if (node.hasWaitFor && node.wait_for?.length) {
       const waitText = node.wait_for.join(', ');
-      const trunc =
-        waitText.length > 24 ? waitText.slice(0, 22) + '…' : waitText;
+      const trunc = waitText.length > 24 ? waitText.slice(0, 22) + '…' : waitText;
       parts.push(
         `<text x="${x + 16}" y="${y + NODE_H - 10}" dominant-baseline="central" fill="${t.waitText}" font-size="8">⌛ ${esc(trunc)}</text>`,
       );
     }
 
-    // Success ping on keep nodes — a soft check-dot pulse in the top-left rail
+    // ---- LIQUID FILL (jar filling left → right) ----
+    if (animate) {
+      const fillW = NODE_W - 2;
+      const fillBegin = at(fireAt + NODE_MS);
+      parts.push(
+        `<g clip-path="url(#clip-${esc(node.id)})">
+          <!-- liquid body -->
+          <rect x="${x + 1}" y="${y + 1}" width="0" height="${NODE_H - 2}" fill="${liquidColor}" opacity="0.14">
+            <animate attributeName="width" from="0" to="${fillW}" dur="${FILL_MS / 1000}s" begin="${fillBegin}" fill="freeze" calcMode="spline" keySplines="0.3 0 0.3 1" keyTimes="0;1" values="0;${fillW}"/>
+            <animate attributeName="opacity" from="0.14" to="0.14" dur="0.01s" begin="${fillBegin}" fill="freeze"/>
+          </rect>
+          <!-- brighter bottom pool for depth -->
+          <rect x="${x + 1}" y="${y + NODE_H - 14}" width="0" height="13" fill="${liquidColor}" opacity="0.18">
+            <animate attributeName="width" from="0" to="${fillW}" dur="${FILL_MS / 1000}s" begin="${fillBegin}" fill="freeze" calcMode="spline" keySplines="0.3 0 0.3 1" keyTimes="0;1" values="0;${fillW}"/>
+          </rect>
+          <!-- gloss highlight riding on top of the liquid -->
+          <rect x="${x + 1}" y="${y + 1}" width="0" height="26" fill="url(#liquidG)">
+            <animate attributeName="width" from="0" to="${fillW}" dur="${FILL_MS / 1000}s" begin="${fillBegin}" fill="freeze" calcMode="spline" keySplines="0.3 0 0.3 1" keyTimes="0;1" values="0;${fillW}"/>
+          </rect>
+          <!-- meniscus: leading edge of the liquid -->
+          <rect x="${x + 1}" y="${y + 1}" width="2.5" height="${NODE_H - 2}" fill="${liquidColor}" opacity="0">
+            <animate attributeName="opacity" values="0;0.7;0.7;0" keyTimes="0;0.05;0.92;1" dur="${FILL_MS / 1000}s" begin="${fillBegin}" fill="freeze"/>
+            <animate attributeName="x" from="${x + 1}" to="${x + 1 + fillW - 2.5}" dur="${FILL_MS / 1000}s" begin="${fillBegin}" fill="freeze" calcMode="spline" keySplines="0.3 0 0.3 1" keyTimes="0;1" values="${x + 1};${x + 1 + fillW - 2.5}"/>
+          </rect>
+          <!-- settle glow when full -->
+          <rect x="${x + 1}" y="${y + 1}" width="${fillW}" height="${NODE_H - 2}" rx="9" fill="none" stroke="${liquidColor}" stroke-width="1.5" opacity="0">
+            <animate attributeName="opacity" values="0;0.5;0" dur="0.9s" begin="${at(fireAt + NODE_MS + FILL_MS)}" fill="freeze"/>
+          </rect>
+        </g>`,
+      );
+    }
+
+    // ---- "OPEN RENDER" BUTTON ----
+    {
+      const btnW = 108;
+      const btnH = 20;
+      const btnX = x + NODE_W - btnW - 12;
+      const btnY = y + NODE_H - btnH - 10;
+      const href =
+        renderBase
+          ? `${renderBase.replace(/\/$/, '')}/${esc(encodeURIComponent(node.id))}`
+          : '#';
+      const btnBody =
+        `<rect x="${btnX}" y="${btnY}" width="${btnW}" height="${btnH}" rx="${btnH / 2}" fill="${isRed ? t.waitBg : t.keepBg}" stroke="${isRed ? t.waitBorder : t.keepBorder}" stroke-width="1" style="cursor:pointer">
+          <set attributeName="fill" to="${t.pillBg}" begin="btn-${esc(node.id)}.mouseover" end="btn-${esc(node.id)}.mouseout"/>
+        </rect>
+        <text x="${btnX + btnW / 2}" y="${btnY + btnH / 2 + 0.5}" text-anchor="middle" dominant-baseline="central" fill="${isRed ? t.waitText : t.keepText}" font-size="9" letter-spacing="0.5" style="cursor:pointer">↗ open render</text>`;
+      const btnG = `<a href="${href}" target="_blank" rel="noopener"><g id="btn-${esc(node.id)}">${btnBody}</g></a>`;
+
+      if (animate) {
+        const btnAt = at(fireAt + NODE_MS + FILL_MS + 150);
+        parts.push(
+          `<g opacity="0">${btnG}
+            <animate attributeName="opacity" from="0" to="1" dur="0.35s" begin="${btnAt}" fill="freeze"/>
+            <animateTransform attributeName="transform" type="scale" additive="sum" values="1;1.06;1" dur="0.5s" begin="${btnAt}" fill="freeze"/>
+          </g>`,
+        );
+      } else {
+        parts.push(btnG);
+      }
+    }
+
+    // Success ping on keep nodes
     if (node.keep && animate) {
-      const pingBegin = `${(levelStart(level) + NODE_MS + 200) / 1000}s`;
+      const pingBegin = at(fireAt + NODE_MS + FILL_MS + 300);
       parts.push(
         `<circle cx="${x + NODE_W - 20}" cy="${y + NODE_H - 16}" r="3" fill="${t.keepText}" opacity="0">
           <animate attributeName="opacity" values="0.9;0.9;0" keyTimes="0;0.3;1" dur="2.8s" begin="${pingBegin}" repeatCount="indefinite"/>
@@ -680,11 +750,17 @@ export function pipelineToSVG(config: any, options: SVGOptions = {}): string {
   const footPulse = animate
     ? `<animate attributeName="opacity" values="0.6;1;0.6" dur="3.5s" repeatCount="indefinite"/>`
     : '';
+  const footDotBegin = animate ? at(levelAt(maxLevel) + FILL_MS) : '';
   parts.push(`
     <rect x="${vbX}" y="${vbY + vbH - 36}" width="${vbW}" height="36" fill="${t.bgFoot}"/>
     <line x1="${vbX}" y1="${vbY + vbH - 36}" x2="${vbX + vbW}" y2="${vbY + vbH - 36}" stroke="${t.border}"/>
-    <circle cx="${vbX + 24}" cy="${vbY + vbH - 18}" r="3.5" fill="${t.ok}">${footPulse}</circle>
-    <text x="${vbX + 36}" y="${vbY + vbH - 18}" dominant-baseline="central" fill="${t.textMute}" font-size="10">output: ${esc(outputBucket || '—')}</text>`);
+    <circle cx="${vbX + 24}" cy="${vbY + vbH - 18}" r="3.5" fill="${t.ok}" opacity="${animate && !autoStart ? 0.25 : 1}">
+      ${animate ? `<animate attributeName="opacity" values="0.6;1;0.6" dur="3.5s" begin="${footDotBegin}" fill="freeze" repeatCount="indefinite"/>` : ''}
+    </circle>
+    <text x="${vbX + 36}" y="${vbY + vbH - 18}" dominant-baseline="central" fill="${t.textMute}" font-size="10">output: ${esc(outputBucket || '—')}</text>
+    ${animate && !autoStart ? `<text id="cta" x="${vbX + vbW - 24}" y="${vbY + vbH - 18}" text-anchor="end" dominant-baseline="central" fill="${t.accent}" font-size="10" font-weight="700" letter-spacing="0.5">▶ click the upload node to run
+      <animate attributeName="opacity" values="1;1;0" keyTimes="0;0.9;1" dur="0.1s" begin="startHit.click" fill="freeze"/>
+    </text>` : ''}`);
 
   parts.push(`</svg>`);
   return parts.join('\n');
