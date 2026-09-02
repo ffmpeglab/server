@@ -60,6 +60,10 @@ export class RendersService {
     return await this.rendersRepository.findOneBy({ id: renderId });
   }
 
+  async updateRenderProgress(renderId: string, progress: number) {
+    await this.rendersRepository.update({ id: renderId }, { progress });
+  }
+
   async findAllRendersForProject(
     projectId: string,
     userId: string,

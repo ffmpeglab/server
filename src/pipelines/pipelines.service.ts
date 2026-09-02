@@ -34,6 +34,13 @@ export class PipelinesService {
     return await this.pipelinesRepository.findOneBy({ id, user_id: userId });
   }
 
+  async findByProject(projectId: string, userId: string): Promise<Pipeline[]> {
+    return await this.pipelinesRepository.findBy({
+      user_id: userId,
+      projectId,
+    });
+  }
+
   async create(
     createPipeline: CreatePipelineDto,
     userId: string,
@@ -62,6 +69,13 @@ export class PipelinesService {
       },
     );
     return await this.findOne(pipeline.id, userId);
+  }
+
+  async deleteOne(pipelineId: string, userId: string) {
+    return await this.pipelinesRepository.delete({
+      id: pipelineId,
+      user_id: userId,
+    });
   }
 
   async transpile(pipeline: TranspilerRequest): Promise<TranspilerResponse> {

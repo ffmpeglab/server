@@ -24,10 +24,8 @@ export class RenderProcessor {
       runId?: string;
     }>,
   ) {
-    // console.log('starting render ', job);
     const { renderId, userId, bucket, outputPath, runId } = job.message.data;
     const render = await this.renderService.findOne(renderId, userId);
-    // console.log('start encoding', render);
     try {
       await this.renderService.updateRenderStatus(renderId, 'rendering');
       const encoding = await encodeProject(
@@ -35,7 +33,7 @@ export class RenderProcessor {
         render!.data.layers,
         false,
         (progress) =>
-          this.logsQueue.add('logs', {
+          this.logsQueue.add('progress', {
             renderId,
             progress,
             userId,
