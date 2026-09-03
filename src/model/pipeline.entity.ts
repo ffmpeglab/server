@@ -43,7 +43,7 @@ export class Pipeline {
   @Column({ default: 'default' })
   @ApiProperty()
   @Index()
-  projectId?: string;
+  project?: string;
 
   @Column()
   @ApiProperty()

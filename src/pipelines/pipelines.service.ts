@@ -34,10 +34,10 @@ export class PipelinesService {
     return await this.pipelinesRepository.findOneBy({ id, user_id: userId });
   }
 
-  async findByProject(projectId: string, userId: string): Promise<Pipeline[]> {
+  async findByProject(project: string, userId: string): Promise<Pipeline[]> {
     return await this.pipelinesRepository.findBy({
       user_id: userId,
-      projectId,
+      project,
     });
   }
 

@@ -31,6 +31,8 @@ export class CreatePipelineDto implements Omit<
   upsql: string;
   @ApiProperty()
   yml: string;
+  @ApiProperty()
+  project?: string;
 }
 
 export class TranspilerRequest {

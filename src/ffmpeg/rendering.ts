@@ -115,12 +115,13 @@ export const encodeProject = async (
       cmd.medias.map((media: EncoderProject) => syncMedia(media)),
     );
     const totalTimeInitial = layers?.length ? getTotalTime(layers) : 0;
-    const totalTime = totalTimeInitial * 10000;
+    const totalMultiplier = 10000;
+    const totalTime = totalTimeInitial * totalMultiplier;
     const totalTimePercent = totalTime / 100;
     const ffmpeg = await createFFmpeg(({ time }) => {
       if (!cb) return;
       const progress2 = parseFloat(
-        ((time - totalTime) / totalTimePercent / 10000).toFixed(2),
+        (time / totalMultiplier / totalTimePercent).toFixed(2),
       );
       cb({ time, progress: progress2 });
     }, logs);

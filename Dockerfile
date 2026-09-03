@@ -10,7 +10,7 @@ RUN npm i -g @nestjs/cli
 
 RUN yarn && yarn build
 
-FROM linuxserver/ffmpeg:8.1.2
+FROM linuxserver/ffmpeg:7.1-cli
 
 WORKDIR /app
 
