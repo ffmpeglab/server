@@ -21,12 +21,12 @@ import { config } from '../config';
   withSupabase({
     auth: 'user',
     env: {
-        url: config.supabaseHost,
-        publishableKeys: {
-            default: config.supabaseAnonKey,
-        },
-        secretKeys: { default: config.supabaseSecretKey },
-        jwks: new URL(config.supabaseJWKUrl)
+      url: config.supabaseHost,
+      publishableKeys: {
+        default: config.supabaseAnonKey,
+      },
+      secretKeys: { default: config.supabaseSecretKey },
+      jwks: new URL(config.supabaseJWKUrl),
     },
   }),
 )
@@ -35,8 +35,13 @@ export class ApiKeyController {
   constructor(private readonly apikeyService: ApiKeyService) {}
   @Get('')
   @ApiResponse({ type: [ApiKey] })
-  async findAll(@SupabaseCtx('userClaims') user: SupabaseContext['userClaims']) {
-    return (await this.apikeyService.findAll(user!.id)).map(i=>({...i, apikey: undefined}));
+  async findAll(
+    @SupabaseCtx('userClaims') user: SupabaseContext['userClaims'],
+  ) {
+    return (await this.apikeyService.findAll(user!.id)).map((i) => ({
+      ...i,
+      apikey: undefined,
+    }));
   }
 
   @Delete(':id')
@@ -48,17 +53,14 @@ export class ApiKeyController {
   })
   async deleteOne(
     @Param() params: { id: string },
-    @SupabaseCtx('userClaims') user: SupabaseContext['userClaims']
+    @SupabaseCtx('userClaims') user: SupabaseContext['userClaims'],
   ) {
     return await this.apikeyService.deleteOne(params.id, user!.id);
   }
 
   @Post()
   @ApiResponse({ type: ApiKey })
-  async create(
-    @SupabaseCtx('userClaims') user: SupabaseContext['userClaims']
-  ) {
+  async create(@SupabaseCtx('userClaims') user: SupabaseContext['userClaims']) {
     return await this.apikeyService.create(user!.id);
   }
-
 }

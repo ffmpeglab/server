@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { extractTokenFromHeader } from './util';
-import crypto from 'node:crypto'
+import crypto from 'node:crypto';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -21,10 +21,10 @@ export class AuthGuard implements CanActivate {
       }
       let payload = await this.authService.findKey(token);
       if (!payload?.user_id) {
-        payload = await this.authService.findKey(crypto.hash('sha512', token))
+        payload = await this.authService.findKey(crypto.hash('sha512', token));
       }
       if (!payload?.user_id) {
-        throw new UnauthorizedException()
+        throw new UnauthorizedException();
       }
       request['user'] = payload?.user_id;
     } catch {
