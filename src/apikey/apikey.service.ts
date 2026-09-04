@@ -8,6 +8,7 @@ export function generateSecureKey() {
   const array = new Uint32Array(5);
   return crypto.getRandomValues(array).join('').toString();
 }
+
 @Injectable()
 export class ApiKeyService {
   constructor(
@@ -25,8 +26,8 @@ export class ApiKeyService {
 
   async create(
     userId: string,
-    expiration: number = new Date().setDate(new Date().getDate() + 10),
-    roles: string[] = [],
+    expiration?: number,
+    roles?: string[],
   ): Promise<ApiKey | null> {
     const apikey = generateSecureKey();
     const n = await this.apikeyRepository.insert({
@@ -34,8 +35,8 @@ export class ApiKeyService {
       user_id: userId,
       date: new Date().toISOString(),
       data: {
-        expiration,
-        roles,
+        expiration: expiration || new Date().setDate(new Date().getDate() + 10),
+        roles: roles || [],
       },
     });
     const nk = await this.findOne(n.identifiers[0].id, userId);

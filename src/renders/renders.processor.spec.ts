@@ -97,11 +97,11 @@ describe('RenderProcessor', () => {
       );
     });
 
-    it('routes progress events to the logs queue with metadata', async () => {
+    it('routes progress events to the progress queue with metadata', async () => {
       await processor.handleRender(job());
       onProgress(42);
 
-      expect(logsQueue.add).toHaveBeenCalledWith('logs', {
+      expect(logsQueue.add).toHaveBeenCalledWith('progress', {
         renderId: 'r-1',
         progress: 42,
         userId: 'u-1',

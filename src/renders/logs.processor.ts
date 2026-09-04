@@ -19,7 +19,6 @@ export class LogsProcessor {
       date: string;
     }>,
   ) {
-    // console.log('new logs ', job);
     try {
       const { renderId, progress, userId } = job.message.data;
       if (renderId && progress) {
