@@ -33,6 +33,7 @@ export class ApiKeyService {
     const n = await this.apikeyRepository.insert({
       apikey: crypto.hash('sha512', apikey),
       user_id: userId,
+      title: new Date().toISOString(),
       date: new Date().toISOString(),
       data: {
         expiration: expiration || new Date().setDate(new Date().getDate() + 10),

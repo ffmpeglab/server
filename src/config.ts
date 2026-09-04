@@ -61,8 +61,8 @@ export const config = {
 export const supabaseEnv = {
   url: process.env.SUPABASE_URL as string,
   publishableKeys: {
-    default: config.supabaseAnonKey,
+    default: process.env.SUPABASE_PUBLISHABLE_KEY as string,
   },
   secretKeys: { default: config.supabaseSecretKey },
-  // jwks: new URL(process.env.SUPABASE_JWKS_URL as string),
+  jwks: new URL(process.env.SUPABASE_JWKS_URL as string),
 };

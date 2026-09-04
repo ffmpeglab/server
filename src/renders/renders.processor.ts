@@ -4,6 +4,7 @@ import type { PgmqJob } from 'nestjs-pgmq';
 import { RendersService } from './renders.service';
 import { encodeProject } from '../ffmpeg/rendering';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
+import { uploadJobResult } from './result.processor';
 
 @Processor(config.queue.name)
 export class RenderProcessor {
@@ -47,7 +48,8 @@ export class RenderProcessor {
             date: new Date().toISOString(),
           }),
       );
-      this.fileQueue.add('file', {
+      await this.renderService.updateRenderStatus(renderId, 'upload');
+      const result = await uploadJobResult({
         renderId,
         media: encoding,
         userId,
@@ -55,9 +57,25 @@ export class RenderProcessor {
         outputPath,
         runId,
       });
+
+      if (result?.id)
+        await this.renderService.updateMediaResult(job.message.data.renderId, {
+          ...result,
+          userId: job.message.data.userId,
+        });
+      else await this.renderService.updateRenderStatus(renderId, 'error');
+
       await this.renderService.updateRenderStatus(renderId, 'done');
     } catch (err) {
       console.error('rnder failed', renderId, err);
+
+      this.logsQueue.add('logs', {
+        renderId,
+        logs: (err as Error)?.message || JSON.stringify(err),
+        userId,
+        date: new Date().toISOString(),
+      });
+
       await this.renderService.updateRenderStatus(renderId, 'error');
     }
   }

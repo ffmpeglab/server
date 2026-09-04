@@ -54,7 +54,7 @@ export class RendersService {
 
   async updateRenderStatus(
     renderId: string,
-    status: 'done' | 'rendering' | 'error' | 'queue',
+    status: 'done' | 'rendering' | 'error' | 'queue' | 'upload',
   ) {
     await this.rendersRepository.update({ id: renderId }, { status });
     return await this.rendersRepository.findOneBy({ id: renderId });

@@ -14,20 +14,13 @@ import { ApiKey } from '../model/apikey.entity';
 
 import { withSupabase, SupabaseCtx } from '@supabase/server/adapters/nestjs';
 import type { SupabaseContext } from '@supabase/server';
-import { config } from '../config';
+import { supabaseEnv } from '../config';
 
 @Controller('apikey')
 @UseGuards(
   withSupabase({
     auth: 'user',
-    env: {
-      url: config.supabaseHost,
-      publishableKeys: {
-        default: config.supabaseAnonKey,
-      },
-      secretKeys: { default: config.supabaseSecretKey },
-      jwks: new URL(config.supabaseJWKUrl),
-    },
+    env: supabaseEnv,
   }),
 )
 @ApiBearerAuth()
