@@ -19,10 +19,7 @@ export class AuthGuard implements CanActivate {
       if (!token) {
         throw new UnauthorizedException();
       }
-      let payload = await this.authService.findKey(token);
-      if (!payload?.user_id) {
-        payload = await this.authService.findKey(crypto.hash('sha512', token));
-      }
+      const payload = await this.authService.findKey(crypto.hash('sha512', token));
       if (!payload?.user_id) {
         throw new UnauthorizedException();
       }
