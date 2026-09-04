@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -29,6 +30,29 @@ export class PipelinesController {
   @ApiResponse({ type: [Pipeline] })
   async findAll(@Request() req: Request & { user: string }) {
     return await this.pipelineService.findAll(req.user);
+  }
+
+  @Get('/project/:projectId')
+  @ApiResponse({ type: [Pipeline] })
+  async findByProject(
+    @Param() params: { projectId: string },
+    @Request() req: Request & { user: string },
+  ) {
+    return await this.pipelineService.findByProject(params.projectId, req.user);
+  }
+
+  @Delete(':id')
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the pipeline',
+    required: true,
+    type: String,
+  })
+  async deleteOne(
+    @Param() params: { id: string },
+    @Request() req: Request & { user: string },
+  ) {
+    return await this.pipelineService.deleteOne(params.id, req.user);
   }
 
   @Get(':id')

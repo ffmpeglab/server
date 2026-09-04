@@ -40,6 +40,11 @@ export class Pipeline {
   @ApiProperty()
   yml: string;
 
+  @Column({ default: 'default' })
+  @ApiProperty()
+  @Index()
+  projectId?: string;
+
   @Column()
   @ApiProperty()
   @Index()

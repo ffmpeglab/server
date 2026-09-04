@@ -55,13 +55,14 @@ export const config = {
   platformHost: process.env.PLATFORM_HOST as string,
   supabaseProjectId: process.env.SUPABASE_PROJECT_ID as string,
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY as string,
+  supabaseJWKUrl: process.env.SUPABASE_JWKS_URL as string,
 };
 
 export const supabaseEnv = {
   url: process.env.SUPABASE_URL as string,
   publishableKeys: {
-    default: config.supabaseAnonKey,
+    default: process.env.SUPABASE_PUBLISHABLE_KEY as string,
   },
   secretKeys: { default: config.supabaseSecretKey },
-  // jwks: new URL(process.env.SUPABASE_JWKS_URL as string),
+  jwks: new URL(process.env.SUPABASE_JWKS_URL as string),
 };

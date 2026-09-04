@@ -5,6 +5,7 @@ import { config } from './config';
 import { RendersModule } from './renders/renders.module';
 import { PipelinesModule } from './pipelines/pipelines.module';
 import { FilesModule } from './files/files.module';
+import { ApiKeyModule } from './apikey/apikey.module';
 
 const optionalModules: (typeof AppModule)[] = [FilesModule];
 if (config.pipelinesEnabled) {
@@ -32,6 +33,7 @@ if (config.pipelinesEnabled) {
       name: config.queue.file,
     }),
     RendersModule,
+    ApiKeyModule,
     ...optionalModules,
   ],
   controllers: [],
