@@ -1,0 +1,1 @@
+ALTER TABLE pipeline ADD COLUMN project text default 'default';

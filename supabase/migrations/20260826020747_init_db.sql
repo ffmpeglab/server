@@ -68,5 +68,4 @@ $$;
 -- PGMQ queues
 SELECT pgmq.create('renders');
 SELECT pgmq.create('render');
-SELECT pgmq.create('file');
 SELECT pgmq.create('logs');
