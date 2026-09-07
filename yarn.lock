@@ -1434,11 +1434,6 @@
   dependencies:
     "@tybys/wasm-util" "^0.10.3"
 
-"@nest-lab/or-guard@^2.6.0":
-  version "2.6.0"
-  resolved "https://registry.yarnpkg.com/@nest-lab/or-guard/-/or-guard-2.6.0.tgz#ac1d869bea4297c9710b0da9fa0cd971ae19bd87"
-  integrity sha512-HSAe8jwbtJgUdRPSMEkaFbFI7Lczznm6KS/73o1GHe9qALsfE/hFdvpEnnFifDhYDELJw+56+HPYxhjCnPHy3g==
-
 "@nestjs/axios@4.0.1":
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/@nestjs/axios/-/axios-4.0.1.tgz#7ff73f47727b67dc04410ac6e9b3329401ebbb65"
@@ -1505,6 +1500,13 @@
     multer "2.2.0"
     path-to-regexp "8.4.2"
     tslib "2.8.1"
+
+"@nestjs/schedule@^12.0.1":
+  version "12.0.1"
+  resolved "https://registry.yarnpkg.com/@nestjs/schedule/-/schedule-12.0.1.tgz#2e4d21cfe46d9037f944a5ba2e40d1c045c32573"
+  integrity sha512-v0z/li9L8oxpvuIDAGm5uOLaZ8KzsfZRzgWgppvs5vClneSinZP5IFl3C1F1DCeTCkNLiGN9g/oLUvzg8x++RQ==
+  dependencies:
+    cron "4.4.0"
 
 "@nestjs/schematics@^11.0.0", "@nestjs/schematics@^11.0.1":
   version "11.1.0"
@@ -2043,6 +2045,11 @@
   version "7.0.15"
   resolved "https://registry.npmjs.org/@types/json-schema/-/json-schema-7.0.15.tgz"
   integrity sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==
+
+"@types/luxon@~3.7.0":
+  version "3.7.5"
+  resolved "https://registry.yarnpkg.com/@types/luxon/-/luxon-3.7.5.tgz#d223e1adfdadb140eca9c51647aba59b98508128"
+  integrity sha512-jJ41Q4z6ZVO260MNDdHfW7+7a5iMiX8Mr6ZJHcmgrvhZha6dz5704o/lF2kKl6URjH6ivEL97w9xS/MgpJEphg==
 
 "@types/methods@^1.1.4":
   version "1.1.4"
@@ -3215,6 +3222,14 @@ create-require@^1.1.0:
   version "1.1.1"
   resolved "https://registry.npmjs.org/create-require/-/create-require-1.1.1.tgz"
   integrity sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==
+
+cron@4.4.0:
+  version "4.4.0"
+  resolved "https://registry.yarnpkg.com/cron/-/cron-4.4.0.tgz#1488444a23ea7134e2b7686c17711abdffcebba8"
+  integrity sha512-fkdfq+b+AHI4cKdhZlppHveI/mgz2qpiYxcm+t5E5TsxX7QrLS1VE0+7GENEk9z0EeGPcpSciGv6ez24duWhwQ==
+  dependencies:
+    "@types/luxon" "~3.7.0"
+    luxon "~3.7.0"
 
 cross-spawn@^7.0.3, cross-spawn@^7.0.6:
   version "7.0.6"
@@ -4896,6 +4911,11 @@ lru-cache@^7.14.1:
   version "7.18.3"
   resolved "https://registry.yarnpkg.com/lru-cache/-/lru-cache-7.18.3.tgz#f793896e0fd0e954a59dfdd82f0773808df6aa89"
   integrity sha512-jumlc0BIUrS3qJGgIkWZsyfAM7NCWiBcCDhnd+3NNM5KbBmLTgHVfWBcg6W+rLUsIpzpERPsvwUP7CckAQSOoA==
+
+luxon@~3.7.0:
+  version "3.7.2"
+  resolved "https://registry.yarnpkg.com/luxon/-/luxon-3.7.2.tgz#d697e48f478553cca187a0f8436aff468e3ba0ba"
+  integrity sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==
 
 magic-string@0.30.17:
   version "0.30.17"

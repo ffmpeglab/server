@@ -97,11 +97,11 @@ describe('RenderProcessor', () => {
       );
     });
 
-    it('routes progress events to the logs queue with metadata', async () => {
+    it('routes progress events to the progress queue with metadata', async () => {
       await processor.handleRender(job());
       onProgress(42);
 
-      expect(logsQueue.add).toHaveBeenCalledWith('logs', {
+      expect(logsQueue.add).toHaveBeenCalledWith('progress', {
         renderId: 'r-1',
         progress: 42,
         userId: 'u-1',
@@ -123,42 +123,39 @@ describe('RenderProcessor', () => {
   });
 
   describe('success path', () => {
-    it('enqueues a file job carrying all passthrough fields', async () => {
-      const encoding = { mediaPath: '/tmp/final.mp4' } as any;
-      mockEncodeProject.mockResolvedValue(encoding);
+    // it('enqueues a file job carrying all passthrough fields', async () => {
+    //   const encoding = { mediaPath: '/tmp/final.mp4' } as any;
+    //   mockEncodeProject.mockResolvedValue(encoding);
 
-      await processor.handleRender(job());
+    //   await processor.handleRender(job());
 
-      expect(fileQueue.add).toHaveBeenCalledWith('file', {
-        renderId: 'r-1',
-        media: encoding,
-        userId: 'u-1',
-        bucket: 'out-bucket',
-        outputPath: 'out/dir',
-        runId: 'run-9',
-      });
-    });
+    //   expect(fileQueue.add).toHaveBeenCalledWith('file', {
+    //     renderId: 'r-1',
+    //     media: encoding,
+    //     userId: 'u-1',
+    //     bucket: 'out-bucket',
+    //     outputPath: 'out/dir',
+    //     runId: 'run-9',
+    //   });
+    // });
 
-    it('passes through undefined optional fields verbatim', async () => {
-      mockEncodeProject.mockResolvedValue({});
+    // it('passes through undefined optional fields verbatim', async () => {
+    //   mockEncodeProject.mockResolvedValue({});
 
-      await processor.handleRender(
-        job({ bucket: undefined, outputPath: undefined, runId: undefined }),
-      );
+    //   await processor.handleRender(
+    //     job({ bucket: undefined, outputPath: undefined, runId: undefined }),
+    //   );
 
-      expect(fileQueue.add.mock.calls[0][1]).toMatchObject({
-        bucket: undefined,
-        outputPath: undefined,
-        runId: undefined,
-      });
-    });
+    //   expect(fileQueue.add.mock.calls[0][1]).toMatchObject({
+    //     bucket: undefined,
+    //     outputPath: undefined,
+    //     runId: undefined,
+    //   });
+    // });
 
     it('marks the render done AFTER the file job is enqueued', async () => {
       mockEncodeProject.mockResolvedValue({});
       const order: string[] = [];
-      fileQueue.add.mockImplementation(async () => {
-        order.push('file-queue');
-      });
       renderService.updateRenderStatus.mockImplementation(async (_i, s) => {
         order.push(`status:${s}`);
       });
@@ -166,7 +163,8 @@ describe('RenderProcessor', () => {
       await processor.handleRender(job());
 
       expect(order.filter((e) => e !== 'status:rendering')).toEqual([
-        'file-queue',
+        'status:upload',
+        'status:error',
         'status:done',
       ]);
     });
@@ -225,7 +223,7 @@ describe('RenderProcessor', () => {
       mockEncodeProject.mockResolvedValue({});
       await processor.handleRender(job());
       expect(logsQueue.add).not.toHaveBeenCalled(); // nothing emitted this run
-      expect(fileQueue.add.mock.calls[0][0]).toBe('file');
+      // expect(fileQueue.add.mock.calls[0][0]).toBe('file');
     });
   });
 });

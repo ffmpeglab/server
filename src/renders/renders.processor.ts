@@ -4,6 +4,7 @@ import type { PgmqJob } from 'nestjs-pgmq';
 import { RendersService } from './renders.service';
 import { encodeProject } from '../ffmpeg/rendering';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
+import { uploadJobResult } from './result.processor';
 
 @Processor(config.queue.name)
 export class RenderProcessor {
@@ -24,10 +25,8 @@ export class RenderProcessor {
       runId?: string;
     }>,
   ) {
-    // console.log('starting render ', job);
     const { renderId, userId, bucket, outputPath, runId } = job.message.data;
     const render = await this.renderService.findOne(renderId, userId);
-    // console.log('start encoding', render);
     try {
       await this.renderService.updateRenderStatus(renderId, 'rendering');
       const encoding = await encodeProject(
@@ -35,7 +34,7 @@ export class RenderProcessor {
         render!.data.layers,
         false,
         (progress) =>
-          this.logsQueue.add('logs', {
+          this.logsQueue.add('progress', {
             renderId,
             progress,
             userId,
@@ -49,7 +48,8 @@ export class RenderProcessor {
             date: new Date().toISOString(),
           }),
       );
-      this.fileQueue.add('file', {
+      await this.renderService.updateRenderStatus(renderId, 'upload');
+      const result = await uploadJobResult({
         renderId,
         media: encoding,
         userId,
@@ -57,9 +57,25 @@ export class RenderProcessor {
         outputPath,
         runId,
       });
+
+      if (result?.id)
+        await this.renderService.updateMediaResult(job.message.data.renderId, {
+          ...result,
+          userId: job.message.data.userId,
+        });
+      else await this.renderService.updateRenderStatus(renderId, 'error');
+
       await this.renderService.updateRenderStatus(renderId, 'done');
     } catch (err) {
       console.error('rnder failed', renderId, err);
+
+      this.logsQueue.add('logs', {
+        renderId,
+        logs: (err as Error)?.message || JSON.stringify(err),
+        userId,
+        date: new Date().toISOString(),
+      });
+
       await this.renderService.updateRenderStatus(renderId, 'error');
     }
   }

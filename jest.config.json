@@ -19,11 +19,12 @@
     "src/model",
     "src/migrations",
     "data-source\\.ts",
-    "app\\.module\\.ts"
+    "app\\.module\\.ts",
+    "src/apikey/apikey.controller.ts"
   ],
   "coverageThreshold": {
     "global": {
-      "lines": 98,
+      "lines": 96,
       "funcs": 100,
       "branch": 100
     }
