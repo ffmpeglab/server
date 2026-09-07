@@ -62,7 +62,7 @@ EOF
 echo -e "${GREEN}✅ RLS policies and Bucket set.${NC}"
 # Generate API key
 API_KEY_SECRET=$(openssl rand -hex 32 2>/dev/null || echo "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6")
-export API_KEY=$(openssl dgst -sha512 <<< $API_KEY_SECRET)
+export API_KEY=$(echo $API_KEY_SECRET | openssl sha512)
 export API_HOST="http://localhost:3000"
 export FFMPEG_PATH=$(which ffmpeg)
 echo "API_KEY=${API_KEY_SECRET}" >> $SERVER_DIR/.env;
