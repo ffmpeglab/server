@@ -153,6 +153,7 @@ SELECT
 FROM new_user
 ON CONFLICT (apikey) DO NOTHING;
 EOF
+export API_KEY="${API_KEY_SECRET}"
 echo -e "${GREEN} Preparing ffmpeg...${NC}"
 sudo apt-get install -y ffmpeg
 export FFMPEG_PATH=$(which ffmpeg)
