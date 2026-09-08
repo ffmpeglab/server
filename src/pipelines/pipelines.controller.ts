@@ -33,6 +33,12 @@ export class PipelinesController {
   }
 
   @Get('/project/:projectId')
+  @ApiParam({
+    name: 'projectId',
+    description: 'The projectId for the pipelines to be selected',
+    required: true,
+    type: String,
+  })
   @ApiResponse({ type: [Pipeline] })
   async findByProject(
     @Param() params: { projectId: string },
