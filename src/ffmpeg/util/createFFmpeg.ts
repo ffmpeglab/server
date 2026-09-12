@@ -46,23 +46,18 @@ function buildBwrapArgs(scratchDir: string, cmd: string[]): string[] {
     '--ro-bind',
     '/bin',
     '/bin',
-    // if FFmpeg was installed to /opt, bind that too:
-    // '--ro-bind', '/opt', '/opt',
 
-    // minimal /proc and /dev (FFmpeg needs /dev/null, /dev/urandom)
     '--proc',
     '/proc',
     '--dev',
     '/dev',
 
-    // ephemeral scratch that the sandbox can read and write
     '--bind',
     scratchDir,
     scratchDir,
     '--tmpfs',
     '/tmp',
 
-    // FFmpeg itself
     ffmpegPath,
     ...cmd,
   ];

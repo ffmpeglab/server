@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { syncMedia } from './syncMedia';
 import { downloadFile } from './downloadFile';
-import { documentDir, getFileId } from './util';
+import { documentDir, getFileId, assertPublicUrl  } from './util';
 import { config } from '../../config';
 import { createS3Client } from '../../s3client';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -22,6 +22,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
 
 jest.mock('../../s3client', () => ({ createS3Client: jest.fn() }));
 jest.mock('./util', () => ({
+  assertPublicUrl: jest.fn((arg)=>new URL(arg)),
   documentDir: jest.fn(() => '/tmp/docdir'),
   getFileId: jest.fn(() => 'file-abc.mp4'),
 }));

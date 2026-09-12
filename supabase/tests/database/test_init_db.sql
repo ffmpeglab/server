@@ -154,7 +154,7 @@ SELECT indexes_are('render', ARRAY[
 -- The presence of the queues in pgmq.meta is enough.
 SELECT results_eq(
   'SELECT queue_name::text FROM pgmq.meta WHERE queue_name IN (''renders'',''render'',''logs'') ORDER BY queue_name',
-  ARRAY['file','logs','render','renders'],
+  ARRAY['logs','render','renders'],
   'All four queues exist in meta'
 );
 

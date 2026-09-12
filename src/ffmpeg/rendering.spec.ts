@@ -104,7 +104,7 @@ describe('execEncode', () => {
     },
     ...overrides,
   });
-  const baseCmdAfter = ['-i', '/in/a.mp4', '-y', '/tmp/docdir/proj-1/out.mp4'];
+  const baseCmdAfter = [ "-protocol_whitelist", "file", '-i', '/in/a.mp4', '-y', '/tmp/docdir/proj-1/out.mp4'];
   it('creates the project output directory recursively', async () => {
     await execEncode(baseCmd() as any);
     expect(fs.mkdirSync).toHaveBeenCalledWith(`${DOC}/proj-1`, {
