@@ -11,6 +11,8 @@ export type LogsProgressCallback = (line: string) => void;
 
 const ffmpegPath = config.ffmpeg.path;
 
+const bWrapPath = process.env.BWRAP_PATH as string
+
 function buildBwrapArgs(scratchDir: string, cmd: string[]): string[] {
   // scratchDir is per-render, e.g. /tmp/ffmpeglab/<renderId>
   return [
@@ -74,7 +76,7 @@ export const createFFmpeg = async (
       return await new Promise((resolve, reject) => {
         const fullEnv = { ...env, FFMPEG_PATH: ffmpegPath };
         console.info({ ffmpegRun: cmd });
-        const child = spawn('bwrap', buildBwrapArgs(documentDir(), cmd), {
+        const child = spawn(bWrapPath, buildBwrapArgs(documentDir(), cmd), {
           env: fullEnv,
         });
         child.stdout.on('data', (data: Buffer) => {

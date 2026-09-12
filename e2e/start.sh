@@ -160,6 +160,7 @@ sudo apt-get install -y ffmpeg
 export FFMPEG_PATH=$(which ffmpeg)
 echo -e "${GREEN} Path to ffmpeg: ${FFMPEG_PATH}"
 sudo apt-get install bwrap
+export BWRAP_PATH=$(which bwrap)
 echo -e "${GREEN} bwrap installed"
 
 echo -e "${BLUE}💾 Installing python s3 sdk${NC}"
