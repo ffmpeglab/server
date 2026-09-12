@@ -11,7 +11,7 @@ export type LogsProgressCallback = (line: string) => void;
 
 const ffmpegPath = config.ffmpeg.path;
 
-const bWrapPath = process.env.BWRAP_PATH as string
+const bWrapPath = process.env.BWRAP_PATH as string;
 
 function buildBwrapArgs(scratchDir: string, cmd: string[]): string[] {
   // scratchDir is per-render, e.g. /tmp/ffmpeglab/<renderId>
