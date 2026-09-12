@@ -32,11 +32,19 @@ export class RendersService {
   }
 
   async writeRender(render: RenderData, userId: string) {
+    const cleanLayers = render.layers.map((layer) => ({
+      ...layer,
+      media: layer.media.map((media) => ({
+        ...media,
+        bucket: undefined,
+        key: undefined,
+      })),
+    }));
     const n = await this.rendersRepository.insert({
       title: render.project.title,
       project: render.project.id,
       status: 'created',
-      data: render,
+      data: { project: render.project, layers: cleanLayers },
       public: false,
       user_id: userId,
       progress: 0,

@@ -17,6 +17,7 @@ export const genRenderCmd = (
   projectData: EditorProject,
   layers: EditorLayer[],
   newMediaId: string,
+  RENDER_ID: string,
 ) => {
   if (!projectData?.id || layers?.length < 1) {
     return { execCmd: [], medias: [], files: [] };
@@ -34,7 +35,7 @@ export const genRenderCmd = (
   const genInput = (e: EncoderProject) => {
     fileCounter++;
     const assignedMedia = `MEDIA_${fileCounter}`;
-    const mediaFile = `${documentDir()}/${e.folderId}/${getFileId(e)}`;
+    const mediaFile = `${documentDir()}/${RENDER_ID}/${getFileId(e)}`;
     assignedMedias[assignedMedia] = mediaFile;
     return `$${assignedMedia}`;
   };
@@ -316,7 +317,7 @@ export const genRenderCmd = (
     .replace(/,\s*\[/g, '[')
     .replace(/;\s*;/g, ';');
   const outputDir = documentDir();
-  const outputPath = `${outputDir}/${projectData?.id}/${getFileId({
+  const outputPath = `${outputDir}/${RENDER_ID}/${getFileId({
     id: newMediaId,
     filename: outFileId,
   } as Media)}`;
@@ -354,5 +355,6 @@ export const genRenderCmd = (
     projectData,
     assignedMedias,
     outputPath,
+    RENDER_ID,
   };
 };

@@ -179,7 +179,6 @@ describe('PipelinesService — transpile', () => {
     });
     return proc;
   };
-
   it('writes the yml, runs deno transpiler, collects and deletes generated sql files', async () => {
     setupHappyFs({
       'schema.sql': 'CREATE TABLE a;',
@@ -195,11 +194,13 @@ describe('PipelinesService — transpile', () => {
       'tables: []',
       expect.any(Function),
     );
-    // deno invoked with -A, transpiler path, yml path, sql path, --svg
+    // deno invoked with scoped allow flags, no -A
     expect(spawn).toHaveBeenCalledWith(
       'deno',
       expect.arrayContaining([
-        '-A',
+        'run',
+        expect.stringMatching(/^--allow-read=/),
+        expect.stringMatching(/^--allow-write=/),
         expect.stringContaining('transpiler.ts'),
         expect.stringContaining('/yml/fixed-id.yml'),
         expect.stringContaining('/sql/fixed-id'),
