@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { syncMedia, downloadFile } from './syncMedia';
+import { syncMedia } from './syncMedia';
+import { downloadFile } from './downloadFile';
 import { documentDir, getFileId } from './util';
 import { config } from '../../config';
 import { createS3Client } from '../../s3client';
