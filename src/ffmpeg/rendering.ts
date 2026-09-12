@@ -57,21 +57,19 @@ export const execEncode = async (cmd: ExecCMD): Promise<string> => {
         : cmd.execCmd;
 
     const env = cmd.assignedMedias;
-    let ncmd = '';
-    if (typeof execCode === 'string') {
-      ncmd = execCode;
-      Object.keys(env).map((k) => {
-        const value = env[k];
-        ncmd = ncmd.replace('$' + k, value);
-      });
+    const tokens =
+      typeof execCode === 'string' ? parseCommand(execCode) : execCode;
+
+    const substituted = tokens.map((arg) => {
+      const s = String(arg);
+      return s.startsWith('$') ? (env[s.slice(1)] ?? s) : s;
+    });
+
+    const cmdProcessed: string[] = [];
+    for (const arg of substituted) {
+      if (arg === '-i') cmdProcessed.push('-protocol_whitelist', 'file');
+      cmdProcessed.push(arg);
     }
-    const cmdProcessed =
-      typeof cmd === 'string'
-        ? ncmd
-        : execCode?.map((arg: string | number) => {
-            const key = arg.toString().replace('$', '');
-            return env[key] ? env[key] : arg;
-          });
 
     const exec = cmd.ffmpeg.exec(cmdProcessed as string[]);
     // console.info('processing', exec);
