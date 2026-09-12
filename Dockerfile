@@ -23,6 +23,8 @@ VOLUME ["/tmp/ffmpeglab"]
 
 RUN ./installnode.sh
 
+RUN apt-get install bwrap
+
 # Expose port
 EXPOSE 3000
 
