@@ -71,7 +71,7 @@ export const execEncode = async (cmd: ExecCMD): Promise<string> => {
       cmdProcessed.push(arg);
     }
 
-    const exec = cmd.ffmpeg.exec(cmdProcessed as string[], env);
+    const exec = cmd.ffmpeg.exec(cmdProcessed, env);
     // console.info('processing', exec);
     const code = await exec;
     if (code !== 0 && code !== undefined) {

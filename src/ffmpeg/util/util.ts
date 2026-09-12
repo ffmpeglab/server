@@ -246,16 +246,12 @@ export async function assertPublicUrl(
  * checked is the address the socket connects to.
  */
 export function pinnedLookup(addresses: ResolvedPublicUrl['addresses']) {
-  return (
-    _hostname: string,
-    options: unknown,
-    callback: (...args: any[]) => void,
-  ) => {
+  return (_hostname: string, options: unknown, callback: (...args) => void) => {
     if (typeof options === 'function') {
-      callback = options as (...args: any[]) => void;
+      callback = options as (...args) => void;
     }
-    const opts = typeof options === 'object' && options ? (options as any) : {};
-    if (opts.all) {
+    const opts = typeof options === 'object' && options ? options : {};
+    if ((opts as { all: boolean }).all) {
       callback(null, addresses);
     } else {
       const first = addresses[0];

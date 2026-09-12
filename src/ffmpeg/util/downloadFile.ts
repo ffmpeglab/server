@@ -38,7 +38,7 @@ const downloadWithRedirects = async (
 
   return new Promise<string>((resolve, reject) => {
     let settled = false;
-    const settle = (fn: (...a: any[]) => void, arg?: any) => {
+    const settle = (fn: (...a) => void, arg?) => {
       if (settled) return;
       settled = true;
       fn(arg);
@@ -59,7 +59,7 @@ const downloadWithRedirects = async (
     const request = client.get(
       parsed,
       {
-        lookup: pinnedLookup(addresses) as any,
+        lookup: pinnedLookup(addresses),
         // Node does not follow redirects by default; we handle them manually
         // so each hop gets re-validated.
       },
