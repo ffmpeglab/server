@@ -12,8 +12,6 @@ export class RenderProcessor {
     private readonly renderService: RendersService,
     @InjectQueue(config.queue.logs)
     private readonly logsQueue: PgmqQueue,
-    @InjectQueue(config.queue.file)
-    private readonly fileQueue: PgmqQueue,
   ) {}
   @Process('render')
   async handleRender(
@@ -47,6 +45,7 @@ export class RenderProcessor {
             userId,
             date: new Date().toISOString(),
           }),
+        renderId,
       );
       await this.renderService.updateRenderStatus(renderId, 'upload');
       const result = await uploadJobResult({

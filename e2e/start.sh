@@ -1,43 +1,41 @@
 #!/bin/sh
-export SUPABASE_URL="http://127.0.0.1:54321"
+export SUPABASE_FQDN=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
+export SUPABASE_URL="http://${SUPABASE_FQDN}:54321"
 export DB_PASSWORD=postgres
 export DB_NAME=postgres
 export DB_USER=postgres
 export S3_BUCKET="ffmpeglab-assets"
-export CONN_STRING="postgresql://${DB_USER}:${DB_PASSWORD}@127.0.0.1:54322/postgres"
+export CONN_STRING="postgresql://${DB_USER}:${DB_PASSWORD}@${SUPABASE_FQDN}:54322/postgres"
 # Build DATABASE_URL
 echo $S3_BUCKET
 
 #SERVER .env
-export DATABASE_URL="127.0.0.1"
+export DATABASE_URL="${SUPABASE_FQDN}"
 export S3_BUCKET_ID="${S3_BUCKET}"
 export S3_ACCESS_KEY="625729a08b95bf1b7ff351a663f3a23c"
 export S3_SECRET_KEY="850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907"
-export S3_ENDPOINT="http://127.0.0.1:54321/storage/v1/s3"
+export S3_ENDPOINT="http://${SUPABASE_FQDN}:54321/storage/v1/s3"
 export SECRET_PREFIX="sb_secret_"
 export SECRET_POSTFIX="VK-Uodkm0Hg_xSvEMPvz"
 export SUPABASE_SECRET_KEY="${SECRET_PREFIX}N7UND0UgjKT${SECRET_POSTFIX}"
 export S3_REGION=local
-export DB_HOST="127.0.0.1"
+export DB_HOST="${SUPABASE_FQDN}"
 export DB_PORT=54322  
-export IS_RENDER_RUNNER="true"
-export IS_LOGS_RUNNER="true"
-export IS_FILE_RUNNER="true"
-export SUPABASE_JWKS_URL="http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
+export SUPABASE_JWKS_URL="http://${SUPABASE_FQDN}:54321/auth/v1/.well-known/jwks.json"
 export SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE"
 export SUPABASE_PROJECT_ID="local"
 #SERVER .env
 export SERVER_DIR="."
 echo "DATABASE_URL=${DATABASE_URL}" >> $SERVER_DIR/.env;
 echo "S3_BUCKET_ID=${S3_BUCKET}" >> $SERVER_DIR/.env;
-echo "S3_ACCESS_KEY=${S3_PROTOCOL_ACCESS_KEY_ID}" >> $SERVER_DIR/.env;
-echo "S3_SECRET_KEY=${S3_PROTOCOL_ACCESS_KEY_SECRET}" >> $SERVER_DIR/.env;
-echo "S3_ENDPOINT=http://127.0.0.1:54321/storage/v1/s3" >> $SERVER_DIR/.env;
-echo "S3_REGION=stub" >> $SERVER_DIR/.env;
+echo "S3_ACCESS_KEY=${S3_ACCESS_KEY}" >> $SERVER_DIR/.env;
+echo "S3_SECRET_KEY=${S3_SECRET_KEY}" >> $SERVER_DIR/.env;
+echo "S3_ENDPOINT=http://${SUPABASE_FQDN}:54321/storage/v1/s3" >> $SERVER_DIR/.env;
+echo "S3_REGION=local" >> $SERVER_DIR/.env;
 echo "DB_PASSWORD='${DB_PASSWORD}'" >> $SERVER_DIR/.env;
 echo "DB_USER='${DB_USER}'" >> $SERVER_DIR/.env;
 echo "DB_NAME='${DB_NAME}'" >> $SERVER_DIR/.env;
-echo "DB_HOST=0.0.0.0" >> $SERVER_DIR/.env;
+echo "DB_HOST=${SUPABASE_FQDN}" >> $SERVER_DIR/.env;
 echo "DB_PORT=54322" >> $SERVER_DIR/.env;
 echo "SUPABASE_URL=${SUPABASE_URL}" >> $SERVER_DIR/.env;
 echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> $SERVER_DIR/.env;
@@ -159,21 +157,17 @@ echo -e "${GREEN} Preparing ffmpeg...${NC}"
 sudo apt-get install -y ffmpeg
 export FFMPEG_PATH=$(which ffmpeg)
 echo -e "${GREEN} Path to ffmpeg: ${FFMPEG_PATH}"
+sudo apt-get install -y bubblewrap
+export BWRAP_PATH=$(which bwrap)
+echo -e "${GREEN} bwrap installed ${BWRAP_PATH}"
 
 echo -e "${BLUE}💾 Installing python s3 sdk${NC}"
 pip install boto3
 
 echo -e "${GREEN} Preparing server...${NC}"
-
-yarn
-yarn build
-# Start server
-yarn start:prod &
-# SERVER_PID=$!
-# trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
-
-sleep 2
-
+sudo docker build . --tag=ffmpeglab/server 
+sudo docker compose up &
+sleep 10
 # Run E2E tests (they will exit on failure)
 ./e2e/render.sh
 ./e2e/s3.sh

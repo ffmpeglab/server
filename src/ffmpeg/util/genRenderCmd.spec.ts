@@ -26,6 +26,7 @@ const mockGetFileId = getFileId as jest.Mock;
 // ---------- fixtures ----------
 
 const DOC_DIR = '/tmp/ffmpeglab';
+const RENDER_ID = 'proj-1';
 
 const makeProject = (overrides: Partial<EditorProject['editor']> = {}) =>
   ({
@@ -72,24 +73,34 @@ beforeEach(() => {
   mockGenExecTime.mockReturnValue('00:00:10');
   mockDocumentDir.mockReturnValue(DOC_DIR);
   mockGetFileId
-    .mockImplementationOnce(() => 'out-file-uuid') // output file
+    .mockImplementationOnce(() => 'out-file-uuid')
     .mockImplementation((m: any) => `${m.id}-file`);
 });
 
 describe('genRenderCmd', () => {
   describe('guard clauses', () => {
     it('returns empty result when projectData has no id', () => {
-      const result = genRenderCmd({ title: 'x' } as any, [], 'new-media');
+      const result = genRenderCmd(
+        { title: 'x' } as any,
+        [],
+        'new-media',
+        RENDER_ID,
+      );
       expect(result).toEqual({ execCmd: [], medias: [], files: [] });
     });
 
     it('returns empty result when layers array is empty', () => {
-      const result = genRenderCmd(makeProject(), [], 'new-media');
+      const result = genRenderCmd(makeProject(), [], 'new-media', RENDER_ID);
       expect(result).toEqual({ execCmd: [], medias: [], files: [] });
     });
 
     it('returns empty result when layers is undefined', () => {
-      const result = genRenderCmd(makeProject(), undefined as any, 'new-media');
+      const result = genRenderCmd(
+        makeProject(),
+        undefined as any,
+        'new-media',
+        RENDER_ID,
+      );
       expect(result.execCmd).toEqual([
         '-filter_complex',
         '',
@@ -116,35 +127,36 @@ describe('genRenderCmd', () => {
       const layers = [
         makeLayer([makeMedia({ id: 'a' }), makeMedia({ id: 'b' })]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
 
       expect(result.files).toEqual(['-i', '$MEDIA_1', '-i', '$MEDIA_2']);
       expect(result.assignedMedias.MEDIA_1).toBe(
-        `${DOC_DIR}/folder-1/out-file-uuid`,
+        `${DOC_DIR}/${RENDER_ID}/out-file-uuid`,
       );
       expect(result.assignedMedias.MEDIA_2).toBe(
-        `${DOC_DIR}/folder-1/out-file-uuid`,
+        `${DOC_DIR}/${RENDER_ID}/out-file-uuid`,
       );
     });
-    it('numbers MEDIA_N sequentially across layers, matching filter_complex indices', () => {
+
+    it('numbers MEDIA_N sequentially across layers', () => {
       const layers = [
         makeLayer([makeMedia({ id: 'a', folderId: 'f1' })]),
         makeLayer([makeMedia({ id: 'b', folderId: 'f2' })]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
 
       expect(result.files).toEqual(['-i', '$MEDIA_1', '-i', '$MEDIA_2']);
-      //   expect(result.execCmd.slice(0, 4)).toEqual(['-i', 'MEDIA1′,′−i′,′MEDIA_1', '-i', 'MEDIA1′​,′−i′,′MEDIA_2']); // inputs lead execCmd
       expect(result.medias).toHaveLength(2);
     });
   });
 
   describe('output path & assignedMedias', () => {
-    it('builds outputPath from project id + sanitized title + extension', () => {
+    it('builds outputPath from RENDER_ID + sanitized title + extension', () => {
       const result = genRenderCmd(
         makeProject(),
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.outFileId).toBe('My_Project.mp4');
       expect(mockGetFileId).toHaveBeenCalledWith(
@@ -160,6 +172,7 @@ describe('genRenderCmd', () => {
         project,
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.outFileId).toBe('My_Project.mp4');
     });
@@ -169,6 +182,7 @@ describe('genRenderCmd', () => {
         { ...makeProject(), title: 'Two Words' },
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.outFileId).toBe('Two_Words.mp4');
     });
@@ -177,7 +191,7 @@ describe('genRenderCmd', () => {
   describe('video filter chains', () => {
     it('builds base chain with trim, scale/pad and color adjustment for a plain video', () => {
       const layers = [makeLayer([makeMedia()])];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
 
       const filters =
         result.execCmd[result.execCmd.indexOf('-filter_complex') + 1];
@@ -198,6 +212,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.execCmd.join(' ')).toContain('aa=0.5');
     });
@@ -209,15 +224,15 @@ describe('genRenderCmd', () => {
         duration: 5,
       });
       delete (image as any).isVideo;
-      // not audio/video → treated as image
       const result = genRenderCmd(
         makeProject(),
         [makeLayer([image])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.execCmd.join(' ')).toContain(
         'loop=loop=150:size=1:start=0',
-      ); // 5s * 30fps
+      );
       expect(result.execCmd.join(' ')).not.toContain('[0:v]trim=');
     });
 
@@ -229,6 +244,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.execCmd.join(' ')).toContain('crop=in_w-30:in_h-70:10:30');
     });
@@ -241,12 +257,13 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       const filters = result.execCmd.join(' ');
       expect(filters).toContain(
         `split[original][dummy];[dummy]scale=1280:720,geq=0:128:128[base];[base][original]overlay=x=100:y=0`,
       );
-      expect(filters).not.toContain('setdar=16/9'); // default pad path skipped
+      expect(filters).not.toContain('setdar=16/9');
     });
 
     it('applies scale multiplier before overlay canvas', () => {
@@ -257,6 +274,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       const filters = result.execCmd.join(' ');
       expect(filters).toContain('scale=iw*0.5:ih*0.5');
@@ -269,6 +287,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.execCmd.join(' ')).toContain(',reverse');
     });
@@ -280,11 +299,10 @@ describe('genRenderCmd', () => {
           makeMedia({ id: 'ok' }),
         ]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
       const filters =
         result.execCmd[result.execCmd.indexOf('-filter_complex') + 1];
-      //   expect(filters).not.toContain('[0:v]');
-      expect(filters).toContain('[0:v]'); // second input becomes first video stream
+      expect(filters).toContain('[0:v]');
     });
   });
 
@@ -293,7 +311,7 @@ describe('genRenderCmd', () => {
       const layers = [
         makeLayer([makeMedia({ id: 'a' }), makeMedia({ id: 'b' })]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
       const filters = result.execCmd.join(' ');
       expect(filters).toContain(
         '[v0?][v1?]concat=n=2:v=1:a=0,settb=expr=1/30[c1?]',
@@ -314,7 +332,7 @@ describe('genRenderCmd', () => {
           }),
         ]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
       const filters = result.execCmd.join(' ');
       expect(filters).toMatch(
         /xfade=transition=fadeleft:duration=2:offset=\d+(\.\d+)?/,
@@ -323,7 +341,6 @@ describe('genRenderCmd', () => {
     });
 
     it('falls back to concat when transitionOffset <= 0', () => {
-      // first clip short enough that timelinePosition - duration - 1 < 0
       const layers = [
         makeLayer([
           makeMedia({ id: 'a', duration: 1 }),
@@ -337,7 +354,7 @@ describe('genRenderCmd', () => {
           }),
         ]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
       expect(result.execCmd.join(' ')).toContain('concat=n=2:v=1:a=0');
     });
   });
@@ -349,7 +366,7 @@ describe('genRenderCmd', () => {
         makeLayer([makeMedia({ id: 'mid' })]),
         makeLayer([makeMedia({ id: 'top' })]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
       const filters = result.execCmd.join(' ');
 
       expect(filters).toContain('[v_layer2][v_layer1]overlay[overlay1]');
@@ -364,7 +381,7 @@ describe('genRenderCmd', () => {
         makeLayer([makeMedia()], { videoDisabled: true }),
         makeLayer([makeMedia({ id: 'b', folderId: 'f2' })]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
       const filters = result.execCmd.join(' ');
       expect(filters).not.toContain('v_layer0');
       expect(filters).toContain('[v_layer1]');
@@ -377,6 +394,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       const filters = result.execCmd.join(' ');
       expect(filters).toContain(
@@ -394,6 +412,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       const filters = result.execCmd.join(' ');
       expect(filters).toContain('aevalsrc=0:d=5[s0];');
@@ -405,10 +424,10 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([makeMedia()], { muted: true })],
         'new-id',
+        RENDER_ID,
       );
       const filters = result.execCmd.join(' ');
       expect(filters).not.toContain('[0:a]atrim');
-      // still generates silence placeholder since media has width
       expect(filters).toContain('aevalsrc=0:d=5');
     });
 
@@ -420,6 +439,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       const filters = result.execCmd.join(' ');
       expect(filters).toContain('atempo=2');
@@ -431,6 +451,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       const filters = result.execCmd.join(' ');
       expect(filters).toContain('areverse');
@@ -441,7 +462,7 @@ describe('genRenderCmd', () => {
         makeLayer([makeMedia({ id: 'a', duration: 3 })]),
         makeLayer([makeMedia({ id: 'b', duration: 4, folderId: 'f2' })]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
       const filters = result.execCmd.join(' ');
       expect(filters).toContain('adelay=delays=0|0');
     });
@@ -452,6 +473,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([media])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.execCmd.join(' ')).toContain('volume=0.7');
     });
@@ -463,6 +485,7 @@ describe('genRenderCmd', () => {
         makeProject({ output: FFMpegOutputType.gif }),
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       const filters = result.execCmd.join(' ');
       expect(filters).not.toContain('atrim');
@@ -476,17 +499,15 @@ describe('genRenderCmd', () => {
         makeProject({ output: FFMpegOutputType.mp3 }),
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       const cmd = result.execCmd;
 
-      // no video mapping:
       expect(cmd).not.toContain('[v_concat]');
       const vMapIdx = cmd.indexOf('-map');
-      // if a -map exists at all, it must target [a_concat]:
       if (vMapIdx !== -1) {
         expect(cmd[vMapIdx + 1]).toBe('[a_concat]');
       }
-      // audio stream chain actually present:
       expect(cmd.join(' ')).toContain('[a_concat]');
 
       expect(result.outFileId).toBe('My_Project.mp3');
@@ -499,6 +520,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       const cmd = result.execCmd;
       expect(cmd).toContain('-filter_complex');
@@ -510,7 +532,7 @@ describe('genRenderCmd', () => {
       expect(cmd).toContain('-ss');
       expect(cmd).toContain('00:00:00');
       expect(cmd).toContain('-to');
-      expect(cmd).toContain('00:00:10'); // mocked nice time
+      expect(cmd).toContain('00:00:10');
       expect(cmd).toContain('-y');
       expect(cmd[cmd.length - 1]).toBe('$OUTPUT_PATH');
     });
@@ -520,6 +542,7 @@ describe('genRenderCmd', () => {
         makeProject(),
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       const maps = result.execCmd.filter((_, i, arr) => arr[i - 1] === '-map');
       expect(maps[0]).toBe('[v_concat]');
@@ -531,7 +554,7 @@ describe('genRenderCmd', () => {
         makeLayer([makeMedia({ id: 'a' })]),
         makeLayer([makeMedia({ id: 'b' })]),
       ];
-      const result = genRenderCmd(makeProject(), layers, 'new-id');
+      const result = genRenderCmd(makeProject(), layers, 'new-id', RENDER_ID);
       expect(result.medias.map((m) => m.id)).toEqual(['a', 'b']);
     });
 
@@ -541,6 +564,7 @@ describe('genRenderCmd', () => {
         project,
         [makeLayer([makeMedia()])],
         'new-id',
+        RENDER_ID,
       );
       expect(result.projectData).toBe(project);
     });

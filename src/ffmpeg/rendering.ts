@@ -40,10 +40,11 @@ export interface ExecCMD {
   totalTime: number;
   ffmpeg: Awaited<ReturnType<typeof createFFmpeg>>;
   assignedMedias: { [key: string]: string };
+  RENDER_ID: string;
 }
 export const execEncode = async (cmd: ExecCMD): Promise<string> => {
   try {
-    fs.mkdirSync(`${documentDir()}/${cmd.projectData?.id}`, {
+    fs.mkdirSync(`${documentDir()}/${cmd.RENDER_ID}`, {
       recursive: true,
     });
   } catch (err) {
@@ -57,23 +58,24 @@ export const execEncode = async (cmd: ExecCMD): Promise<string> => {
         : cmd.execCmd;
 
     const env = cmd.assignedMedias;
-    let ncmd = '';
-    if (typeof execCode === 'string') {
-      ncmd = execCode;
-      Object.keys(env).map((k) => {
-        const value = env[k];
-        ncmd = ncmd.replace('$' + k, value);
-      });
-    }
-    const cmdProcessed =
-      typeof cmd === 'string'
-        ? ncmd
-        : execCode?.map((arg: string | number) => {
-            const key = arg.toString().replace('$', '');
-            return env[key] ? env[key] : arg;
-          });
+    const tokens =
+      typeof execCode === 'string' ? parseCommand(execCode) : execCode;
 
-    const exec = cmd.ffmpeg.exec(cmdProcessed as string[]);
+    const substituted = tokens.map((arg) => {
+      const s = String(arg);
+      return s.startsWith('$') ? (env[s.slice(1)] ?? s) : s;
+    });
+
+    const cmdProcessed: string[] = [];
+    for (const arg of substituted) {
+      if (arg === '-i') {
+        cmdProcessed.push('-protocol_whitelist');
+        cmdProcessed.push('file');
+      }
+      cmdProcessed.push(arg);
+    }
+    env.RENDER_ID = cmd.RENDER_ID;
+    const exec = cmd.ffmpeg.exec(cmdProcessed, env);
     // console.info('processing', exec);
     const code = await exec;
     if (code !== 0 && code !== undefined) {
@@ -97,8 +99,11 @@ export const encodeProject = async (
   isPrerender?: boolean,
   cb?: CBProgressCallback,
   logs?: LogsProgressCallback,
+  RENDER_ID?: string,
 ): Promise<MinimalMedia> => {
   try {
+    if (!RENDER_ID) RENDER_ID = projectData.id;
+
     const newMediaId = randomUUID().toString();
     const cmd: ReturnType<typeof genRenderCmd> & {
       mediaOut?: MinimalMedia;
@@ -106,13 +111,15 @@ export const encodeProject = async (
       logs?: LogsProgressCallback;
       totalTime?: number;
       ffmpeg?: Awaited<ReturnType<typeof createFFmpeg>>;
-    } = genRenderCmd(projectData, layers, newMediaId);
+    } = genRenderCmd(projectData, layers, newMediaId, RENDER_ID);
     const files = cmd.files.filter((i) => i !== '-i');
 
     // console.info('encodeProject', projectData, layers, isPrerender, cmd);
 
     const encoded = await Promise.all(
-      cmd.medias.map((media: EncoderProject) => syncMedia(media)),
+      cmd.medias.map((media: EncoderProject) =>
+        syncMedia(media, RENDER_ID as string),
+      ),
     );
     const totalTimeInitial = layers?.length ? getTotalTime(layers) : 0;
     const totalMultiplier = 10000;

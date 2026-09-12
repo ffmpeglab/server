@@ -32,6 +32,9 @@ services:
       - public
   render-runner:
     restart: unless-stopped
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
     depends_on:
       - api
     image: ffmpeglab/server
@@ -39,6 +42,8 @@ services:
       replicas: 2
     volumes:
       - ./tmp:/tmp/ffmpeglab
+    cap_add:
+      - SYS_ADMIN
     environment:
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}

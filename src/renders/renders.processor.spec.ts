@@ -80,6 +80,7 @@ describe('RenderProcessor', () => {
       false,
       expect.any(Function),
       expect.any(Function),
+      'r-1',
     );
   });
 

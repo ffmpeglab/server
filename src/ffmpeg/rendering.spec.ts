@@ -102,9 +102,19 @@ describe('execEncode', () => {
       OUTPUT_PATH: `${DOC}/proj-1/out.mp4`,
       MEDIA_1: '/in/a.mp4',
     },
+    RENDER_ID: 'proj-1',
     ...overrides,
   });
-  const baseCmdAfter = ['-i', '/in/a.mp4', '-y', '/tmp/docdir/proj-1/out.mp4'];
+
+  const baseCmdAfter = [
+    '-protocol_whitelist',
+    'file',
+    '-i',
+    '/in/a.mp4',
+    '-y',
+    '/tmp/docdir/proj-1/out.mp4',
+  ];
+
   it('creates the project output directory recursively', async () => {
     await execEncode(baseCmd() as any);
     expect(fs.mkdirSync).toHaveBeenCalledWith(`${DOC}/proj-1`, {
@@ -123,13 +133,13 @@ describe('execEncode', () => {
 
   it('runs ffmpeg.exec with the substituted arguments for generated code', async () => {
     const cmd = baseCmd();
-    // Replace the exec mock to capture the actual arguments after substitution
     const execMock = jest.fn().mockResolvedValue(0);
     cmd.ffmpeg.exec = execMock;
 
     await execEncode(cmd as any);
 
-    expect(execMock).toHaveBeenCalledWith(baseCmdAfter);
+    // exec is now called with (cmdProcessed, env) — env is a second arg
+    expect(execMock).toHaveBeenCalledWith(baseCmdAfter, expect.any(Object));
   });
 
   it('mutates mediaOut with filePath and size from outputPath stats', async () => {
@@ -148,7 +158,6 @@ describe('execEncode', () => {
 
   describe('custom code selection', () => {
     beforeEach(() => {
-      // Mock processUserCode and parseCommand to return specific arrays
       mockProcessUserCode.mockReturnValue(['-crf', '20']);
       mockParseCommand.mockReturnValue(['-crf', '20']);
     });
@@ -160,17 +169,17 @@ describe('execEncode', () => {
           code: '-filter_complex stuff"',
         }),
       });
-      // Replace exec mock
       const execMock = jest.fn().mockResolvedValue(0);
       cmd.ffmpeg.exec = execMock;
-      console.info({ cmd });
+
       await execEncode(cmd as any);
 
       expect(mockProcessUserCode).toHaveBeenCalledWith(
         cmd.projectData.editor.code,
       );
       expect(mockParseCommand).not.toHaveBeenCalled();
-      expect(execMock).toHaveBeenCalledWith(['-crf', '20']);
+      // exec is now called with (args, env) — env contains RENDER_ID
+      expect(execMock).toHaveBeenCalledWith(['-crf', '20'], expect.any(Object));
     });
 
     it('routes through parseCommand when no filter_complex', async () => {
@@ -186,7 +195,7 @@ describe('execEncode', () => {
       await execEncode(cmd as any);
 
       expect(mockParseCommand).toHaveBeenCalledWith('-crf 20');
-      expect(execMock).toHaveBeenCalledWith(['-crf', '20']);
+      expect(execMock).toHaveBeenCalledWith(['-crf', '20'], expect.any(Object));
     });
 
     it('custom-code branch IGNORES the generated execCmd entirely', async () => {
@@ -202,10 +211,11 @@ describe('execEncode', () => {
       await execEncode(cmd as any);
 
       expect(execMock).toHaveBeenCalledTimes(1);
-      // The exec should be called with the parsed custom command, not the generated one
-      expect(execMock).toHaveBeenCalledWith(['-crf', '20']);
-      // Ensure the generated execCmd was NOT used
-      expect(execMock).not.toHaveBeenCalledWith(cmd.execCmd);
+      expect(execMock).toHaveBeenCalledWith(['-crf', '20'], expect.any(Object));
+      expect(execMock).not.toHaveBeenCalledWith(
+        cmd.execCmd,
+        expect.any(Object),
+      );
     });
   });
 
@@ -233,7 +243,7 @@ describe('execEncode', () => {
       const ffmpeg = makeFfmpegMock();
       ffmpeg.exec.mockResolvedValue(undefined as any);
 
-      await expect(execEncode(baseCmd() as any)).resolves.toBe(
+      await expect(execEncode(baseCmd({ ffmpeg }) as any)).resolves.toBe(
         `${DOC}/proj-1/out.mp4`,
       );
     });
@@ -260,6 +270,7 @@ describe('encodeProject', () => {
       expect.anything(),
       [layer],
       'fixed-uuid',
+      'proj-1',
     );
   });
 
@@ -285,7 +296,7 @@ describe('encodeProject', () => {
     await encodeProject(makeProject(), [layer]);
 
     expect(mockSyncMedia).toHaveBeenCalledTimes(3);
-    expect(mockSyncMedia).toHaveBeenNthCalledWith(1, { id: 'a' });
+    expect(mockSyncMedia).toHaveBeenNthCalledWith(1, { id: 'a' }, 'proj-1');
   });
 
   it('computes totalTime via getTotalTime and passes layers', async () => {
