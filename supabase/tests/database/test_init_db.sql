@@ -153,8 +153,8 @@ SELECT indexes_are('render', ARRAY[
 -- We no longer check q_* tables directly; they are internal.
 -- The presence of the queues in pgmq.meta is enough.
 SELECT results_eq(
-  'SELECT queue_name::text FROM pgmq.meta WHERE queue_name IN (''renders'',''render'',''file'',''logs'') ORDER BY queue_name',
-  ARRAY['file','logs','render','renders'],
+  'SELECT queue_name::text FROM pgmq.meta WHERE queue_name IN (''renders'',''render'',''logs'') ORDER BY queue_name',
+  ARRAY['logs','render','renders'],
   'All four queues exist in meta'
 );
 

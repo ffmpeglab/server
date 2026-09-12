@@ -159,6 +159,9 @@ echo -e "${GREEN} Preparing ffmpeg...${NC}"
 sudo apt-get install -y ffmpeg
 export FFMPEG_PATH=$(which ffmpeg)
 echo -e "${GREEN} Path to ffmpeg: ${FFMPEG_PATH}"
+sudo apt-get install -y bubblewrap
+export BWRAP_PATH=$(which bubblewrap)
+echo -e "${GREEN} bwrap installed ${BWRAP_PATH}"
 
 echo -e "${BLUE}💾 Installing python s3 sdk${NC}"
 pip install boto3

@@ -13,11 +13,11 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { config } from '../config';
-
-const pathToTranspiler = path.join(
+const pathToTranspilerDir = path.join(
   __dirname.replace('dist', '').replace('src', '').replace('pipelines', ''),
-  'sdk/yaml/transpiler.ts',
+  'sdk/yaml/',
 );
+const pathToTranspiler = pathToTranspilerDir + 'transpiler.ts';
 
 @Injectable()
 export class PipelinesService {
@@ -109,7 +109,8 @@ export class PipelinesService {
 
           const transpiler = spawn('deno', [
             'run',
-            '-A',
+            `--allow-read=${pathToTranspiler},${config.documentDir}`,
+            `--allow-write=${config.documentDir}`,
             pathToTranspiler,
             ymlPath,
             sqlPath,
