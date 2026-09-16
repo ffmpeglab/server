@@ -407,7 +407,11 @@ describe('genRenderCmd', () => {
     });
 
     it('generates silent audio source for video without audio track', () => {
-      const media = makeMedia({ hasAudio: false });
+      const media = makeMedia({
+        hasAudio: false,
+        isAudio: false,
+        isVideo: false,
+      });
       const result = genRenderCmd(
         makeProject(),
         [makeLayer([media])],

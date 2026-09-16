@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
-import { MoreThan, Repository } from 'typeorm';
+import { DeleteResult, MoreThan, Repository } from 'typeorm';
 import { Render } from '../model/render.entity';
 import { MinimalMedia, RenderData } from '../types';
 import { config } from '../config';
@@ -34,8 +34,47 @@ export class RendersService {
     });
   }
 
+  async getPublicRenders(query: {
+    offset?: string;
+    limit?: string;
+    search?: string;
+    userId?: string;
+  }): Promise<Render[]> {
+    const whereQuery = this.rendersRepository
+      .createQueryBuilder('render')
+      .select(['render.id', 'render.title', 'render.result', 'render.user_id'])
+      .where('render.public = true AND render.status = :status', {
+        status: 'approved',
+      });
+
+    if (query.userId && query.userId.length > 5) {
+      whereQuery.andWhere('render.user_id = :user', {
+        user: query.userId,
+      });
+    }
+
+    if (query.search && query.search.length > 1) {
+      whereQuery.andWhere('render.title ILIKE :search', {
+        search: `%${query.search}%`,
+      });
+    }
+
+    const offset = query.offset ? parseInt(query.offset, 10) : 0;
+    const limit = query.limit ? parseInt(query.limit, 10) : 10;
+
+    return await whereQuery
+      .orderBy('render.date', 'ASC')
+      .offset(offset)
+      .limit(limit)
+      .getMany();
+  }
+
   async findOne(id: string, userId: string): Promise<Render | null> {
     return this.rendersRepository.findOneBy({ id, user_id: userId });
+  }
+
+  async deleteOne(id: string, userId: string): Promise<DeleteResult> {
+    return this.rendersRepository.delete({ id, user_id: userId });
   }
 
   async writeRender(render: RenderData, userId: string) {

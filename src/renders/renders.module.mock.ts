@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { PgmqModule } from 'nestjs-pgmq';
 import { Render } from '../model/render.entity';
 import { ApiKey } from '../model/apikey.entity';
 import { LogPiece } from '../model/logpiece.entity';
