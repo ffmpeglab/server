@@ -19,7 +19,6 @@ export const uploadJobResult = async (job: {
   runId?: string;
 }) => {
   const s3Client = await createS3Client();
-  console.log('new file', job);
   const { userId, media, renderId, bucket, outputPath, runId } = job;
   try {
     if (media?.id && s3Client) {

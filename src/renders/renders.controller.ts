@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -48,6 +49,21 @@ export class RendersController {
     return await this.renderService.findOne(params.id, req.user);
   }
 
+  @Delete(':id')
+  @ApiResponse({ type: RenderResponse })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the render',
+    required: true,
+    type: String,
+  })
+  async deleteOne(
+    @Param() params: { id: string },
+    @Request() req: Request & { user: string },
+  ) {
+    return await this.renderService.deleteOne(params.id, req.user);
+  }
+
   @Get('project/:id')
   @ApiResponse({ type: RenderResponse, isArray: true })
   @ApiParam({
@@ -64,6 +80,39 @@ export class RendersController {
       params.id,
       req.user,
     );
+  }
+
+  @Get('marketplace/catalogue')
+  @ApiQuery({
+    name: 'offset',
+    description: 'offset',
+    required: false,
+    type: String,
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'limit',
+    required: false,
+    type: String,
+  })
+  @ApiQuery({
+    name: 'search',
+    description: 'search query',
+    required: false,
+    type: String,
+  })
+  @ApiQuery({
+    name: 'userId',
+    description: 'user id',
+    required: false,
+    type: String,
+  })
+  @ApiResponse({ type: [RenderResponse] })
+  async getPublic(
+    @Query() query: { offset: string; limit: 'ASC' | 'DESC'; search?: string },
+    @Request() req: Request & { user: string },
+  ) {
+    return await this.renderService.getPublicRenders(query);
   }
 
   @Get('logs/:id')

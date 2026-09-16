@@ -7,7 +7,6 @@ import {
   SpeedValue,
   SpeedValueAsetPts,
   XFade,
-  XFADE,
 } from '../../types';
 import { getTotalTime } from './getTotalTime';
 import { genExecTime } from './genExecTime';
@@ -260,7 +259,7 @@ export const genRenderCmd = (
         (media.encoding?.end || media.duration || 0) -
         (media.encoding?.start || 0);
       const audioDelay = audioTimelinePosition * 1000;
-      const hasAudio = !muted && media.hasAudio;
+      const hasAudio = !muted && (media.isAudio || media.isVideo);
 
       if (hasAudio) {
         const speed =
