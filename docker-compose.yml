@@ -40,8 +40,6 @@ services:
     image: ffmpeglab/server
     deploy:
       replicas: 2
-    volumes:
-      - ./tmp:/tmp/ffmpeglab
     cap_add:
       - SYS_ADMIN
     environment:
