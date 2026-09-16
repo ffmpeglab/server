@@ -27,6 +27,13 @@ export class RendersService {
     );
   }
 
+  async getPublicRender(renderId: string): Promise<Render | null> {
+    return await this.rendersRepository.findOneBy({
+      public: true,
+      id: renderId,
+    });
+  }
+
   async findOne(id: string, userId: string): Promise<Render | null> {
     return this.rendersRepository.findOneBy({ id, user_id: userId });
   }
