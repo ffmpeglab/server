@@ -9,7 +9,6 @@ import { AuthService } from '../auth/auth.service';
 import { ApiKey } from '../model/apikey.entity';
 import { LogsProcessor } from './logs.processor';
 import { LogPiece } from '../model/logpiece.entity';
-import { RendersPublicController } from './renders.public.controller';
 
 const optionalProviders = [
   ...(config.queue.isLogsRunner ? [LogsProcessor] : []),
@@ -22,6 +21,6 @@ const optionalProviders = [
     TypeOrmModule.forFeature([LogPiece]),
   ],
   providers: [AuthService, RendersService, ...optionalProviders],
-  controllers: [RendersController, RendersPublicController],
+  controllers: [RendersController],
 })
 export class RendersModule {}
