@@ -1,14 +1,14 @@
 import { Controller, Get, Param, Request } from '@nestjs/common';
 
-import { RendersService } from './renders.service';
+import { RendersService } from '../renders/renders.service';
 import { ApiParam, ApiResponse } from '@nestjs/swagger';
 import { RenderResponse } from '../types';
 
-@Controller('renders/public')
-export class RendersPublicController {
+@Controller('public')
+export class PublicController {
   constructor(private readonly renderService: RendersService) {}
 
-  @Get(':id')
+  @Get('renders/:id')
   @ApiResponse({ type: RenderResponse })
   @ApiParam({
     name: 'id',
