@@ -1,0 +1,155 @@
+# One release is one FFmpegLab instance. See deploy/README.md.
+
+image:
+  repository: ffmpeglab/server
+  tag: "0.4.1"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Passed through verbatim; no variable name is hardcoded in the templates.
+env: {}
+  # DB_PORT: "5432"
+  # S3_REGION: "us-east-1"
+  # DOCUMENT_DIRECTORY: /tmp/ffmpeglab
+
+# Set by whatever writes the Secret, so a rotated credential rolls the pods.
+secretChecksum: ""
+
+existingSecret: ""
+
+# For clusters where no external controller supplies the Secret.
+secret:
+  create: false
+  data: {}
+    # DB_HOST: db.example.internal
+    # DB_PASSWORD: change-me
+
+# maxSurge 0: old+new side by side would exhaust the database connection cap.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
+# The app exits rather than retries when DB_HOST does not resolve yet.
+dnsWait:
+  enabled: true
+  hostFrom: DB_HOST
+  image: busybox:1.36
+  attempts: 60
+  intervalSeconds: 2
+
+# Shared between render and file. See deploy/README.md.
+documentDir:
+  mountPath: /tmp/ffmpeglab
+  persistence:
+    enabled: true
+    existingClaim: ""
+    # ReadWriteOnce binds on any cluster and lets render and file share the
+    # directory while they run on the same node. Spread over several nodes they
+    # need ReadWriteMany, which means NFS, EFS or Filestore - usually supplied
+    # through existingClaim.
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    storageClass: ""
+  sizeLimit: 10Gi
+  medium: ""
+
+api:
+  enabled: true
+  replicaCount: 1
+  env: {}
+  containerPort: 3000
+  service:
+    type: ClusterIP
+    port: 3000
+    annotations: {}
+  # readinessPath should say whether the process can do its work, not just that
+  # it is up: a pod waiting for credentials would otherwise be sent traffic.
+  # Liveness stays lenient so waiting is never mistaken for being stuck.
+  probes:
+    enabled: true
+    path: /
+    readinessPath: ""
+    livenessPath: ""
+    initialDelaySeconds: 20
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 6
+    livenessFailureThreshold: 30
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# No CPU limit on purpose: a limit throttles rather than reallocates.
+render:
+  enabled: true
+  replicaCount: 1
+  env:
+    IS_RENDER_RUNNER: "true"
+  mountDocumentDir: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+file:
+  enabled: true
+  replicaCount: 1
+  env:
+    IS_FILE_RUNNER: "true"
+  mountDocumentDir: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+
+logs:
+  enabled: true
+  replicaCount: 1
+  env:
+    IS_LOGS_RUNNER: "true"
+  mountDocumentDir: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}

@@ -1,0 +1,27 @@
+# Values for the hashicorp/vault-secrets-operator chart.
+
+defaultVaultConnection:
+  enabled: true
+  # Passed at install time so the address is not committed here.
+  address: ""
+
+# The operator reconciles a handful of secrets on a small cluster, so it is
+# sized well below the chart default. Raise it if tenant count grows.
+controller:
+  manager:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  kubeRbacProxy:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
