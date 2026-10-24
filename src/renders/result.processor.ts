@@ -29,12 +29,16 @@ export const uploadJobResult = async (job: {
           metadata[key] = String(value);
         }
       }
+
       metadata.name = media.filename;
-      if (runId) metadata.runId = runId; // <-- THIS IS THE FIX
+
+      if (runId) metadata.runId = runId;
+
       const fileKey =
         outputPath || `${userId}/${renderId}/${getFileId(media as Media)}`;
-      // In FileProcessor, before PutObjectCommand
+
       const contentType = getMimeType(media.filename);
+
       const putObjectCmd = new PutObjectCommand({
         Bucket: bucket || config.s3.bucketId,
         Key: fileKey,
@@ -42,9 +46,9 @@ export const uploadJobResult = async (job: {
         ContentType: contentType,
         Metadata: metadata,
       });
+
       await s3Client.send(putObjectCmd);
 
-      // Generate presigned URL for GET
       const getObjectCmd = new GetObjectCommand({
         Bucket: config.s3.bucketId,
         Key: fileKey,
@@ -52,7 +56,7 @@ export const uploadJobResult = async (job: {
 
       const link = await getSignedUrl(s3Client, getObjectCmd, {
         expiresIn: 3600 * 24 * 6,
-      }); // 6 days
+      });
 
       media.url = link;
       return media;

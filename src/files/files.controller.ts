@@ -33,24 +33,24 @@ import { createClient } from '@supabase/supabase-js';
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
-  @Post('upload')
-  @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiBody({
-    description: 'File',
-    type: FileUploadDto,
-  })
-  async upload(
-    @UploadedFile()
-    file: { buffer: Buffer<ArrayBufferLike>; originalname: string },
-    @Request() req: Request & { user: string },
-  ) {
-    return this.filesService.uploadFile(
-      req.user,
-      file.originalname,
-      file.buffer,
-    );
-  }
+  // @Post('upload')
+  // @ApiConsumes('multipart/form-data')
+  // @UseInterceptors(FileInterceptor('file'))
+  // @ApiBody({
+  //   description: 'File',
+  //   type: FileUploadDto,
+  // })
+  // async upload(
+  //   @UploadedFile()
+  //   file: { buffer: Buffer<ArrayBufferLike>; originalname: string },
+  //   @Request() req: Request & { user: string },
+  // ) {
+  //   return this.filesService.uploadFile(
+  //     req.user,
+  //     file.originalname,
+  //     file.buffer,
+  //   );
+  // }
 
   @Get('list')
   @ApiResponse({ type: FileListDto, isArray: true })

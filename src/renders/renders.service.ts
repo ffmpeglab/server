@@ -74,6 +74,10 @@ export class RendersService {
   }
 
   async deleteOne(id: string, userId: string): Promise<DeleteResult> {
+    const render = await this.findOne(id, userId);
+    if (render?.status !== 'done' && render?.status !== 'error') {
+      throw new Error('invalid_state');
+    }
     return this.rendersRepository.delete({ id, user_id: userId });
   }
 
@@ -91,7 +95,7 @@ export class RendersService {
       project: render.project.id,
       status: 'created',
       data: { project: render.project, layers: cleanLayers },
-      public: false,
+      public: render.public,
       user_id: userId,
       progress: 0,
       logs: '',
