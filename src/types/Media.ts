@@ -194,6 +194,9 @@ export class RenderData {
   project: EditorProject;
   @ApiProperty({ type: [EditorLayer] })
   layers: EditorLayer[];
+  @ApiProperty()
+  public?: boolean;
+  
 }
 
 export class RenderResponse {
