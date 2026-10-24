@@ -56,6 +56,7 @@ export const config = {
   supabaseProjectId: process.env.SUPABASE_PROJECT_ID as string,
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY as string,
   supabaseJWKUrl: process.env.SUPABASE_JWKS_URL as string,
+  publicBucket: process.env.S3_PUBLIC_BUCKET_ID || 'public',
 };
 
 export const supabaseEnv = {

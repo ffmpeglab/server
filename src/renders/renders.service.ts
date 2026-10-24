@@ -74,6 +74,10 @@ export class RendersService {
   }
 
   async deleteOne(id: string, userId: string): Promise<DeleteResult> {
+    const render = await this.findOne(id, userId);
+    if (render?.status !== 'done' && render?.status !== 'error') {
+      throw new Error('invalid_state');
+    }
     return this.rendersRepository.delete({ id, user_id: userId });
   }
 

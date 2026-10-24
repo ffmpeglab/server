@@ -52,7 +52,7 @@ export class RenderProcessor {
         renderId,
         media: encoding,
         userId,
-        bucket,
+        bucket: render?.public ? config.publicBucket : bucket,
         outputPath,
         runId,
       });
