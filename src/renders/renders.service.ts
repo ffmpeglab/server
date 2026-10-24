@@ -91,7 +91,7 @@ export class RendersService {
       project: render.project.id,
       status: 'created',
       data: { project: render.project, layers: cleanLayers },
-      public: false,
+      public: render.public,
       user_id: userId,
       progress: 0,
       logs: '',

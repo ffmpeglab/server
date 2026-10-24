@@ -14,6 +14,10 @@ export class RenderDto {
 
   @ApiProperty({ type: EditorLayerClass, isArray: true })
   layers: EditorLayer[];
+  
+  @ApiProperty()
+  public?: boolean;
+
 }
 
 export class RunDto {
