@@ -196,7 +196,6 @@ export class RenderData {
   layers: EditorLayer[];
   @ApiProperty()
   public?: boolean;
-  
 }
 
 export class RenderResponse {
