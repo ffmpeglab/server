@@ -10,7 +10,7 @@ import {
 } from '../../types';
 import { getTotalTime } from './getTotalTime';
 import { genExecTime } from './genExecTime';
-import { documentDir, getFileId, processFileName } from './util';
+import { documentDir, getFileId } from './util';
 
 export const genRenderCmd = (
   projectData: EditorProject,
