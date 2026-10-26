@@ -19,7 +19,7 @@ import {
   ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
-import { FileListDto, FileResponseDto, FileUploadDto } from './file.dto';
+import { FileListDto, FileResponseDto } from './file.dto';
 import { _Object$ } from '@aws-sdk/client-s3';
 import { User } from '@supabase/supabase-js';
 import { S3Config } from '../types';

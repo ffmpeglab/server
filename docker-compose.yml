@@ -27,6 +27,7 @@ services:
       - SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
       - DB_MIGRATION_ENABLED=${DB_MIGRATION_ENABLED}
       - PIPELINES_API_ENABLED=${PIPELINES_API_ENABLED}
+      - S3_PUBLIC_BUCKET_ID=${S3_PUBLIC_BUCKET_ID}
     networks:
       - isolated
       - public
@@ -54,6 +55,7 @@ services:
       - S3_REGION=${S3_REGION}
       - S3_ENDPOINT=${S3_ENDPOINT}
       - IS_RENDER_RUNNER=true
+      - S3_PUBLIC_BUCKET_ID=${S3_PUBLIC_BUCKET_ID}
     networks:
       - isolated
       - public
