@@ -64,7 +64,7 @@ export const uploadJobResult = async (job: {
       }
 
       if (Bucket === config.publicBucket)
-        media.url = `storage/v1/object/public/${Bucket}/${fileKey}`;
+        media.url = `${config.supabaseHost}/storage/v1/object/public/${Bucket}/${fileKey}`;
       return media;
     }
   } catch (err) {
