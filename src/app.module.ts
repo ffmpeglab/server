@@ -30,9 +30,6 @@ if (config.pipelinesEnabled) {
     PgmqModule.registerQueue({
       name: config.queue.logs,
     }),
-    PgmqModule.registerQueue({
-      name: config.queue.file,
-    }),
     RendersModule,
     ApiKeyModule,
     PublicModule,
