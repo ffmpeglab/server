@@ -3729,10 +3729,10 @@ fdir@^6.5.0:
   resolved "https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz"
   integrity sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==
 
-ffmpeglab-sdk@^0.3.14:
-  version "0.3.14"
-  resolved "https://registry.yarnpkg.com/ffmpeglab-sdk/-/ffmpeglab-sdk-0.3.14.tgz#47e6176db5bba0fc006bea3e37d97a7c03561a56"
-  integrity sha512-USXchbHKmYApSMOdzwdp3SXVgv5sRta6YGxmKy6EC2sQtmsApC4X8+31Db6pu3NdxNb96W/3BTKRQIN5IQeAkA==
+ffmpeglab-sdk@^0.5.4:
+  version "0.5.7"
+  resolved "https://registry.yarnpkg.com/ffmpeglab-sdk/-/ffmpeglab-sdk-0.5.7.tgz#64f7b3d98133acb59d92cca5f0f071db03349d51"
+  integrity sha512-Va/KRSnh5SMbGy++/rMuvYxPm8QNSqXgUiv8FH+A17rr2A3H3csxsylX9YO4w/h4lGtesDUGeF3SHJmqQVsJIA==
 
 figures@^3.2.0:
   version "3.2.0"
@@ -4200,9 +4200,9 @@ ioredis@^5.4.1:
     standard-as-callback "2.1.0"
 
 ip-address@^10.1.1:
-  version "10.3.1"
-  resolved "https://registry.yarnpkg.com/ip-address/-/ip-address-10.3.1.tgz#929f9629d1724f7e1b7485ce89752f3675336a10"
-  integrity sha512-1e9d3kb97NHJTIJDZW9rKqW2h6+dFa50Dy0fpPSMQp2ADje5gvKsXmdiK6dwY5t76TaTt5+P5N1Y/LoToIxP6g==
+  version "10.7.5"
+  resolved "https://registry.yarnpkg.com/ip-address/-/ip-address-10.7.5.tgz#4c4c423f6477d0b0b5c2ea59ac77e93eff49003e"
+  integrity sha512-t2v0rkILYv9WXmSL7TpAaU3HXgaFYOPUcH3QHgwQ++gpJuH3bqyMy4Fvt/DJCTKwzH3Cf+bAp5W/mFL39KPLzA==
 
 ipaddr.js@1.9.1:
   version "1.9.1"
