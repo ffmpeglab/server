@@ -3729,10 +3729,10 @@ fdir@^6.5.0:
   resolved "https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz"
   integrity sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==
 
-ffmpeglab-sdk@^0.3.14:
-  version "0.3.14"
-  resolved "https://registry.yarnpkg.com/ffmpeglab-sdk/-/ffmpeglab-sdk-0.3.14.tgz#47e6176db5bba0fc006bea3e37d97a7c03561a56"
-  integrity sha512-USXchbHKmYApSMOdzwdp3SXVgv5sRta6YGxmKy6EC2sQtmsApC4X8+31Db6pu3NdxNb96W/3BTKRQIN5IQeAkA==
+ffmpeglab-sdk@^0.5.4:
+  version "0.5.7"
+  resolved "https://registry.yarnpkg.com/ffmpeglab-sdk/-/ffmpeglab-sdk-0.5.7.tgz#64f7b3d98133acb59d92cca5f0f071db03349d51"
+  integrity sha512-Va/KRSnh5SMbGy++/rMuvYxPm8QNSqXgUiv8FH+A17rr2A3H3csxsylX9YO4w/h4lGtesDUGeF3SHJmqQVsJIA==
 
 figures@^3.2.0:
   version "3.2.0"
@@ -4036,11 +4036,11 @@ graceful-fs@^4.1.11, graceful-fs@^4.1.2, graceful-fs@^4.1.6, graceful-fs@^4.2.0,
   integrity sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==
 
 handlebars@^4.7.9:
-  version "4.7.9"
-  resolved "https://registry.npmjs.org/handlebars/-/handlebars-4.7.9.tgz"
-  integrity sha512-4E71E0rpOaQuJR2A3xDZ+GM1HyWYv1clR58tC8emQNeQe3RH7MAzSbat+V0wG78LQBo6m6bzSG/L4pBuCsgnUQ==
+  version "4.7.10"
+  resolved "https://registry.yarnpkg.com/handlebars/-/handlebars-4.7.10.tgz#12419ea1b41391b3ffcf003f2164dcbce090c417"
+  integrity sha512-P5VJMVM7qgBn6vjXMw8WG9uVI+ncf2pi72j4de4yz5ZULLj2RGqLYaKOYGsgyrViQ0tePOVlN1tDCCXXtFqXKg==
   dependencies:
-    minimist "^1.2.5"
+    minimist "^1.2.8"
     neo-async "^2.6.2"
     source-map "^0.6.1"
     wordwrap "^1.0.0"
@@ -5043,7 +5043,7 @@ minimatch@^9.0.4:
   dependencies:
     brace-expansion "^2.0.2"
 
-minimist@^1.2.5, minimist@^1.2.6:
+minimist@^1.2.6, minimist@^1.2.8:
   version "1.2.8"
   resolved "https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz"
   integrity sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==
