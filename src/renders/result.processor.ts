@@ -39,7 +39,7 @@ export const uploadJobResult = async (job: {
 
       const contentType = getMimeType(media.filename);
 
-      const Bucket = bucket || config.s3.bucketId
+      const Bucket = bucket || config.s3.bucketId;
 
       const putObjectCmd = new PutObjectCommand({
         Bucket,
@@ -50,7 +50,7 @@ export const uploadJobResult = async (job: {
       });
 
       await s3Client.send(putObjectCmd);
-      if(Bucket !== config.publicBucket) {
+      if (Bucket !== config.publicBucket) {
         const getObjectCmd = new GetObjectCommand({
           Bucket,
           Key: fileKey,
@@ -62,9 +62,9 @@ export const uploadJobResult = async (job: {
 
         media.url = link;
       }
-      
-      if(Bucket === config.publicBucket)
-        media.url = `storage/v1/object/public/${Bucket}/${fileKey}`
+
+      if (Bucket === config.publicBucket)
+        media.url = `storage/v1/object/public/${Bucket}/${fileKey}`;
       return media;
     }
   } catch (err) {
