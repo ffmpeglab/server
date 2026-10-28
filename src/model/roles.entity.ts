@@ -18,7 +18,7 @@ export class Role {
 
   @Column({ type: 'uuid' })
   @Index()
-  folder: string
+  folder: string;
 
   @Column({ type: 'uuid' })
   @Index()

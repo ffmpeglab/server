@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  CreateItemDto,
-  UpdateItemDto,
-} from './items.dto';
+import { CreateItemDto, UpdateItemDto } from './items.dto';
 import { Item } from '../model/item.entity';
 
 @Injectable()
@@ -41,10 +38,7 @@ export class ItemsService {
     return await this.findOne(n.identifiers[0].id, userId);
   }
 
-  async update(
-    item: UpdateItemDto,
-    userId: string,
-  ): Promise<Item | null> {
+  async update(item: UpdateItemDto, userId: string): Promise<Item | null> {
     await this.repo.update(
       { id: item.id, user_id: userId },
       {
@@ -60,5 +54,4 @@ export class ItemsService {
       user_id: userId,
     });
   }
-
 }

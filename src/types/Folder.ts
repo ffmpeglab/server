@@ -15,9 +15,8 @@ export class Folder {
   orderId: number;
 }
 
-
 export enum Permission {
-  rw = "rw",
-  w = "w",
-  r = "r"
+  rw = 'rw',
+  w = 'w',
+  r = 'r',
 }
