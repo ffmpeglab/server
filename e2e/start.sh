@@ -8,6 +8,7 @@ export S3_BUCKET="ffmpeglab-assets"
 export CONN_STRING="postgresql://${DB_USER}:${DB_PASSWORD}@${SUPABASE_FQDN}:54322/postgres"
 # Build DATABASE_URL
 echo $S3_BUCKET
+set -e
 
 #SERVER .env
 export DATABASE_URL="${SUPABASE_FQDN}"

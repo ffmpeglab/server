@@ -2,26 +2,15 @@ import {
   Controller,
   Get,
   Param,
-  Post,
   Request,
   UnauthorizedException,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import { FilesService } from './files.service';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
-  ApiParam,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { FileListDto, FileResponseDto } from './file.dto';
 import { _Object$ } from '@aws-sdk/client-s3';
-import { User } from '@supabase/supabase-js';
 import { S3Config } from '../types';
 import { config, supabaseEnv } from '../config';
 
@@ -32,25 +21,6 @@ import { createClient } from '@supabase/supabase-js';
 @ApiBearerAuth()
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
-
-  // @Post('upload')
-  // @ApiConsumes('multipart/form-data')
-  // @UseInterceptors(FileInterceptor('file'))
-  // @ApiBody({
-  //   description: 'File',
-  //   type: FileUploadDto,
-  // })
-  // async upload(
-  //   @UploadedFile()
-  //   file: { buffer: Buffer<ArrayBufferLike>; originalname: string },
-  //   @Request() req: Request & { user: string },
-  // ) {
-  //   return this.filesService.uploadFile(
-  //     req.user,
-  //     file.originalname,
-  //     file.buffer,
-  //   );
-  // }
 
   @Get('list')
   @ApiResponse({ type: FileListDto, isArray: true })
@@ -81,16 +51,16 @@ export class FilesController {
       supabaseEnv.secretKeys.default,
     );
     const {
-      data: { users },
+      data: { user },
       error,
-    } = await supabaseAdmin.auth.admin.listUsers();
+    } = await supabaseAdmin.auth.admin.getUserById(req.user);
     const userId = req.user;
 
     if (error) {
-      console.info({ userId, users, error });
+      console.info({ userId, user, error });
     }
 
-    const existingUser = users.find((user) => (user as User).id === userId);
+    const existingUser = user;
     const { email } = existingUser || {};
     if (!email) {
       throw new UnauthorizedException();

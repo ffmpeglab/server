@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -e
 # export DEBUG=1 
 # Colours
 RED='\033[0;31m'

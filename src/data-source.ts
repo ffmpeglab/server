@@ -4,8 +4,9 @@ import { ApiKey } from './model/apikey.entity';
 import { LogPiece } from './model/logpiece.entity';
 import { Pipeline } from './model/pipeline.entity';
 import { Render } from './model/render.entity';
-import { Init1787055357610 } from './migrations/1787055357610-init';
 import * as dotenv from 'dotenv';
+import { Item } from './model/item.entity';
+import { Role } from './model/roles.entity';
 dotenv.config();
 
 export const AppDataSource = new DataSource({
@@ -18,7 +19,7 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: false,
   schema: 'public',
-  entities: [ApiKey, LogPiece, Pipeline, Render],
-  migrations: [Init1787055357610],
+  entities: [ApiKey, LogPiece, Pipeline, Render, Item, Role],
+  migrations: [],
   subscribers: [],
 });

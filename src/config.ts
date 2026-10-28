@@ -1,7 +1,9 @@
 import { ApiKey } from './model/apikey.entity';
+import { Item } from './model/item.entity';
 import { LogPiece } from './model/logpiece.entity';
 import { Pipeline } from './model/pipeline.entity';
 import { Render } from './model/render.entity';
+import { Role } from './model/roles.entity';
 export const config = {
   db: {
     host: process.env.DB_HOST,
@@ -10,8 +12,8 @@ export const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    entities: [Render, ApiKey, LogPiece, Pipeline],
-    synchronize: false, //SHOULD APPLY init.sql(for on prem) or the supabase migration(on e2e env) based on the setup
+    entities: [Render, ApiKey, LogPiece, Pipeline, Item, Role],
+    synchronize: false,
   },
   queue: {
     db: {
