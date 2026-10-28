@@ -13,7 +13,7 @@ import {
 import { ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesService } from './roles.service';
-import { CreateItemDto, UpdateItemDto } from './roles.dto';
+import { CreateRoleDto, UpdateRoleDto } from './roles.dto';
 import { Role } from '../model/roles.entity';
 
 @UseGuards(AuthGuard)
@@ -24,8 +24,8 @@ export class RolesController {
 
   @Get('/')
   @ApiResponse({ type: [Role] })
-  async findAllFolders(@Request() req: Request & { user: string }) {
-    return await this.service.findAllRoles(req.user);
+  async findAllAssignedRoles(@Request() req: Request & { user: string }) {
+    return await this.service.findAllAssignedRoles(req.user);
   }
 
   @Get('/folder/:folderId')
@@ -75,7 +75,7 @@ export class RolesController {
   @Post()
   @ApiResponse({ type: Role })
   async create(
-    @Body() createDto: CreateItemDto,
+    @Body() createDto: CreateRoleDto,
     @Request() req: Request & { user: string },
   ) {
     return await this.service.create(createDto, req.user);
@@ -84,7 +84,7 @@ export class RolesController {
   @Put()
   @ApiResponse({ type: Role })
   async update(
-    @Body() update: UpdateItemDto,
+    @Body() update: UpdateRoleDto,
     @Request() req: Request & { user: string },
   ) {
     return await this.service.update(update, req.user);

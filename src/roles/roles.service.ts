@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateItemDto, UpdateItemDto } from './roles.dto';
+import { CreateRoleDto, UpdateRoleDto } from './roles.dto';
 import { Role } from '../model/roles.entity';
+import { Permission } from '../types';
 
 @Injectable()
 export class RolesService {
@@ -11,7 +12,7 @@ export class RolesService {
     private repo: Repository<Role>,
   ) {}
 
-  async findAllRoles(userId: string): Promise<Role[]> {
+  async findAllAssignedRoles(userId: string): Promise<Role[]> {
     return await this.repo.findBy({ user_id: userId });
   }
 
@@ -27,21 +28,22 @@ export class RolesService {
   }
 
   async create(
-    createItem: CreateItemDto,
+    createItem: CreateRoleDto,
     userId: string,
   ): Promise<Role | null> {
     const n = await this.repo.insert({
       ...createItem,
-      user_id: userId,
+      owner: userId,
     });
     return await this.findOne(n.identifiers[0].id, userId);
   }
 
-  async update(item: UpdateItemDto, userId: string): Promise<Role | null> {
+  async update(item: UpdateRoleDto, userId: string): Promise<Role | null> {
     await this.repo.update(
       { id: item.id, user_id: userId },
       {
         title: item.title,
+        permission: item.permission as Permission,
       },
     );
     return await this.findOne(item.id, userId);

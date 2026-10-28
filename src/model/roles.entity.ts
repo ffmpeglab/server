@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   Index,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Permission } from '../types';
 
@@ -16,9 +17,13 @@ export class Role {
   @Column()
   title: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: true })
   @Index()
-  folder: string;
+  folder?: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  render?: string;
 
   @Column({ type: 'uuid' })
   @Index()

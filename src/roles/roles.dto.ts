@@ -1,40 +1,31 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '../model/roles.entity';
+import { Permission } from '../types';
 
 export class UpdateRoleDto implements Omit<
   Role,
-  'user_id' | 'created' | 'updated'
+  'user_id' | 'created' | 'updated' | 'user_id' | 'owner'
 > {
   @ApiProperty()
   id: string;
   @ApiProperty()
   title: string;
   @ApiProperty()
-  folder: string;
-  @ApiProperty()
-  isFolder: boolean;
-  @ApiProperty()
-  public: boolean;
-  @ApiProperty()
-  order: number;
-  @ApiProperty()
-  item: any;
+  permission: Permission;
 }
 
 export class CreateRoleDto implements Omit<
   Role,
-  'id' | 'created' | 'updated' | 'user_id'
+  'id' | 'created' | 'updated' | 'owner'
 > {
   @ApiProperty()
   title: string;
   @ApiProperty()
-  folder: string;
+  permission: Permission;
   @ApiProperty()
-  isFolder: boolean;
+  user_id: string;
   @ApiProperty()
-  public: boolean;
+  folder?: string;
   @ApiProperty()
-  order: number;
-  @ApiProperty()
-  item: any;
+  render?: string;
 }
