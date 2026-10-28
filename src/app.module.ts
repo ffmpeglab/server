@@ -7,6 +7,8 @@ import { PipelinesModule } from './pipelines/pipelines.module';
 import { FilesModule } from './files/files.module';
 import { ApiKeyModule } from './apikey/apikey.module';
 import { PublicModule } from './public/public.module';
+import { RolesModule } from './roles/roles.module';
+import { ItemsModule } from './items/items.module';
 
 const optionalModules: (typeof AppModule)[] = [FilesModule];
 if (config.pipelinesEnabled) {
@@ -33,6 +35,8 @@ if (config.pipelinesEnabled) {
     RendersModule,
     ApiKeyModule,
     PublicModule,
+    ItemsModule,
+    RolesModule,
     ...optionalModules,
   ],
   controllers: [],

@@ -4,7 +4,7 @@ import type { PgmqJob } from 'nestjs-pgmq';
 import { RendersService } from './renders.service';
 import { encodeProject } from '../ffmpeg/rendering';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
-import { uploadJobResult } from './result.processor';
+import { uploadJobResult } from './uploadJobResult';
 
 @Processor(config.queue.name)
 export class RenderProcessor {
