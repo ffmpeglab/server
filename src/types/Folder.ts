@@ -14,3 +14,10 @@ export class Folder {
   @ApiProperty()
   orderId: number;
 }
+
+
+export enum Permission {
+  rw = "rw",
+  w = "w",
+  r = "r"
+}
