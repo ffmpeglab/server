@@ -46,7 +46,7 @@ export class ItemsController {
   @Delete(':id')
   @ApiParam({
     name: 'id',
-    description: 'The ID of the pipeline',
+    description: 'The ID of the item',
     required: true,
     type: String,
   })
@@ -61,7 +61,7 @@ export class ItemsController {
   @ApiResponse({ type: Item })
   @ApiParam({
     name: 'id',
-    description: 'The ID of the pipeline',
+    description: 'The ID of the item',
     required: true,
     type: String,
   })
@@ -70,6 +70,36 @@ export class ItemsController {
     @Request() req: Request & { user: string },
   ) {
     return await this.service.findOne(params.id, req.user);
+  }
+
+  @Get('roled/:id')
+  @ApiResponse({ type: Item })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the item',
+    required: true,
+    type: String,
+  })
+  async findOneByRole(
+    @Param() params: { id: string },
+    @Request() req: Request & { user: string },
+  ) {
+    return await this.service.findOneByPermission(params.id, req.user);
+  }
+
+  @Put('roled/:id')
+  @ApiResponse({ type: Item })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the item',
+    required: true,
+    type: String,
+  })
+  async updateOneByRole(
+    @Body() update: UpdateItemDto,
+    @Request() req: Request & { user: string },
+  ) {
+    return await this.service.updateByRole(update, req.user);
   }
 
   @Post()
