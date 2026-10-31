@@ -79,7 +79,6 @@ The server runs as multiple services (runners) that can be scaled independently.
 |---------|-------------|------|
 | `api` | Main API server | 3000 |
 | `render-runner` | Executes FFmpeg rendering jobs | - |
-| `file-runner` | Handles file operations with S3 | - |
 | `logs-runner` | Processes logs | - |
 
 ---

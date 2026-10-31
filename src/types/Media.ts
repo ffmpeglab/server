@@ -173,6 +173,8 @@ export class EncoderProjectEncoding {
   color?: RGB;
   @ApiProperty()
   scale?: number;
+  @ApiProperty()
+  backgroundColor?: string;
 }
 export class EncoderProject extends Media {
   @ApiProperty({ type: EncoderProjectEncoding })

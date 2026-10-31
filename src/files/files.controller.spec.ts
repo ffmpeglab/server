@@ -41,18 +41,6 @@ describe('FilesController', () => {
     jest.clearAllMocks();
   });
 
-  // it('upload passes user, originalname, buffer to the service', async () => {
-  //   filesService.uploadFile.mockResolvedValue({ ok: true });
-  //   const file = { originalname: 'a.mp4', buffer: Buffer.from('x') };
-
-  //   expect(await ctrl.upload(file, req)).toEqual({ ok: true });
-  //   expect(filesService.uploadFile).toHaveBeenCalledWith(
-  //     'user-1',
-  //     'a.mp4',
-  //     file.buffer,
-  //   );
-  // });
-
   it('list delegates to the service with req.user', async () => {
     filesService.listFiles.mockResolvedValue({ list: [] });
     await ctrl.list(req);
