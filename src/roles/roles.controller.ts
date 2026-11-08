@@ -13,7 +13,7 @@ import {
 import { ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesService } from './roles.service';
-import { CreateRoleDto, UpdateRoleDto } from './roles.dto';
+import { CreateEmailRoleDto, CreateRoleDto, UpdateRoleDto } from './roles.dto';
 import { Role } from '../model/roles.entity';
 
 @UseGuards(AuthGuard)
@@ -79,6 +79,15 @@ export class RolesController {
     @Request() req: Request & { user: string },
   ) {
     return await this.service.create(createDto, req.user);
+  }
+
+  @Post('/email')
+  @ApiResponse({ type: Role })
+  async createByEmail(
+    @Body() createDto: CreateEmailRoleDto,
+    @Request() req: Request & { user: string },
+  ) {
+    return await this.service.createByEmail(createDto, req.user);
   }
 
   @Put()

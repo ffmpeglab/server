@@ -9,7 +9,7 @@ import {
 import { Permission } from '../types';
 import { ApiProperty } from '@nestjs/swagger';
 
-@Entity()
+@Entity({ schema: 'public', synchronize: false })
 export class Role {
   @PrimaryGeneratedColumn('uuid')
   @ApiProperty()

@@ -8,7 +8,7 @@ import {
   Index,
 } from 'typeorm';
 
-@Entity()
+@Entity({ schema: 'public', synchronize: false })
 export class Pipeline {
   @PrimaryGeneratedColumn('uuid')
   @ApiProperty()

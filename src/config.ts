@@ -4,6 +4,7 @@ import { LogPiece } from './model/logpiece.entity';
 import { Pipeline } from './model/pipeline.entity';
 import { Render } from './model/render.entity';
 import { Role } from './model/roles.entity';
+import { Users } from './model/user.entity';
 export const config = {
   db: {
     host: process.env.DB_HOST,
@@ -12,7 +13,7 @@ export const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    entities: [Render, ApiKey, LogPiece, Pipeline, Item, Role],
+    entities: [Render, ApiKey, LogPiece, Pipeline, Item, Role, Users],
     synchronize: false,
   },
   queue: {
@@ -59,6 +60,7 @@ export const config = {
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY as string,
   supabaseJWKUrl: process.env.SUPABASE_JWKS_URL as string,
   publicBucket: process.env.S3_PUBLIC_BUCKET_ID || 'public',
+  webAppHost: process.env.WEBAPP_HOST as string,
 };
 
 export const supabaseEnv = {

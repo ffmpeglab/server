@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import type { ItemUnion } from '../types';
 
-@Entity()
+@Entity({ schema: 'public', synchronize: false })
 export class Item {
   @PrimaryGeneratedColumn('uuid')
   @ApiProperty()
