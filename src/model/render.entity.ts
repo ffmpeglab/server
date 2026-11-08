@@ -7,7 +7,7 @@ import {
   Index,
 } from 'typeorm';
 
-@Entity()
+@Entity({ schema: 'public', synchronize: false })
 export class Render {
   @PrimaryGeneratedColumn('uuid')
   @Index()

@@ -29,3 +29,19 @@ export class CreateRoleDto implements Omit<
   @ApiProperty()
   render?: string;
 }
+
+export class CreateEmailRoleDto implements Omit<
+  Role,
+  'id' | 'created' | 'updated' | 'owner' | 'user_id'
+> {
+  @ApiProperty()
+  title: string;
+  @ApiProperty()
+  permission: Permission;
+  @ApiProperty()
+  item?: string;
+  @ApiProperty()
+  render?: string;
+  @ApiProperty()
+  email: string;
+}

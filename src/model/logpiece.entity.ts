@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Entity, Column, PrimaryGeneratedColumn, Index } from 'typeorm';
 
-@Entity()
+@Entity({ schema: 'public', synchronize: false })
 export class LogPiece {
   @PrimaryGeneratedColumn('uuid')
   @ApiProperty()
