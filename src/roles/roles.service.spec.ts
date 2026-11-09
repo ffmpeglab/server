@@ -5,6 +5,7 @@ import { Role } from '../model/roles.entity';
 import { Item } from '../model/item.entity';
 import { Render } from '../model/render.entity';
 import { Permission } from '../types';
+import { Users } from '../model/user.entity';
 
 const mockRolesRepo = {
   findBy: jest.fn(),
@@ -22,6 +23,10 @@ const mockRendersRepo = {
   findOneBy: jest.fn(),
 };
 
+const mockUsersRepo = {
+  findOneBy: jest.fn(),
+};
+
 describe('RolesService', () => {
   let service: RolesService;
 
@@ -33,6 +38,7 @@ describe('RolesService', () => {
         { provide: getRepositoryToken(Role), useValue: mockRolesRepo },
         { provide: getRepositoryToken(Item), useValue: mockItemsRepo },
         { provide: getRepositoryToken(Render), useValue: mockRendersRepo },
+        { provide: getRepositoryToken(Users), useValue: mockUsersRepo },
       ],
     }).compile();
     service = moduleRef.get(RolesService);
