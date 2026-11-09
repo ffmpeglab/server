@@ -82,11 +82,12 @@ export class RolesService {
     createItem: CreateRoleDto,
     userId: string,
   ): Promise<Role | null> {
-    const permissionedRow = await this.validateCreate(createItem, userId);
-    if (permissionedRow?.user_id === userId) {
-      return await this.createRole(createItem, userId);
-    }
-    throw new Error('item_not_found');
+    const permissionedRow = await this.validateCreate(createItem, userId)
+    
+    if (permissionedRow?.user_id !== userId) {
+      throw new Error('cannot_create_permission_for_this_row');
+    };
+    return await this.createRole(createItem, userId);
   }
 
   async createByEmail(
@@ -94,14 +95,16 @@ export class RolesService {
     userId: string,
   ): Promise<Role | null> {
     const permissionedRow = await this.validateCreate(createItem, userId);
+
+    if (permissionedRow?.user_id !== userId) {
+      throw new Error('cannot_create_permission_for_this_row');
+    }
+
     const redirectTo = createItem.render
       ? config.webAppHost + 'editor/render/' + permissionedRow?.id
       : config.webAppHost + 'shared/item/' + permissionedRow?.id;
-    const email = createItem.email;
 
-    if (permissionedRow?.user_id !== userId) {
-      throw new Error('item_not_found');
-    }
+    const email = createItem.email;
 
     const existingUser = await this.userRepo.findOneBy({ email });
 
