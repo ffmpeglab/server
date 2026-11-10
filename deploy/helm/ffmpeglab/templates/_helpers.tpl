@@ -75,13 +75,13 @@ metadata:
   labels:
     {{- include "ffmpeglab.labels" $ctx | nindent 4 }}
     app.kubernetes.io/component: {{ $component }}
-  {{- if or $ctx.Values.reloader.enabled $cfg.deploymentAnnotations }}
+  {{- $annotations := dict }}
+  {{- range $k, $v := $ctx.Values.deploymentAnnotations }}{{ $_ := set $annotations $k $v }}{{ end }}
+  {{- range $k, $v := $cfg.deploymentAnnotations }}{{ $_ := set $annotations $k $v }}{{ end }}
+  {{- with $annotations }}
   annotations:
-    {{- if $ctx.Values.reloader.enabled }}
-    reloader.stakater.com/auto: "true"
-    {{- end }}
-    {{- with $cfg.deploymentAnnotations }}
-    {{- toYaml . | nindent 4 }}
+    {{- range $k, $v := . }}
+    {{ $k }}: {{ $v | toString | quote }}
     {{- end }}
   {{- end }}
 spec:
@@ -99,14 +99,9 @@ spec:
       labels:
         {{- include "ffmpeglab.selectorLabels" $ctx | nindent 8 }}
         app.kubernetes.io/component: {{ $component }}
-      {{- if or $cfg.podAnnotations $ctx.Values.secretChecksum }}
+      {{- with $cfg.podAnnotations }}
       annotations:
-        {{- with $cfg.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with $ctx.Values.secretChecksum }}
-        ffmpeglab.com/secret-checksum: {{ . | quote }}
-        {{- end }}
       {{- end }}
     spec:
       {{- with $ctx.Values.imagePullSecrets }}

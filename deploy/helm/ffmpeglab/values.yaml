@@ -16,9 +16,6 @@ env: {}
   # S3_REGION: "us-east-1"
   # DOCUMENT_DIRECTORY: /tmp/ffmpeglab
 
-# Set by whatever writes the Secret, so a rotated credential rolls the pods.
-secretChecksum: ""
-
 existingSecret: ""
 
 # For clusters where no external controller supplies the Secret.
@@ -57,12 +54,9 @@ documentDir:
   sizeLimit: 10Gi
   medium: ""
 
-# Reloader watches the Secret each component reads through envFrom and rolls the
-# pods when a credential changes. The annotation belongs on the Deployment, not
-# the pod template - Reloader does not look at the template. Harmless when
-# Reloader is not installed.
-reloader:
-  enabled: true
+# On every Deployment, merged with <component>.deploymentAnnotations (component wins).
+deploymentAnnotations:
+  reloader.stakater.com/auto: "true"
 
 api:
   enabled: true
