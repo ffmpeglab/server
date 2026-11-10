@@ -15,7 +15,7 @@ helm install vault-secrets-operator hashicorp/vault-secrets-operator \
 ```
 
 Then set `VAULT_ADDR`, `VAULT_ROLE` and `TENANT_PATH` in `deploy/.env` and run
-`./deploy/deploy.sh`. It applies `vault-secret.yaml` for the release, waits for
+`./deploy/deploy.sh on-prem`. It applies `vault-secret.yaml` for the release, waits for
 the Secret to appear, and installs the chart against it.
 
 The operator asks for 100m CPU and 128Mi.

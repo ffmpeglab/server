@@ -66,7 +66,7 @@ the platform — it writes the record into its own dev Vault first.
 
 ## What this deploys, and what it does not
 
-One release is one FFmpegLab instance: an API and two runners, all pointing at
+One release is one FFmpegLab server instance: an API and two runners, all pointing at
 one Postgres and one object store.
 
 Credentials come from Vault and only from Vault: the operator reads the tenant
@@ -186,6 +186,18 @@ helm install vault hashicorp/vault \
   --set injector.enabled=false --wait
 
 kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=3m
+kubectl create clusterrolebinding vault-auth-delegator \
+  --clusterrole=system:auth-delegator --serviceaccount=vault:vault
+```
+
+The operator, pointed at that Vault:
+
+```bash
+helm install vault-secrets-operator hashicorp/vault-secrets-operator \
+  --namespace vault-secrets-operator-system --create-namespace \
+  --set defaultVaultConnection.enabled=true \
+  --set defaultVaultConnection.address=http://vault.vault.svc.cluster.local:8200 \
+  --wait
 ```
 
 Reloader, which is what rolls the pods when the Secret changes:
@@ -196,10 +208,33 @@ helm upgrade --install reloader stakater/reloader --version 2.2.19 \
   --namespace reloader --create-namespace --wait
 ```
 
+The auth method, the role and the record — the part the platform plays:
+
+```bash
+kubectl exec -i -n vault vault-0 -- \
+  env VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root sh -s <<'SH'
+vault auth enable kubernetes
+vault write auth/kubernetes/config kubernetes_host=https://kubernetes.default.svc
+vault policy write ffmpeglab - <<'HCL'
+path "secret/data/tenants/*" { capabilities = ["read"] }
+HCL
+vault write auth/kubernetes/role/ffmpeglab \
+  bound_service_account_names=ffmpeglab-vault \
+  bound_service_account_namespaces=ffmpeglab policies=ffmpeglab ttl=1h
+vault kv put -mount=secret tenants/local/demo DB_HOST='<host>' DB_PORT=5432 \
+  DB_USER='<user>' DB_PASSWORD='<password>' DB_NAME=postgres
+SH
+```
+
+Then the operator resources and the release as under
+[On-prem → By hand](#by-hand-1), with `VSO_PATH=tenants/local/demo` and
+without `-f deploy/values-onprem.yaml`.
+
 ## On-prem
 
 A cluster that already exists, with storage and the operator in it. Point your
-kubeconfig at it, then:
+kubeconfig at it, replace the storage class and the render `nodeSelector` in
+`deploy/values-onprem.yaml` with your cluster's, then:
 
 ```bash
 kubectl config current-context
@@ -278,10 +313,6 @@ The secrets operator and a Vault the cluster can reach are the remaining two, an
 k3s and minikube bring a provisioner of their own, which is why neither shows
 these steps — and why a green run on them says less about on-prem than it looks.
 
-Both commands above were measured on k0s v1.35.7 running in Docker, which is how
-a Mac reaches a Linux cluster; on a Linux host they are the same, minus the
-container.
-
 ### The document volume
 
 render works in the document directory and uploads the result from there itself,
@@ -294,8 +325,8 @@ render with a `nodeSelector` where that has to be certain —
 `deploy/values-onprem.yaml` does, alongside the cluster's storage class.
 
 `ReadWriteMany` is only needed when render replicas are spread over several
-nodes, and no default class provides it, so supply the volume yourself — NFS,
-EFS or Filestore:
+nodes, and no default class provides it, so supply the volume yourself, backed
+by NFS or CephFS:
 
 ```bash
 # in deploy/.env
@@ -414,6 +445,16 @@ helm lint deploy/helm/ffmpeglab
 helm template test deploy/helm/ffmpeglab --set existingSecret=ffmpeglab-credentials
 ```
 
+`env` passes plain variables to every component, `<component>.env` to one, for
+example `--set env.S3_REGION=us-east-1`. `secret.create=true` with `secret.data`
+writes the Secret from values for a cluster without an operator; the values then
+live in the Helm release, so `existingSecret` is the normal path.
+
+api's probes use `/api-json`. `api.probes.readinessPath` and `livenessPath`
+override it separately: readiness should fail while the process cannot do its
+work, so a pod waiting for credentials gets no traffic, and liveness stays
+lenient (`livenessFailureThreshold`) so waiting is not mistaken for being stuck.
+
 **Bump `version` in `Chart.yaml` when you change it.** Helm itself does not care,
 but anything driving it declaratively — Argo CD, Flux, Terraform's `helm_release`
 — compares chart versions and reports no changes without a bump.
@@ -439,20 +480,8 @@ Or for good:
 k3d cluster delete ffmpeglab
 ```
 
-A k0s cluster run in Docker is a container and a volume:
-
-```bash
-docker stop k0s          # keeps everything
-docker start k0s
-
-docker rm -f k0s         # for good
-docker volume rm k0s-data
-```
-
-Verified across a stop and start of k0s: the cluster, its namespaces and every
-running workload come back. **The dev Vault does not** — it holds its data in
-memory, so the record, the policy and the role are gone. Run
-`./deploy/deploy.sh local` again, or the seeding block above, to write them back.
+A stopped and started k3d cluster keeps its workloads, but the dev Vault comes
+back empty; run `./deploy/deploy.sh local` again to seed it.
 
 ## When something is wrong
 
@@ -487,7 +516,7 @@ kubectl describe pvc ffmpeglab-documents -n ffmpeglab | sed -n '/Events:/,$p'
 
 `NodePath only supports ReadWriteOnce` or `no persistent volumes available` means
 the class cannot serve the mode asked for. Set `DOCUMENT_ACCESS_MODE=ReadWriteOnce`,
-or `DOCUMENT_EXISTING_CLAIM` for a volume backed by NFS, EFS or Filestore.
+or `DOCUMENT_EXISTING_CLAIM` for a volume backed by NFS or CephFS.
 
 `no storage class is set` means the cluster has no default one — name it in
 `DOCUMENT_STORAGE_CLASS`.
