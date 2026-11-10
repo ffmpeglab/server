@@ -70,81 +70,32 @@ const dirSize = async (dir: string): Promise<number> => {
   return total;
 };
 
-/**
- * Structural URL checks only — protocol and no embedded credentials.
- * Host authorization is opentenant's responsibility.
- */
-const assertValidHttpsUrl = (url: string): void => {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new Error('git_url_invalid: not a valid URL');
-  }
-  if (parsed.protocol !== 'https:') {
-    throw new Error(`git_url_invalid: expected https:, got ${parsed.protocol}`);
-  }
-  if (parsed.username || parsed.password) {
-    // We inject auth via header — credentials embedded in the URL would
-    // override it and leak through ps / error messages.
-    throw new Error('git_url_invalid: credentials embedded in URL');
-  }
-};
-
-/**
- * Clone a repo into `dest` at `ref` over HTTPS with bearer-token auth.
- *
- * Auth:
- *   - Token from `config.git.httpsToken` (env: GIT_HTTPS_TOKEN).
- *   - Passed via `GIT_CONFIG_COUNT` / `GIT_CONFIG_KEY_0` / `GIT_CONFIG_VALUE_0`
- *     so it does NOT appear in `ps aux`, `git remote -v`, or `.git/config`.
- *     Requires Git >= 2.31.
- *   - `Authorization: Bearer <token>` — correct for GitLab PATs. For GitHub,
- *     switch to `Basic base64(x-access-token:<token>)`.
- *
- * Host trust:
- *   - The URL is assumed to have been validated by opentenant. Only
- *     protocol and embedded-credential checks are done here.
- *
- * Ref handling:
- *   - SHA (7–40 hex): `init` + `fetch --depth=1 origin <sha>` + `checkout FETCH_HEAD`,
- *     falls back to full fetch for servers that reject shallow SHA fetches.
- *   - Branch / tag: `clone --depth=1 --single-branch --branch <ref>`.
- *
- * Hardening:
- *   - `protocol.ext.allow=never` / `protocol.file.allow=never`.
- *   - `--recurse-submodules=no`.
- *   - `GIT_TERMINAL_PROMPT=0`.
- *   - Hard timeout and post-clone size cap.
- *   - `dest` wiped on entry and on any failure (retry-safe).
- *   - `scratch` (tmp HOME) wiped in `finally`.
- */
 export const cloneRepo = async ({
   url,
   ref,
   dest,
 }: CloneOptions): Promise<void> => {
-  assertValidHttpsUrl(url);
   if (!config.git.httpsToken) {
     throw new Error('git_not_configured: GIT_HTTPS_TOKEN missing');
   }
 
-  // Retry-safe: wipe any partial checkout from a previous attempt.
   rmSync(dest, { recursive: true, force: true });
 
   const scratch = mkdtempSync(join(tmpdir(), 'ffgit-'));
 
   try {
+    const tokenB64 = Buffer.from(
+      `x-access-token:${config.git.httpsToken}`,
+    ).toString('base64');
+
     const env: NodeJS.ProcessEnv = {
       PATH: '/usr/local/bin:/usr/bin:/bin',
       HOME: scratch,
       GIT_TERMINAL_PROMPT: '0',
-      // http.extraHeader via env — keeps the token out of argv.
       GIT_CONFIG_COUNT: '1',
       GIT_CONFIG_KEY_0: 'http.extraHeader',
-      GIT_CONFIG_VALUE_0: `Authorization: Bearer ${config.git.httpsToken}`,
+      GIT_CONFIG_VALUE_0: `Authorization: Basic ${tokenB64}`,
     };
-
     const timeoutMs = config.git.cloneTimeoutMs ?? 5 * 60 * 1000;
     const maxBytes = config.git.maxRepoBytes ?? 500 * 1024 * 1024;
 

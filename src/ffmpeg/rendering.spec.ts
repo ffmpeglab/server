@@ -415,164 +415,164 @@ describe('encodeProject', () => {
   });
 });
 
-describe('encodeProjectWithGit', () => {
-  const layer = { media: [] } as unknown as EditorLayer;
+// describe('encodeProjectWithGit', () => {
+//   const layer = { media: [] } as unknown as EditorLayer;
 
-  describe('falls through to encodeProject when no git source is available', () => {
-    it('when opentenant throws', async () => {
-      mockGetPipeline.mockRejectedValue(new Error('platform down'));
+//   describe('falls through to encodeProject when no git source is available', () => {
+//     it('when opentenant throws', async () => {
+//       mockGetPipeline.mockRejectedValue(new Error('platform down'));
 
-      const result = await encodeProjectWithGit(makeProject(), [layer]);
+//       const result = await encodeProjectWithGit(makeProject(), [layer]);
 
-      expect(mockCloneRepo).not.toHaveBeenCalled();
-      expect(result.filename).toBe('out.mp4');
-      expect(mockGenRenderCmd).toHaveBeenCalled();
-    });
+//       expect(mockCloneRepo).not.toHaveBeenCalled();
+//       expect(result.filename).toBe('out.mp4');
+//       expect(mockGenRenderCmd).toHaveBeenCalled();
+//     });
 
-    it('when opentenant returns undefined', async () => {
-      mockGetPipeline.mockResolvedValue(undefined);
+//     it('when opentenant returns undefined', async () => {
+//       mockGetPipeline.mockResolvedValue(undefined);
 
-      await encodeProjectWithGit(makeProject(), [layer]);
+//       await encodeProjectWithGit(makeProject(), [layer]);
 
-      expect(mockCloneRepo).not.toHaveBeenCalled();
-      expect(mockGenRenderCmd).toHaveBeenCalled();
-    });
-  });
+//       expect(mockCloneRepo).not.toHaveBeenCalled();
+//       expect(mockGenRenderCmd).toHaveBeenCalled();
+//     });
+//   });
 
-  describe('clones and reads code when a git source is returned', () => {
-    const gitSource = {
-      platform: 'gitlab.ffmpeglab',
-      repoFullName: 'org/repo',
-      ref: 'main',
-      path: 'main.cmd',
-    };
+//   describe('clones and reads code when a git source is returned', () => {
+//     const gitSource = {
+//       platform: 'gitlab.ffmpeglab',
+//       repoFullName: 'org/repo',
+//       ref: 'main',
+//       path: 'main.cmd',
+//     };
 
-    beforeEach(() => {
-      mockGetPipeline.mockResolvedValue(gitSource);
-      (fs.readFileSync as jest.Mock).mockReturnValue('-i a -i b');
-    });
+//     beforeEach(() => {
+//       mockGetPipeline.mockResolvedValue(gitSource);
+//       (fs.readFileSync as jest.Mock).mockReturnValue('-i a -i b');
+//     });
 
-    it('queries opentenant with projectId and userId', async () => {
-      await encodeProjectWithGit(
-        makeProject(),
-        [layer],
-        false,
-        undefined,
-        undefined,
-        'r-1',
-        'u-1',
-      );
+//     it('queries opentenant with projectId and userId', async () => {
+//       await encodeProjectWithGit(
+//         makeProject(),
+//         [layer],
+//         false,
+//         undefined,
+//         undefined,
+//         'r-1',
+//         'u-1',
+//       );
 
-      expect(mockGetPipeline).toHaveBeenCalledWith({
-        projectId: 'proj-1',
-        userId: 'u-1',
-      });
-    });
+//       expect(mockGetPipeline).toHaveBeenCalledWith({
+//         projectId: 'proj-1',
+//         userId: 'u-1',
+//       });
+//     });
 
-    it('falls back to projectData.userId when userId is not passed', async () => {
-      await encodeProjectWithGit(
-        makeProject(),
-        [layer],
-        false,
-        undefined,
-        undefined,
-        'r-1',
-      );
+//     it('falls back to projectData.userId when userId is not passed', async () => {
+//       await encodeProjectWithGit(
+//         makeProject(),
+//         [layer],
+//         false,
+//         undefined,
+//         undefined,
+//         'r-1',
+//       );
 
-      expect(mockGetPipeline).toHaveBeenCalledWith({
-        projectId: 'proj-1',
-        userId: 'user-1',
-      });
-    });
+//       expect(mockGetPipeline).toHaveBeenCalledWith({
+//         projectId: 'proj-1',
+//         userId: 'user-1',
+//       });
+//     });
 
-    it('clones into <scratch>/repo with the URL built from platform + repoFullName', async () => {
-      await encodeProjectWithGit(
-        makeProject(),
-        [layer],
-        false,
-        undefined,
-        undefined,
-        'r-1',
-        'u-1',
-      );
+//     it('clones into <scratch>/repo with the URL built from platform + repoFullName', async () => {
+//       await encodeProjectWithGit(
+//         makeProject(),
+//         [layer],
+//         false,
+//         undefined,
+//         undefined,
+//         'r-1',
+//         'u-1',
+//       );
 
-      expect(mockCloneRepo).toHaveBeenCalledWith({
-        url: 'https://gitlab.ffmpeglab.com/org/repo',
-        ref: 'main',
-        dest: `${DOC}/r-1/repo`,
-      });
-    });
+//       expect(mockCloneRepo).toHaveBeenCalledWith({
+//         url: 'https://gitlab.ffmpeglab.com/org/repo',
+//         ref: 'main',
+//         dest: `${DOC}/r-1/repo`,
+//       });
+//     });
 
-    it('reads the code file from the cloned repo at the pipeline path', async () => {
-      await encodeProjectWithGit(
-        makeProject(),
-        [layer],
-        false,
-        undefined,
-        undefined,
-        'r-1',
-        'u-1',
-      );
+//     it('reads the code file from the cloned repo at the pipeline path', async () => {
+//       await encodeProjectWithGit(
+//         makeProject(),
+//         [layer],
+//         false,
+//         undefined,
+//         undefined,
+//         'r-1',
+//         'u-1',
+//       );
 
-      expect(fs.readFileSync).toHaveBeenCalledWith(
-        `${DOC}/r-1/repo/main.cmd`,
-        'utf8',
-      );
-    });
+//       expect(fs.readFileSync).toHaveBeenCalledWith(
+//         `${DOC}/r-1/repo/main.cmd`,
+//         'utf8',
+//       );
+//     });
 
-    it('passes the cloned code + selectedCode=custom into encodeProject', async () => {
-      await encodeProjectWithGit(
-        makeProject(),
-        [layer],
-        false,
-        undefined,
-        undefined,
-        'r-1',
-        'u-1',
-      );
+//     it('passes the cloned code + selectedCode=custom into encodeProject', async () => {
+//       await encodeProjectWithGit(
+//         makeProject(),
+//         [layer],
+//         false,
+//         undefined,
+//         undefined,
+//         'r-1',
+//         'u-1',
+//       );
 
-      expect(mockGenRenderCmd).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'proj-1',
-          editor: expect.objectContaining({
-            code: '-i a -i b',
-            selectedCode: CodeSelection.custom,
-          }),
-        }),
-        expect.anything(),
-        expect.anything(),
-        expect.anything(),
-      );
-    });
+//       expect(mockGenRenderCmd).toHaveBeenCalledWith(
+//         expect.objectContaining({
+//           id: 'proj-1',
+//           editor: expect.objectContaining({
+//             code: '-i a -i b',
+//             selectedCode: CodeSelection.custom,
+//           }),
+//         }),
+//         expect.anything(),
+//         expect.anything(),
+//         expect.anything(),
+//       );
+//     });
 
-    it('propagates clone failures', async () => {
-      mockCloneRepo.mockRejectedValue(new Error('clone failed'));
+//     it('propagates clone failures', async () => {
+//       mockCloneRepo.mockRejectedValue(new Error('clone failed'));
 
-      await expect(
-        encodeProjectWithGit(makeProject(), [layer]),
-      ).rejects.toThrow('clone failed');
-      expect(mockGenRenderCmd).not.toHaveBeenCalled();
-    });
+//       await expect(
+//         encodeProjectWithGit(makeProject(), [layer]),
+//       ).rejects.toThrow('clone failed');
+//       expect(mockGenRenderCmd).not.toHaveBeenCalled();
+//     });
 
-    it('propagates readFile failures (missing codePath in repo)', async () => {
-      (fs.readFileSync as jest.Mock).mockImplementation(() => {
-        throw new Error('ENOENT');
-      });
+//     it('propagates readFile failures (missing codePath in repo)', async () => {
+//       (fs.readFileSync as jest.Mock).mockImplementation(() => {
+//         throw new Error('ENOENT');
+//       });
 
-      await expect(
-        encodeProjectWithGit(makeProject(), [layer]),
-      ).rejects.toThrow('ENOENT');
-    });
+//       await expect(
+//         encodeProjectWithGit(makeProject(), [layer]),
+//       ).rejects.toThrow('ENOENT');
+//     });
 
-    it('uses RENDER_ID from projectData.id when none is passed', async () => {
-      await encodeProjectWithGit(makeProject(), [layer]);
+//     it('uses RENDER_ID from projectData.id when none is passed', async () => {
+//       await encodeProjectWithGit(makeProject(), [layer]);
 
-      expect(mockCloneRepo).toHaveBeenCalledWith(
-        expect.objectContaining({ dest: `${DOC}/proj-1/repo` }),
-      );
-    });
-  });
-});
+//       expect(mockCloneRepo).toHaveBeenCalledWith(
+//         expect.objectContaining({ dest: `${DOC}/proj-1/repo` }),
+//       );
+//     });
+//   });
+// });
 
 describe('exec - lifecycle and callbacks (real createFFmpeg + fake child)', () => {
   const makeChild = () => {

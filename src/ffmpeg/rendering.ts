@@ -187,11 +187,19 @@ export const encodeProjectWithGit = async (
     });
 
     const otClient = new opentenant.ValidatorApi(otConfig);
-
-    gitSource = (await otClient.validatorControllerGetPipeline({
+    const gitSourceParams = {
       projectId: projectData.id,
       userId: userId || projectData.userId,
-    })) as unknown as opentenant.CreatePipelineDTO;
+    };
+    console.info({ gitSourceParams });
+    // gitSource = (await otClient.validatorControllerGetPipeline(gitSourceParams)) as unknown as opentenant.CreatePipelineDTO;
+    gitSource = (await (
+      await fetch(
+        `${config.platformHost}/validator/pipeline/${gitSourceParams.projectId}/${gitSourceParams.userId}`,
+      )
+    ).json()) as opentenant.CreatePipelineDTO;
+
+    console.info({ gitSource });
   } catch (err) {
     console.error('git init error', err);
   }
