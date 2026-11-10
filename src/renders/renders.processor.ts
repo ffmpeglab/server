@@ -2,7 +2,7 @@ import { Processor, Process } from 'nestjs-pgmq';
 import { config } from '../config';
 import type { PgmqJob } from 'nestjs-pgmq';
 import { RendersService } from './renders.service';
-import { encodeProject, encodeProjectWithGit } from '../ffmpeg/rendering';
+import { encodeProjectWithGit } from '../ffmpeg/rendering';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
 import { uploadJobResult } from './uploadJobResult';
 
