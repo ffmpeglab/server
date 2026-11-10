@@ -203,27 +203,6 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if $cfg.mountDocumentDir }}
-          volumeMounts:
-            - name: document-dir
-              mountPath: {{ $ctx.Values.documentDir.mountPath }}
-          {{- end }}
-      {{- if $cfg.mountDocumentDir }}
-      volumes:
-        - name: document-dir
-          {{- if $ctx.Values.documentDir.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ $ctx.Values.documentDir.persistence.existingClaim | default (printf "%s-documents" (include "ffmpeglab.fullname" $ctx)) }}
-          {{- else }}
-          emptyDir:
-            {{- with $ctx.Values.documentDir.medium }}
-            medium: {{ . }}
-            {{- end }}
-            {{- with $ctx.Values.documentDir.sizeLimit }}
-            sizeLimit: {{ . }}
-            {{- end }}
-          {{- end }}
-      {{- end }}
       {{- with $cfg.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
