@@ -20,7 +20,9 @@ import { parseCommand } from './util/parseCommand';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { syncMedia } from './util/syncMedia';
-
+import { cloneRepo } from './util/gitClone';
+import * as opentenant from 'opentenant-platform';
+import { config } from '../config';
 const processCustomCode = (Code: string) => {
   const hasFilterComplex = Code?.search('filter_complex') > -1;
   if (hasFilterComplex) return processUserCode(Code);
@@ -75,6 +77,8 @@ export const execEncode = async (cmd: ExecCMD): Promise<string> => {
       cmdProcessed.push(arg);
     }
     env.RENDER_ID = cmd.RENDER_ID;
+    const repoDir = `${documentDir()}/${cmd.RENDER_ID}/repo`;
+    if (fs.existsSync(repoDir)) env.WORKSPACE_DIR = repoDir;
     const exec = cmd.ffmpeg.exec(cmdProcessed, env);
     // console.info('processing', exec);
     const code = await exec;
@@ -163,4 +167,62 @@ export const encodeProject = async (
     console.error('encodeproject error', err);
     throw err;
   }
+};
+
+export const encodeProjectWithGit = async (
+  projectData: EditorProject,
+  layers: EditorLayer[],
+  isPrerender?: boolean,
+  cb?: CBProgressCallback,
+  logs?: LogsProgressCallback,
+  RENDER_ID?: string,
+  userId?: string,
+): Promise<MinimalMedia> => {
+  let gitSource: opentenant.CreatePipelineDTO | undefined;
+
+  try {
+    const otConfig = new opentenant.Configuration({
+      basePath: config.platformHost,
+      accessToken: config.platformAccessToken,
+    });
+
+    const otClient = new opentenant.ValidatorApi(otConfig);
+
+    gitSource = (await otClient.validatorControllerGetPipeline({
+      projectId: projectData.id,
+      userId: userId || projectData.userId,
+    })) as unknown as opentenant.CreatePipelineDTO;
+  } catch (err) {
+    console.error('git init error', err);
+  }
+
+  if (!gitSource) {
+    return encodeProject(projectData, layers, isPrerender, cb, logs, RENDER_ID);
+  }
+
+  if (!RENDER_ID) RENDER_ID = projectData.id;
+
+  const { ref, path: codePath, platform, repoFullName } = gitSource;
+  const url = `https://${platform}.com/${repoFullName}`;
+  const repoDir = `${documentDir()}/${RENDER_ID}/repo`;
+
+  await cloneRepo({ url, ref, dest: repoDir });
+
+  const code = fs.readFileSync(`${repoDir}/${codePath}`, 'utf8');
+
+  return encodeProject(
+    {
+      ...projectData,
+      editor: {
+        ...projectData.editor,
+        code,
+        selectedCode: CodeSelection.custom,
+      },
+    },
+    layers,
+    isPrerender,
+    cb,
+    logs,
+    RENDER_ID,
+  );
 };

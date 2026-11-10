@@ -1,10 +1,12 @@
-import { execEncode, encodeProject } from './rendering';
+// src/ffmpeg/rendering.spec.ts
+import { execEncode, encodeProject, encodeProjectWithGit } from './rendering';
 import { genRenderCmd } from './util/genRenderCmd';
 import { getTotalTime } from './util/getTotalTime';
 import { createFFmpeg } from './util/createFFmpeg';
 import { syncMedia } from './util/syncMedia';
 import { processUserCode } from './util/processUserCode';
 import { parseCommand } from './util/parseCommand';
+import { cloneRepo } from './util/gitClone';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
@@ -15,12 +17,33 @@ jest.mock('./util/createFFmpeg');
 jest.mock('./util/syncMedia');
 jest.mock('./util/processUserCode');
 jest.mock('./util/parseCommand');
+jest.mock('./util/gitClone', () => ({ cloneRepo: jest.fn() }));
 jest.mock('fs');
 jest.mock('crypto', () => ({ randomUUID: jest.fn() }));
 jest.mock('./util/util', () => ({
   documentDir: jest.fn(() => '/tmp/docdir'),
 }));
+jest.mock('../config', () => ({
+  config: {
+    platformHost: 'http://platform.test',
+    platformAccessToken: 'tok-test',
+    publicBucket: 'public',
+    ffmpeg: { path: '/usr/bin/ffmpeg' },
+  },
+}));
 
+jest.mock('opentenant-platform', () => {
+  const getPipeline = jest.fn();
+  return {
+    Configuration: jest.fn(),
+    ValidatorApi: jest.fn().mockImplementation(() => ({
+      validatorControllerGetPipeline: getPipeline,
+    })),
+    __getPipeline: getPipeline,
+  };
+});
+
+import * as opentenant from 'opentenant-platform';
 import { CodeSelection, EditorLayer, EditorProject } from '../types';
 
 const mockGenRenderCmd = genRenderCmd as jest.Mock;
@@ -29,9 +52,9 @@ const mockCreateFFmpeg = createFFmpeg as jest.Mock;
 const mockSyncMedia = syncMedia as jest.Mock;
 const mockProcessUserCode = processUserCode as jest.Mock;
 const mockParseCommand = parseCommand as jest.Mock;
+const mockCloneRepo = cloneRepo as jest.Mock;
 const mockUUID = randomUUID as jest.Mock;
-
-// ---------- fixtures ----------
+const mockGetPipeline = (opentenant as any).__getPipeline as jest.Mock;
 
 const DOC = '/tmp/docdir';
 
@@ -81,11 +104,11 @@ beforeEach(() => {
   mockSyncMedia.mockResolvedValue('/synced/path.mp4');
   (fs.mkdirSync as jest.Mock).mockReturnValue(undefined);
   (fs.statSync as jest.Mock).mockReturnValue({ size: 12345 });
+  (fs.existsSync as jest.Mock).mockReturnValue(false);
+  (fs.readFileSync as jest.Mock).mockReturnValue('-filter_complex x');
+  mockCloneRepo.mockResolvedValue(undefined);
+  mockGetPipeline.mockResolvedValue(undefined);
 });
-
-// =====================================================================
-// execEncode
-// =====================================================================
 
 describe('execEncode', () => {
   const baseCmd = (overrides: any = {}) => ({
@@ -138,7 +161,6 @@ describe('execEncode', () => {
 
     await execEncode(cmd as any);
 
-    // exec is now called with (cmdProcessed, env) — env is a second arg
     expect(execMock).toHaveBeenCalledWith(baseCmdAfter, expect.any(Object));
   });
 
@@ -154,6 +176,32 @@ describe('execEncode', () => {
   it('returns outputPath', async () => {
     const result = await execEncode(baseCmd() as any);
     expect(result).toBe(`${DOC}/proj-1/out.mp4`);
+  });
+
+  describe('WORKSPACE_DIR env', () => {
+    it('sets WORKSPACE_DIR when the repo directory exists', async () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      const cmd = baseCmd();
+      const execMock = jest.fn().mockResolvedValue(0);
+      cmd.ffmpeg.exec = execMock;
+
+      await execEncode(cmd as any);
+
+      const env = execMock.mock.calls[0][1];
+      expect(env.WORKSPACE_DIR).toBe(`${DOC}/proj-1/repo`);
+    });
+
+    it('does not set WORKSPACE_DIR when the repo directory is missing', async () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      const cmd = baseCmd();
+      const execMock = jest.fn().mockResolvedValue(0);
+      cmd.ffmpeg.exec = execMock;
+
+      await execEncode(cmd as any);
+
+      const env = execMock.mock.calls[0][1];
+      expect(env).not.toHaveProperty('WORKSPACE_DIR');
+    });
   });
 
   describe('custom code selection', () => {
@@ -178,7 +226,6 @@ describe('execEncode', () => {
         cmd.projectData.editor.code,
       );
       expect(mockParseCommand).not.toHaveBeenCalled();
-      // exec is now called with (args, env) — env contains RENDER_ID
       expect(execMock).toHaveBeenCalledWith(['-crf', '20'], expect.any(Object));
     });
 
@@ -256,10 +303,6 @@ describe('execEncode', () => {
     });
   });
 });
-
-// =====================================================================
-// encodeProject
-// =====================================================================
 
 describe('encodeProject', () => {
   const layer = { media: [] } as unknown as EditorLayer;
@@ -372,9 +415,165 @@ describe('encodeProject', () => {
   });
 });
 
-// =====================================================================
-// exec — lifecycle and callbacks (real createFFmpeg + fake child)
-// =====================================================================
+describe('encodeProjectWithGit', () => {
+  const layer = { media: [] } as unknown as EditorLayer;
+
+  describe('falls through to encodeProject when no git source is available', () => {
+    it('when opentenant throws', async () => {
+      mockGetPipeline.mockRejectedValue(new Error('platform down'));
+
+      const result = await encodeProjectWithGit(makeProject(), [layer]);
+
+      expect(mockCloneRepo).not.toHaveBeenCalled();
+      expect(result.filename).toBe('out.mp4');
+      expect(mockGenRenderCmd).toHaveBeenCalled();
+    });
+
+    it('when opentenant returns undefined', async () => {
+      mockGetPipeline.mockResolvedValue(undefined);
+
+      await encodeProjectWithGit(makeProject(), [layer]);
+
+      expect(mockCloneRepo).not.toHaveBeenCalled();
+      expect(mockGenRenderCmd).toHaveBeenCalled();
+    });
+  });
+
+  describe('clones and reads code when a git source is returned', () => {
+    const gitSource = {
+      platform: 'gitlab.ffmpeglab',
+      repoFullName: 'org/repo',
+      ref: 'main',
+      path: 'main.cmd',
+    };
+
+    beforeEach(() => {
+      mockGetPipeline.mockResolvedValue(gitSource);
+      (fs.readFileSync as jest.Mock).mockReturnValue('-i a -i b');
+    });
+
+    it('queries opentenant with projectId and userId', async () => {
+      await encodeProjectWithGit(
+        makeProject(),
+        [layer],
+        false,
+        undefined,
+        undefined,
+        'r-1',
+        'u-1',
+      );
+
+      expect(mockGetPipeline).toHaveBeenCalledWith({
+        projectId: 'proj-1',
+        userId: 'u-1',
+      });
+    });
+
+    it('falls back to projectData.userId when userId is not passed', async () => {
+      await encodeProjectWithGit(
+        makeProject(),
+        [layer],
+        false,
+        undefined,
+        undefined,
+        'r-1',
+      );
+
+      expect(mockGetPipeline).toHaveBeenCalledWith({
+        projectId: 'proj-1',
+        userId: 'user-1',
+      });
+    });
+
+    it('clones into <scratch>/repo with the URL built from platform + repoFullName', async () => {
+      await encodeProjectWithGit(
+        makeProject(),
+        [layer],
+        false,
+        undefined,
+        undefined,
+        'r-1',
+        'u-1',
+      );
+
+      expect(mockCloneRepo).toHaveBeenCalledWith({
+        url: 'https://gitlab.ffmpeglab.com/org/repo',
+        ref: 'main',
+        dest: `${DOC}/r-1/repo`,
+      });
+    });
+
+    it('reads the code file from the cloned repo at the pipeline path', async () => {
+      await encodeProjectWithGit(
+        makeProject(),
+        [layer],
+        false,
+        undefined,
+        undefined,
+        'r-1',
+        'u-1',
+      );
+
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        `${DOC}/r-1/repo/main.cmd`,
+        'utf8',
+      );
+    });
+
+    it('passes the cloned code + selectedCode=custom into encodeProject', async () => {
+      await encodeProjectWithGit(
+        makeProject(),
+        [layer],
+        false,
+        undefined,
+        undefined,
+        'r-1',
+        'u-1',
+      );
+
+      expect(mockGenRenderCmd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'proj-1',
+          editor: expect.objectContaining({
+            code: '-i a -i b',
+            selectedCode: CodeSelection.custom,
+          }),
+        }),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('propagates clone failures', async () => {
+      mockCloneRepo.mockRejectedValue(new Error('clone failed'));
+
+      await expect(
+        encodeProjectWithGit(makeProject(), [layer]),
+      ).rejects.toThrow('clone failed');
+      expect(mockGenRenderCmd).not.toHaveBeenCalled();
+    });
+
+    it('propagates readFile failures (missing codePath in repo)', async () => {
+      (fs.readFileSync as jest.Mock).mockImplementation(() => {
+        throw new Error('ENOENT');
+      });
+
+      await expect(
+        encodeProjectWithGit(makeProject(), [layer]),
+      ).rejects.toThrow('ENOENT');
+    });
+
+    it('uses RENDER_ID from projectData.id when none is passed', async () => {
+      await encodeProjectWithGit(makeProject(), [layer]);
+
+      expect(mockCloneRepo).toHaveBeenCalledWith(
+        expect.objectContaining({ dest: `${DOC}/proj-1/repo` }),
+      );
+    });
+  });
+});
+
 describe('exec - lifecycle and callbacks (real createFFmpeg + fake child)', () => {
   const makeChild = () => {
     const child = new EventEmitter() as any;

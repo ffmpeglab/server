@@ -90,6 +90,7 @@ export class RendersService {
         key: undefined,
       })),
     }));
+    render.project.userId = userId;
     const n = await this.rendersRepository.insert({
       title: render.project.title,
       project: render.project.id,

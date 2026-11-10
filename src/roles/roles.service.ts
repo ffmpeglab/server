@@ -82,11 +82,11 @@ export class RolesService {
     createItem: CreateRoleDto,
     userId: string,
   ): Promise<Role | null> {
-    const permissionedRow = await this.validateCreate(createItem, userId)
-    
+    const permissionedRow = await this.validateCreate(createItem, userId);
+
     if (permissionedRow?.user_id !== userId) {
       throw new Error('cannot_create_permission_for_this_row');
-    };
+    }
     return await this.createRole(createItem, userId);
   }
 
