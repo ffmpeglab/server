@@ -58,11 +58,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 {{- end -}}
 
-{{/*
-Shared Deployment body.
-Call with: (dict "ctx" $ "component" "<name>" "cfg" .Values.<name>)
-No environment variable name appears here — everything comes from values.
-*/}}
+{{/* Shared Deployment body: (dict "ctx" $ "component" "<name>" "cfg" .Values.<name>). */}}
 {{- define "ffmpeglab.deployment" -}}
 {{- $ctx := .ctx -}}
 {{- $component := .component -}}
@@ -143,9 +139,9 @@ spec:
             - secretRef:
                 name: {{ $secretName }}
           {{- end }}
-          {{- if or $ctx.Values.env $cfg.env }}
+          {{- with $ctx.Values.env }}
           env:
-            {{- range $key, $value := $ctx.Values.env }}
+            {{- range $key, $value := . }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}

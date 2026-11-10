@@ -12,9 +12,6 @@ fullnameOverride: ""
 
 # Passed through verbatim; no variable name is hardcoded in the templates.
 env: {}
-  # DB_PORT: "5432"
-  # S3_REGION: "us-east-1"
-  # DOCUMENT_DIRECTORY: /tmp/ffmpeglab
 
 existingSecret: ""
 
@@ -22,8 +19,6 @@ existingSecret: ""
 secret:
   create: false
   data: {}
-    # DB_HOST: db.example.internal
-    # DB_PASSWORD: change-me
 
 # maxSurge 0: old+new side by side would exhaust the database connection cap.
 updateStrategy:
@@ -67,9 +62,7 @@ api:
     type: ClusterIP
     port: 3000
     annotations: {}
-  # readinessPath should say whether the process can do its work, not just that
-  # it is up: a pod waiting for credentials would otherwise be sent traffic.
-  # Liveness stays lenient so waiting is never mistaken for being stuck.
+  # Readiness and liveness paths can differ; see deploy/README.md.
   probes:
     enabled: true
     path: /api-json
