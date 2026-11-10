@@ -287,6 +287,8 @@ install_operator() {
 
 install_dev_vault() {
   step "Installing a dev Vault"
+  helm repo add hashicorp https://helm.releases.hashicorp.com >/dev/null 2>&1 || true
+  helm repo update hashicorp >/dev/null
   helm upgrade --install vault hashicorp/vault \
     --namespace "$DEV_VAULT_NAMESPACE" --create-namespace \
     --set "server.dev.enabled=true" \
