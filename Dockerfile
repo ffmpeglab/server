@@ -23,7 +23,7 @@ VOLUME ["/tmp/ffmpeglab"]
 
 RUN ./installnode.sh
 
-RUN apt-get update && apt-get install -y bubblewrap
+RUN apt-get update && apt-get install -y bubblewrap git
 
 # Start the application
 ENTRYPOINT ["./entrypoint.sh"]
