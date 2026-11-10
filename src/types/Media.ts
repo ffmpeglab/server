@@ -109,7 +109,18 @@ export class EditorProjectConfiguration {
   @ApiProperty({ enum: CodeSelection })
   selectedCode?: CodeSelection;
   @ApiProperty()
-  gitEnabled?: true;
+  gitRepo?: GitRepo;
+}
+
+export class GitRepo {
+  @ApiProperty()
+  ref: string;
+  @ApiProperty()
+  path: string;
+  @ApiProperty()
+  platform: string;
+  @ApiProperty()
+  repoFullName: string;
 }
 
 export class EditorProject extends Folder {

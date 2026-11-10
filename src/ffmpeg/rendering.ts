@@ -3,6 +3,7 @@ import {
   EditorLayer,
   EditorProject,
   EncoderProject,
+  GitRepo,
   Media,
   MinimalMedia,
 } from '../types';
@@ -178,28 +179,41 @@ export const encodeProjectWithGit = async (
   RENDER_ID?: string,
   userId?: string,
 ): Promise<MinimalMedia> => {
-  let gitSource: opentenant.CreatePipelineDTO | undefined;
+  let gitSource: opentenant.CreatePipelineDTO | undefined | GitRepo;
+  const projectGitConfig = projectData?.editor?.gitRepo;
 
   try {
-    const otConfig = new opentenant.Configuration({
-      basePath: config.platformHost,
-      accessToken: config.platformAccessToken,
-    });
+    // const otConfig = new opentenant.Configuration({
+    //   basePath: config.platformHost,
+    //   accessToken: config.platformAccessToken,
+    // });
 
-    const otClient = new opentenant.ValidatorApi(otConfig);
-    const gitSourceParams = {
-      projectId: projectData.id,
-      userId: userId || projectData.userId,
-    };
-    console.info({ gitSourceParams });
-    // gitSource = (await otClient.validatorControllerGetPipeline(gitSourceParams)) as unknown as opentenant.CreatePipelineDTO;
-    gitSource = (await (
-      await fetch(
-        `${config.platformHost}/validator/pipeline/${gitSourceParams.projectId}/${gitSourceParams.userId}`,
-      )
-    ).json()) as opentenant.CreatePipelineDTO;
+    // const otClient = new opentenant.ValidatorApi(otConfig);
+    try {
+      if (projectGitConfig) {
+        (
+          await fetch(
+            `https://${projectGitConfig.platform}.com/${projectGitConfig.repoFullName}`,
+          )
+        ).status === 200;
+        gitSource = projectGitConfig;
+      }
+    } catch {}
 
-    console.info({ gitSource });
+    if (!gitSource) {
+      const gitSourceParams = {
+        projectId: projectData.id,
+        userId: userId || projectData.userId,
+      };
+      console.info({ gitSourceParams });
+      // gitSource = (await otClient.validatorControllerGetPipeline(gitSourceParams)) as unknown as opentenant.CreatePipelineDTO;
+      gitSource = (await (
+        await fetch(
+          `${config.platformHost}/validator/pipeline/${gitSourceParams.projectId}/${gitSourceParams.userId}`,
+        )
+      ).json()) as opentenant.CreatePipelineDTO;
+      console.info({ gitSource });
+    }
   } catch (err) {
     console.error('git init error', err);
   }
@@ -209,8 +223,8 @@ export const encodeProjectWithGit = async (
   }
 
   if (!RENDER_ID) RENDER_ID = projectData.id;
-
-  const { ref, path: codePath, platform, repoFullName } = gitSource;
+  const ref = projectGitConfig?.ref || gitSource.ref;
+  const { path: codePath, platform, repoFullName } = gitSource;
   const url = `https://${platform}.com/${repoFullName}`;
   const repoDir = `${documentDir()}/${RENDER_ID}`;
 

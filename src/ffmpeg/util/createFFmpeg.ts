@@ -90,14 +90,10 @@ export const createFFmpeg = async (
         const workDir = documentDir() + '/' + env.RENDER_ID;
         const fullEnv = { ...env, FFMPEG_PATH: ffmpegPath };
         console.info({ ffmpegRun: cmd, dirContent: fs.readdirSync(workDir) });
-        const child = spawn(
-          bWrapPath,
-          buildBwrapArgs(workDir, cmd),
-          {
-            env: fullEnv,
-            cwd: workDir,
-          },
-        );
+        const child = spawn(bWrapPath, buildBwrapArgs(workDir, cmd), {
+          env: fullEnv,
+          cwd: workDir,
+        });
         child.stdout.on('data', (data: Buffer) => {
           // console.error('native ffmpeg logs', data.toString('utf-8'));
           if (logsCB) logsCB(data.toString('utf-8'));
