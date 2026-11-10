@@ -105,6 +105,15 @@ render:
   env:
     IS_RENDER_RUNNER: "true"
   mountDocumentDir: true
+  # ffmpeg runs inside bubblewrap, as in docker-compose.yml; replaces the global securityContext.
+  securityContext:
+    capabilities:
+      add:
+        - SYS_ADMIN
+    seccompProfile:
+      type: Unconfined
+    appArmorProfile:
+      type: Unconfined
   resources:
     requests:
       cpu: 50m

@@ -164,7 +164,7 @@ spec:
         - name: {{ $component }}
           image: {{ include "ffmpeglab.image" $ctx }}
           imagePullPolicy: {{ $ctx.Values.image.pullPolicy }}
-          {{- with $ctx.Values.securityContext }}
+          {{- with ($cfg.securityContext | default $ctx.Values.securityContext) }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
