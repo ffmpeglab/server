@@ -1,3 +1,0 @@
-{{- if .Values.file.enabled }}
-{{- include "ffmpeglab.deployment" (dict "ctx" $ "component" "file" "cfg" .Values.file) }}
-{{- end }}

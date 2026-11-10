@@ -2,7 +2,7 @@
 
 image:
   repository: ffmpeglab/server
-  tag: "0.4.1"
+  tag: "0.6.4"
   digest: ""
   pullPolicy: IfNotPresent
 
@@ -43,16 +43,13 @@ dnsWait:
   attempts: 60
   intervalSeconds: 2
 
-# Shared between render and file. See deploy/README.md.
+# Render's working directory. See deploy/README.md.
 documentDir:
   mountPath: /tmp/ffmpeglab
   persistence:
     enabled: true
     existingClaim: ""
-    # ReadWriteOnce binds on any cluster and lets render and file share the
-    # directory while they run on the same node. Spread over several nodes they
-    # need ReadWriteMany, which means NFS, EFS or Filestore - usually supplied
-    # through existingClaim.
+    # Render replicas spread over several nodes need ReadWriteMany.
     accessModes:
       - ReadWriteOnce
     size: 10Gi
@@ -119,25 +116,6 @@ render:
   affinity: {}
   podAnnotations: {}
   deploymentAnnotations: {}
-
-file:
-  enabled: true
-  replicaCount: 1
-  env:
-    IS_FILE_RUNNER: "true"
-  mountDocumentDir: true
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      memory: 256Mi
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-  podAnnotations: {}
-  deploymentAnnotations: {}
-
 
 logs:
   enabled: true

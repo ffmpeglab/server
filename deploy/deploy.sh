@@ -160,8 +160,8 @@ preflight_storage() {
 
   nodes=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
   if [ "$ACCESS_MODE" = ReadWriteOnce ] && [ "${nodes:-1}" -gt 1 ]; then
-    echo "warning: this cluster has $nodes nodes - render and file must sit on the same one" >&2
-    echo "         to hand files over. Pin both with a nodeSelector, as values-onprem.yaml does." >&2
+    echo "warning: this cluster has $nodes nodes - every render pod must sit on the node" >&2
+    echo "         that attaches the volume. Pin render with a nodeSelector, as values-onprem.yaml does." >&2
   fi
 }
 
@@ -182,7 +182,7 @@ report_stuck_pods() {
     echo "$pod cannot mount its volume:" >&2
     printf '%s\n' "$events" | sed 's/^/    /' >&2
     echo "  ReadWriteMany on block storage attaches to one node only. Use a claim backed" >&2
-    echo "  by NFS, EFS or Filestore, or keep both pods on one node with ReadWriteOnce." >&2
+    echo "  by NFS, EFS or Filestore, or keep render on one node with ReadWriteOnce." >&2
   done <<< "$pods"
 }
 

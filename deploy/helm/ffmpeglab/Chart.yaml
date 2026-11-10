@@ -1,9 +1,9 @@
 apiVersion: v2
 name: ffmpeglab
-description: FFmpegLab server — API and render, file and log runners
+description: FFmpegLab server — API, render and log runners
 type: application
-version: 0.6.3
-appVersion: "0.4.1"
+version: 0.7.0
+appVersion: "0.6.4"
 keywords:
   - ffmpeg
   - video
