@@ -2,7 +2,7 @@ import { Processor, Process } from 'nestjs-pgmq';
 import { config } from '../config';
 import type { PgmqJob } from 'nestjs-pgmq';
 import { RendersService } from './renders.service';
-import { encodeProject } from '../ffmpeg/rendering';
+import { encodeProject, encodeProjectWithGit } from '../ffmpeg/rendering';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
 import { uploadJobResult } from './uploadJobResult';
 
@@ -27,7 +27,7 @@ export class RenderProcessor {
     const render = await this.renderService.findOne(renderId, userId);
     try {
       await this.renderService.updateRenderStatus(renderId, 'rendering');
-      const encoding = await encodeProject(
+      const encoding = await encodeProjectWithGit(
         render!.data.project,
         render!.data.layers,
         false,
@@ -46,6 +46,7 @@ export class RenderProcessor {
             date: new Date().toISOString(),
           }),
         renderId,
+        userId,
       );
       await this.renderService.updateRenderStatus(renderId, 'upload');
       const result = await uploadJobResult({

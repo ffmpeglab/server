@@ -5232,6 +5232,11 @@ open@^7.4.2:
     is-docker "^2.0.0"
     is-wsl "^2.1.1"
 
+opentenant-platform@^0.5.11:
+  version "0.5.11"
+  resolved "https://registry.yarnpkg.com/opentenant-platform/-/opentenant-platform-0.5.11.tgz#a709cfe71e22cba0fbb7b56dae8e9afba4c74449"
+  integrity sha512-bs72t/bAnESha4oLcZxxFVpHbGT0HmlBHukToQNe6v4TQk9BF2oPavzTMwreUCZvstBAhebJV6YhgLxbBtSJqw==
+
 optionator@^0.9.3:
   version "0.9.4"
   resolved "https://registry.npmjs.org/optionator/-/optionator-0.9.4.tgz"

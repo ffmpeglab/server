@@ -56,11 +56,20 @@ export const config = {
   supabaseWorkerLogin: process.env.TENANT_WORKER_LOGIN as string,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY as string,
   platformHost: process.env.PLATFORM_HOST as string,
+  platformAccessToken: process.env.PLATFORM_ACCESS_TOKEN as string,
   supabaseProjectId: process.env.SUPABASE_PROJECT_ID as string,
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY as string,
   supabaseJWKUrl: process.env.SUPABASE_JWKS_URL as string,
   publicBucket: process.env.S3_PUBLIC_BUCKET_ID || 'public',
   webAppHost: process.env.WEBAPP_HOST as string,
+  git: {
+    httpsToken: process.env.GIT_HTTPS_TOKEN as string,
+    cloneTimeoutMs: parseInt(process.env.GIT_CLONE_TIMEOUT_MS || '300000', 10),
+    maxRepoBytes: parseInt(
+      process.env.GIT_MAX_REPO_BYTES || String(500 * 1024 * 1024),
+      10,
+    ),
+  },
 };
 
 export const supabaseEnv = {

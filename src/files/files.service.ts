@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import {
-  PutObjectCommand,
-  GetObjectCommand,
-  ListObjectsCommand,
-} from '@aws-sdk/client-s3';
+import { GetObjectCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
 import { config } from '../config';
-import { getMimeType } from './mime-utils';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createS3Client } from '../s3client';
 
