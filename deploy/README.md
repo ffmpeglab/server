@@ -5,7 +5,7 @@ touched, and none of it is required to run the project with Docker Compose.
 
 ```
 deploy/
-├── helm/ffmpeglab/      the application: API, render, file and log runners
+├── helm/ffmpeglab/      the application: API, render and log runners
 ├── vso/                 Vault Secrets Operator, and the shape of a tenant record
 └── values-onprem.yaml   the storage class and nodes of the cluster you deploy to
 ```
@@ -22,13 +22,12 @@ under [Local](#local) and [On-prem](#on-prem) below.
 
 ## What runs
 
-One container image, four roles, chosen by environment variable:
+One container image, three roles, chosen by environment variable:
 
 | Component | Variable | Does |
 |-----------|----------|------|
 | api | none | HTTP API on port 3000, the only component with a port |
-| render | `IS_RENDER_RUNNER=true` | runs ffmpeg, writes output to the document directory |
-| file | `IS_FILE_RUNNER=true` | reads that directory, uploads to object storage |
+| render | `IS_RENDER_RUNNER=true` | runs ffmpeg in a bubblewrap sandbox, uploads the result to object storage |
 | logs | `IS_LOGS_RUNNER=true` | collects render logs |
 
 Work passes through pgmq queues inside Postgres. The runners poll; there is no
@@ -41,7 +40,7 @@ chart knows nothing about tenants and simply takes its credentials from a Secret
 ## Where this sits
 
 ```
-  ffmpeglab/platform                     ffmpeglab/server  ← you are here
+  opentenant/platform                    ffmpeglab/server  ← you are here
   ──────────────────                     ────────────────
   creates tenants                        deploys the application
   writes their records into Vault        into a cluster that already exists
@@ -54,10 +53,10 @@ chart knows nothing about tenants and simply takes its credentials from a Secret
         └──────────┘   reads at runtime    └──────────────────┘
                                                    │ writes
                                                    ▼
-                                            Kubernetes Secret
-                                                   │ envFrom
-                                                   ▼
-                                      api · render · file · logs
+                                            Kubernetes Secret ◀── Reloader watches
+                                                   │ envFrom         │ rolls on change
+                                                   ▼                 ▼
+                                             api · render · logs
 ```
 
 Nothing on the deploying side carries a credential: `deploy/.env` names the Vault
@@ -67,7 +66,7 @@ the platform — it writes the record into its own dev Vault first.
 
 ## What this deploys, and what it does not
 
-One release is one FFmpegLab instance: an API and three runners, all pointing at
+One release is one FFmpegLab instance: an API and two runners, all pointing at
 one Postgres and one object store.
 
 Credentials come from Vault and only from Vault: the operator reads the tenant
@@ -103,7 +102,9 @@ address, the role and the tenant path are repository variables.
 
 Plus a Postgres the cluster can reach — FFmpegLab does not deploy one. On-prem
 also needs the Vault Secrets Operator in the cluster, see [vso/](vso/);
-the local run installs it itself.
+the local run installs it itself. Both modes install
+[Stakater Reloader](https://github.com/stakater/Reloader) unless one already runs
+in the cluster, see [Secret rotation](#secret-rotation).
 
 On-prem targets any conformant cluster — k0s, kubeadm, MicroK8s, a managed one.
 The chart needs no change between them, but their defaults differ in what they
@@ -133,6 +134,9 @@ writes it into the cluster; `deploy/.env` only says where to look:
 | `DOCUMENT_ACCESS_MODE` | no | `ReadWriteOnce` by default, `ReadWriteMany` for several nodes |
 | `DOCUMENT_STORAGE_CLASS` | no | the cluster default when empty |
 | `DOCUMENT_EXISTING_CLAIM` | multi-node | a claim you already have; overrides the two above |
+| `RELOADER_INSTALL` | no | `true` by default; `false` leaves Reloader to you |
+| `RELOADER_NAMESPACE` | no | `reloader` by default |
+| `RELOADER_CHART_VERSION` | no | `stakater/reloader` chart version, `2.2.19` by default |
 
 The tenant record's own fields are listed in [vso/](vso/).
 
@@ -147,8 +151,8 @@ address and no A record.
 ```
 
 This stands up everything the deployment needs and requires nothing prepared: a
-three-node k3s cluster in Docker, a dev Vault, the secrets operator, and a
-tenant record written into Vault. Credentials still reach the pods through the
+three-node k3s cluster in Docker, a dev Vault, the secrets operator, Reloader,
+and a tenant record written into Vault. Credentials still reach the pods through the
 operator, so the local run exercises the same path as a real one.
 
 The record's values come from `deploy/tenant.local.env`, or from `deploy/.env`
@@ -182,6 +186,15 @@ helm install vault hashicorp/vault \
   --set injector.enabled=false --wait
 
 kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=3m
+```
+
+Reloader, which is what rolls the pods when the Secret changes:
+
+```bash
+helm repo add stakater https://stakater.github.io/stakater-charts
+helm upgrade --install reloader stakater/reloader --version 2.2.19 \
+  --namespace reloader --create-namespace --wait
+```
 
 ## On-prem
 
@@ -195,7 +208,8 @@ kubectl config current-context
 
 ### By hand
 
-The operator resources, then the release. Nothing here carries a credential —
+Reloader as under [Local](#by-hand) if the cluster has none, then the operator
+resources, then the release. Nothing here carries a credential —
 `vault-secret.yaml` holds a reference, and the operator does the reading:
 
 ```bash
@@ -270,19 +284,18 @@ container.
 
 ### The document volume
 
-render writes the finished file into the document directory and the file runner
-reads it back, so both mount one claim. `deploy.sh` asks for `ReadWriteOnce`,
-which every storage class can bind and which both pods share while they run on
-the same node.
+render works in the document directory and uploads the result from there itself,
+so it is the only component that mounts the claim. `deploy.sh` asks for
+`ReadWriteOnce`, which every storage class can bind.
 
 More than one node does not force `ReadWriteMany`. A volume bound to a node
-carries that affinity and the scheduler puts every pod mounting it on that node,
-so the two runners land together on their own. Pin them with a `nodeSelector`
-where that has to be certain — `deploy/values-onprem.yaml` does, alongside the
-cluster's storage class.
+carries that affinity and the scheduler puts every render pod on that node. Pin
+render with a `nodeSelector` where that has to be certain —
+`deploy/values-onprem.yaml` does, alongside the cluster's storage class.
 
-`ReadWriteMany` is only needed when the runners are spread deliberately, and no
-default class provides it, so supply the volume yourself — NFS, EFS or Filestore:
+`ReadWriteMany` is only needed when render replicas are spread over several
+nodes, and no default class provides it, so supply the volume yourself — NFS,
+EFS or Filestore:
 
 ```bash
 # in deploy/.env
@@ -305,6 +318,38 @@ helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
   --set documentDir.persistence.accessModes[0]=ReadWriteOnce \
   --set documentDir.persistence.storageClass=<class>
 ```
+
+### Render privileges
+
+ffmpeg runs inside [bubblewrap](https://github.com/containers/bubblewrap), and
+`entrypoint.sh` mounts a `proc` for it. Like `render-runner` in
+`docker-compose.yml`, the render container gets `SYS_ADMIN` and unconfined
+seccomp and AppArmor profiles; api and logs get none of that. A cluster whose
+Pod Security admission enforces `baseline` or `restricted` on the namespace
+rejects the render pod — label the namespace `privileged`, or override
+`render.securityContext` if your runtime sandboxes differently.
+`appArmorProfile` needs Kubernetes 1.30 or newer.
+
+## Secret rotation
+
+Credentials reach the pods through `envFrom`, which a process reads once at
+start, so a rotated credential needs new pods:
+
+1. Vault holds the new value.
+2. The operator rewrites the Secret on its next refresh — VSO here
+   (`VAULT_REFRESH`), ESO in the platform's cloud tenants.
+3. Reloader sees the Secret change and rolls every Deployment that carries
+   `reloader.stakater.com/auto: "true"` and reads that Secret.
+
+Nothing runs `helm upgrade` for a rotation, and no credential value passes
+through Helm values or Terraform state: the chart only names the Secret. The
+annotation comes from `deploymentAnnotations` in the chart, merged with each
+component's own `deploymentAnnotations`; a component can switch it off with
+`reloader.stakater.com/auto: "false"`. It sits on the Deployment, not the pod
+template, because that is where Reloader looks.
+
+Without a running Reloader the annotation does nothing and pods keep the old
+credential until they restart for another reason.
 
 ## Image versions
 
@@ -340,7 +385,7 @@ kubectl port-forward -n ffmpeglab svc/ffmpeglab-api 3000:3000 &
 curl -i http://localhost:3000/
 ```
 
-Four Deployments should be `1/1`.
+Three Deployments should be `1/1`.
 
 A running pod proves the process started, not that ffmpeg works. `example.sh` in
 the repository root submits a render, polls it and prints the result. It needs an
@@ -359,9 +404,8 @@ API_HOST=http://localhost:3000 API_KEY=ffmpeglab_sk_local bash example.sh
 kubectl logs -n ffmpeglab -l app.kubernetes.io/component=render -f
 ```
 
-The file runner uploads the result, and that is the last step. A render that
-finishes without an upload means that component is not running or has no storage
-configured.
+render uploads the result itself, and that is the last step. A render that
+finishes without an upload means the tenant record has no working object storage.
 
 ### Editing the chart
 
@@ -431,10 +475,10 @@ kubectl logs -n ffmpeglab <pod> -c wait-for-dns
 A Supabase project answers only through its pooler host. `db.<ref>.supabase.co`
 has an IPv6 address and no A record, so nothing in a cluster reaches it.
 
-### Only render and file are Pending
+### Only render is Pending
 
-Those two are the only pods mounting the document volume, so an unbound claim
-stops exactly them while api and logs keep running:
+render is the only pod mounting the document volume, so an unbound claim stops
+exactly it while api and logs keep running:
 
 ```bash
 kubectl get pvc -n ffmpeglab
@@ -454,8 +498,8 @@ or `DOCUMENT_EXISTING_CLAIM` for a volume backed by NFS, EFS or Filestore.
 kubectl describe node | grep -A5 "Allocated resources"
 ```
 
-`Insufficient cpu` means the node is full. Three instances of four components fit
-on a two vCPU node with about 500m to spare; a fourth does not.
+`Insufficient cpu` means the node is full. Each component requests 50m CPU and
+128Mi memory by default.
 
 ### The rollout reports success but nothing works
 
@@ -467,4 +511,3 @@ availability budget, so `helm --wait` returns immediately with zero ready pods.
 
 Restarting a local cluster hands out a new API server port. `kubectl` follows the
 kubeconfig; GUI clients keep the old connection until reconnected.
-
