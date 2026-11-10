@@ -77,6 +77,15 @@ function buildBwrapArgs(scratchDir: string, cmd: string[]): string[] {
     ...cmd,
   ];
 }
+
+function listDir(dir: string): string[] | string {
+  try {
+    return fs.readdirSync(dir);
+  } catch (e) {
+    return `cannot read ${dir}: ${(e as NodeJS.ErrnoException).code ?? String(e)}`;
+  }
+}
+
 export const createFFmpeg = async (
   cb?: CBProgressCallback,
   logsCB?: LogsProgressCallback,
@@ -89,7 +98,7 @@ export const createFFmpeg = async (
       return await new Promise((resolve, reject) => {
         const workDir = documentDir() + '/' + env.RENDER_ID;
         const fullEnv = { ...env, FFMPEG_PATH: ffmpegPath };
-        console.info({ ffmpegRun: cmd, dirContent: fs.readdirSync(workDir) });
+        console.info({ ffmpegRun: cmd, dirContent: listDir(workDir) });
         const child = spawn(
           bWrapPath,
           buildBwrapArgs(workDir, cmd),
