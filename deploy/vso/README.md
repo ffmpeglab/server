@@ -14,9 +14,34 @@ helm install vault-secrets-operator hashicorp/vault-secrets-operator \
   --set defaultVaultConnection.address=https://<your vault>
 ```
 
-Then set `VAULT_ADDR`, `VAULT_ROLE` and `TENANT_PATH` in `deploy/.env` and run
-`./deploy/deploy.sh on-prem`. It applies `vault-secret.yaml` for the release, waits for
-the Secret to appear, and installs the chart against it.
+[Stakater Reloader](https://github.com/stakater/Reloader) rolls the Deployments
+when the operator rewrites the Secret; skip it if the cluster already runs one:
+
+```bash
+helm repo add stakater https://stakater.github.io/stakater-charts
+helm upgrade --install reloader stakater/reloader --version 2.2.19 \
+  --namespace reloader --create-namespace
+```
+
+Then the operator resources for the release, and the chart against the Secret
+they produce:
+
+```bash
+VSO_NAMESPACE=ffmpeglab VSO_RELEASE=ffmpeglab \
+VSO_METHOD=kubernetes VSO_MOUNT=kubernetes VSO_ROLE=ffmpeglab \
+VSO_SECRET_MOUNT=secret VSO_PATH=tenants/<userId>/<projectId> VSO_REFRESH=60s \
+  envsubst < deploy/vso/vault-secret.yaml | kubectl apply -f -
+
+kubectl wait --for=condition=SecretSynced --timeout=2m \
+  -n ffmpeglab vaultstaticsecret/ffmpeglab
+
+helm upgrade --install ffmpeglab deploy/helm/ffmpeglab \
+  --namespace ffmpeglab --set existingSecret=ffmpeglab-credentials
+```
+
+render runs ffmpeg in bubblewrap and gets `SYS_ADMIN` with unconfined seccomp and
+AppArmor, like `render-runner` in `docker-compose.yml`; a namespace enforcing the
+`baseline` or `restricted` Pod Security level rejects it.
 
 The operator asks for 100m CPU and 128Mi.
 
@@ -106,5 +131,5 @@ vault write auth/jwt/role/ffmpeglab \
 `bound_claims` is a map, so it has to arrive as JSON in single quotes —
 `bound_claims=sub=…` is rejected with `expected a map, got 'string'`.
 
-Set `VAULT_METHOD=jwt` and `VAULT_MOUNT=jwt` in `deploy/.env` for this. Each
+Set `VSO_METHOD=jwt` and `VSO_MOUNT=jwt` for this. Each
 cluster has its own signing key, and a recreated cluster mints a new one.
