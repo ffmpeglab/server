@@ -20,6 +20,8 @@ readonly K3D_AGENTS="${K3D_AGENTS:-2}"
 readonly DEV_VAULT_NAMESPACE=vault
 readonly DEV_VAULT_ADDR="http://vault.vault.svc.cluster.local:8200"
 readonly TENANT_FILE="$ROOT/deploy/tenant.local.env"
+readonly RELOADER_NAMESPACE="${RELOADER_NAMESPACE:-reloader}"
+readonly RELOADER_CHART_VERSION="${RELOADER_CHART_VERSION:-2.2.19}"
 ACCESS_MODE=ReadWriteOnce
 CLAIM_CLASS=""
 
@@ -302,6 +304,34 @@ install_dev_vault() {
     --serviceaccount="$DEV_VAULT_NAMESPACE:vault" >/dev/null 2>&1 || true
 }
 
+install_reloader() {
+  if [ "${RELOADER_INSTALL:-true}" = false ]; then
+    echo "Reloader: skipped (RELOADER_INSTALL=false), a rotated Secret will not roll the pods"
+    return 0
+  fi
+
+  # Upgrade our own release; leave one installed by someone else alone.
+  if ! helm status reloader -n "$RELOADER_NAMESPACE" >/dev/null 2>&1; then
+    local images
+    images=$(kubectl get deployments -A -o jsonpath='{..containers[*].image}' 2>/dev/null) || {
+      echo "warning: cannot list Deployments to look for Reloader - install it yourself, see deploy/README.md" >&2
+      return 0
+    }
+    if printf '%s' "$images" | grep -q 'stakater/reloader'; then
+      echo "Reloader: already running in this cluster, not managed here"
+      return 0
+    fi
+  fi
+
+  step "Installing Reloader $RELOADER_CHART_VERSION"
+  helm repo add stakater https://stakater.github.io/stakater-charts >/dev/null 2>&1 || true
+  helm repo update stakater >/dev/null
+  helm upgrade --install reloader stakater/reloader \
+    --version "$RELOADER_CHART_VERSION" \
+    --namespace "$RELOADER_NAMESPACE" --create-namespace \
+    --wait --timeout 5m >/dev/null
+}
+
 vault_do() {
   kubectl exec -n "$DEV_VAULT_NAMESPACE" vault-0 -- \
     env VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root sh -c "$1"
@@ -327,7 +357,7 @@ import json, os, re, sys
 # Everything that configures the deployment rather than the application. What
 # is left is the tenant's own, and that is what the platform would have written.
 SKIP = re.compile(r'^(VAULT_|TENANT_PATH$|IMAGE_TAG$|DOCUMENT_|LOCAL_CLUSTER$'
-                  r'|K3D_|MINIKUBE_|FFMPEGLAB_)')
+                  r'|K3D_|MINIKUBE_|FFMPEGLAB_|RELOADER_)')
 
 def read(path):
     out = {}
@@ -377,6 +407,7 @@ local_up() {
   # Vault first: the operator checks its default connection on install.
   install_dev_vault
   install_operator
+  install_reloader
   seed_dev_vault
 
   step "Installing the chart"
@@ -429,6 +460,7 @@ onprem_up() {
 
   read_claim_spec "${storage[@]}"
   preflight_storage
+  install_reloader
 
   step "Installing the chart"
   install_chart "${storage[@]}"
