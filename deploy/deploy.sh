@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Deploys FFmpegLab into a Kubernetes cluster.
+# Deploys the FFmpegLab server into a Kubernetes cluster.
 #
 #   ./deploy/deploy.sh local              k3s in Docker, with an operator and a dev Vault
 #   ./deploy/deploy.sh on-prem            a cluster your kubeconfig already points at
@@ -85,7 +85,7 @@ resolve_digest() {
   esac
 }
 
-readonly RWX_PROVISIONERS='efs\.csi\.aws\.com|filestore\.csi\.storage\.gke\.io|file\.csi\.azure\.com|nfs|cephfs|glusterfs|quobyte|azure-file|portworx'
+readonly RWX_PROVISIONERS='nfs|cephfs|glusterfs|quobyte|portworx'
 
 default_storage_class() {
   kubectl get storageclass -o json 2>/dev/null | python3 -c '
@@ -157,7 +157,7 @@ preflight_storage() {
 
   if [ "$ACCESS_MODE" = ReadWriteMany ] && ! printf '%s' "$provisioner" | grep -qiE "$RWX_PROVISIONERS"; then
     echo "warning: $provisioner is not known to provide ReadWriteMany - the claim may stay Pending" >&2
-    echo "         set DOCUMENT_EXISTING_CLAIM to a volume backed by NFS, EFS or Filestore" >&2
+    echo "         set DOCUMENT_EXISTING_CLAIM to a volume backed by NFS or CephFS" >&2
   fi
 
   nodes=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
@@ -184,7 +184,7 @@ report_stuck_pods() {
     echo "$pod cannot mount its volume:" >&2
     printf '%s\n' "$events" | sed 's/^/    /' >&2
     echo "  ReadWriteMany on block storage attaches to one node only. Use a claim backed" >&2
-    echo "  by NFS, EFS or Filestore, or keep render on one node with ReadWriteOnce." >&2
+    echo "  by NFS or CephFS, or keep render on one node with ReadWriteOnce." >&2
   done <<< "$pods"
 }
 
@@ -356,8 +356,7 @@ EOF' >/dev/null
   json=$(python3 - "$TENANT_FILE" "$ROOT/deploy/.env" <<'PYEOF'
 import json, os, re, sys
 
-# Everything that configures the deployment rather than the application. What
-# is left is the tenant's own, and that is what the platform would have written.
+# Deployment settings, not part of the tenant record.
 SKIP = re.compile(r'^(VAULT_|TENANT_PATH$|IMAGE_TAG$|DOCUMENT_|LOCAL_CLUSTER$'
                   r'|K3D_|MINIKUBE_|FFMPEGLAB_|RELOADER_)')
 

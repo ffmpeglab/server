@@ -1,6 +1,4 @@
-# Applied by ./deploy/deploy.sh on-prem, on top of the chart defaults.
-# Replace the storage class and the hostname with the ones your cluster uses.
-# Render is pinned to the node that carries the ReadWriteOnce disk.
+# Applied by ./deploy/deploy.sh on-prem; see deploy/README.md.
 
 documentDir:
   persistence:

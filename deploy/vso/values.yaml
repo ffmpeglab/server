@@ -5,8 +5,7 @@ defaultVaultConnection:
   # Passed at install time so the address is not committed here.
   address: ""
 
-# The operator reconciles a handful of secrets on a small cluster, so it is
-# sized well below the chart default. Raise it if tenant count grows.
+# Below the chart default: one release syncs one Secret.
 controller:
   manager:
     resources:
