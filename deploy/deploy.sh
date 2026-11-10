@@ -248,7 +248,7 @@ show_status() {
 
 Reach the API:
   kubectl port-forward -n $NAMESPACE svc/$RELEASE-api 3000:3000
-  curl http://localhost:3000/
+  curl http://localhost:3000/api-json
 
 Logs:
   kubectl logs -n $NAMESPACE -l app.kubernetes.io/component=render --tail=50

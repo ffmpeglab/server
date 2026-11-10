@@ -72,7 +72,7 @@ api:
   # Liveness stays lenient so waiting is never mistaken for being stuck.
   probes:
     enabled: true
-    path: /
+    path: /api-json
     readinessPath: ""
     livenessPath: ""
     initialDelaySeconds: 20

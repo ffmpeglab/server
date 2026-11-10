@@ -382,7 +382,7 @@ kubectl get deployments -n ffmpeglab
 kubectl get svc -n ffmpeglab
 
 kubectl port-forward -n ffmpeglab svc/ffmpeglab-api 3000:3000 &
-curl -i http://localhost:3000/
+curl -i http://localhost:3000/api-json
 ```
 
 Three Deployments should be `1/1`.
