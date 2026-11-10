@@ -1,8 +1,4 @@
-# Requirement 2 of issue #8: a published release deploys to production.
-#
-# The runner holds no Vault credentials. The secrets operator authenticates as
-# the cluster and reads the tenant record itself, so all this needs is a way to
-# reach the cluster.
+# A published release deploys to production (#8); see deploy/README.md.
 
 name: deploy
 
@@ -39,16 +35,20 @@ jobs:
 
       - name: Resolve the tag
         id: tag
+        env:
+          INPUT_TAG: ${{ inputs.image_tag }}
         run: |
-          tag="${{ inputs.image_tag }}"
+          tag="$INPUT_TAG"
           # docker.yml tags images with the semver, so v0.4.3 publishes as 0.4.3.
           [ -n "$tag" ] || tag="${GITHUB_REF_NAME#v}"
           echo "value=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Wait for the image
         # The image builds on the tag push, which races the release event.
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
-          tag='${{ steps.tag.outputs.value }}'
+          tag="$TAG"
           for _ in $(seq 1 40); do
             if curl -sfo /dev/null "https://hub.docker.com/v2/repositories/ffmpeglab/server/tags/$tag"; then
               echo "ffmpeglab/server:$tag is published"
@@ -67,13 +67,17 @@ jobs:
           sudo apt-get install -y gettext-base
 
       - name: Reach the cluster
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
         run: |
           mkdir -p ~/.kube
-          printf '%s' '${{ secrets.KUBECONFIG }}' > ~/.kube/config
+          printf '%s' "$KUBECONFIG_DATA" > ~/.kube/config
           chmod 600 ~/.kube/config
           kubectl version -o json >/dev/null
 
       - name: Configure the release
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
           cat > deploy/.env <<EOF
           VAULT_ADDR=${{ vars.VAULT_ADDR }}
@@ -81,7 +85,7 @@ jobs:
           TENANT_PATH=${{ vars.TENANT_PATH }}
           VAULT_METHOD=${{ vars.VAULT_METHOD || 'jwt' }}
           VAULT_MOUNT=${{ vars.VAULT_MOUNT || 'jwt' }}
-          IMAGE_TAG=${{ steps.tag.outputs.value }}
+          IMAGE_TAG=$TAG
           DOCUMENT_ACCESS_MODE=${{ vars.DOCUMENT_ACCESS_MODE }}
           DOCUMENT_STORAGE_CLASS=${{ vars.DOCUMENT_STORAGE_CLASS }}
           DOCUMENT_EXISTING_CLAIM=${{ vars.DOCUMENT_EXISTING_CLAIM }}
