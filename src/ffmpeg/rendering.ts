@@ -212,7 +212,7 @@ export const encodeProjectWithGit = async (
 
   const { ref, path: codePath, platform, repoFullName } = gitSource;
   const url = `https://${platform}.com/${repoFullName}`;
-  const repoDir = `${documentDir()}/${RENDER_ID}/repo`;
+  const repoDir = `${documentDir()}/${RENDER_ID}`;
 
   await cloneRepo({ url, ref, dest: repoDir });
 
