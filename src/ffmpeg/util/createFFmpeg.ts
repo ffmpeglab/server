@@ -89,7 +89,7 @@ export const createFFmpeg = async (
       return await new Promise((resolve, reject) => {
         const workDir = documentDir() + '/' + env.RENDER_ID;
         const fullEnv = { ...env, FFMPEG_PATH: ffmpegPath };
-        console.info({ ffmpegRun: cmd });
+        console.info({ ffmpegRun: cmd, dirContent: fs.readdirSync(workDir) });
         const child = spawn(
           bWrapPath,
           buildBwrapArgs(workDir, cmd),
