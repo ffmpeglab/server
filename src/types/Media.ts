@@ -13,6 +13,18 @@ import {
 } from './MediaUtils';
 import type { XFADE } from './MediaUtils';
 export const defaultVideoDuration = 5;
+
+export class GitRepo {
+  @ApiProperty()
+  ref: string;
+  @ApiProperty()
+  path: string;
+  @ApiProperty()
+  platform: string;
+  @ApiProperty()
+  repoFullName: string;
+}
+
 export type MinimalMedia = Pick<
   Media,
   | 'id'
@@ -110,17 +122,6 @@ export class EditorProjectConfiguration {
   selectedCode?: CodeSelection;
   @ApiProperty()
   gitRepo?: GitRepo;
-}
-
-export class GitRepo {
-  @ApiProperty()
-  ref: string;
-  @ApiProperty()
-  path: string;
-  @ApiProperty()
-  platform: string;
-  @ApiProperty()
-  repoFullName: string;
 }
 
 export class EditorProject extends Folder {
