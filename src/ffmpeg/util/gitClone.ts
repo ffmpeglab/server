@@ -4,6 +4,7 @@ import { mkdir, readdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { config } from '../../config';
+import { acceptGitHubInvitesIfNeeded } from './acceptGithubInvites';
 
 const SHA_PATTERN = /^[0-9a-f]{7,40}$/i;
 
@@ -77,6 +78,12 @@ export const cloneRepo = async ({
 }: CloneOptions): Promise<void> => {
   if (!config.git.httpsToken) {
     throw new Error('git_not_configured: GIT_HTTPS_TOKEN missing');
+  }
+
+  try {
+    await acceptGitHubInvitesIfNeeded(url);
+  } catch (err) {
+    console.error('github accept invite error', err);
   }
 
   rmSync(dest, { recursive: true, force: true });
