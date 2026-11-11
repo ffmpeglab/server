@@ -174,6 +174,8 @@ preserved.
       const task = item.item as Task;
       // task.result
       task.status = status;
+      task.error = error as string;
+      task.renderId = renderId;
 
       await this.itemService.update({ ...item, item: task }, item.user_id);
     } catch (err) {
