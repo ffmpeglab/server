@@ -1427,6 +1427,11 @@
   resolved "https://registry.yarnpkg.com/@microsoft/tsdoc/-/tsdoc-0.16.0.tgz#2249090633e04063176863a050c8f0808d2b6d2b"
   integrity sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA==
 
+"@mozilla-ai/otari@^0.6.0":
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/@mozilla-ai/otari/-/otari-0.6.0.tgz#9f50e5eeb6dbcb635064e619bb1399b358aa0411"
+  integrity sha512-YmTLLVaoDbc8IlqCKNM1loWRli7dP3in7Vl085Xn9qH0s2FhA9B10EZKmjqDW9K4TDq9C27vQdiSTkS2QQqObw==
+
 "@napi-rs/wasm-runtime@^1.1.4":
   version "1.1.6"
   resolved "https://registry.yarnpkg.com/@napi-rs/wasm-runtime/-/wasm-runtime-1.1.6.tgz#ed33806d0f9be98dc76d0c3d4fd872fda701b5d5"

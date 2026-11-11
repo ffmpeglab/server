@@ -190,12 +190,16 @@ export class EncoderProjectEncoding {
   @ApiProperty()
   backgroundColor?: string;
 }
+
 export class EncoderProject extends Media {
   @ApiProperty({ type: EncoderProjectEncoding })
   encoding: EncoderProjectEncoding;
+  @ApiProperty()
   key?: string;
+  @ApiProperty()
   bucket?: string;
 }
+
 export class EditorLayer extends Folder {
   @ApiProperty()
   isEditorLayer?: boolean;

@@ -233,11 +233,7 @@ describe('RenderProcessor', () => {
       await expect(processor.handleRender(job())).resolves.toBeUndefined();
     });
 
-    it('marks error when uploadJobResult returns undefined (current behavior)', async () => {
-      // ⚠️ Current code: `if (result?.id) updateMediaResult else updateRenderStatus('error')`
-      // followed by an UNCONDITIONAL `updateRenderStatus('done')`. The final
-      // 'done' overwrites the 'error'. This test pins the current behavior
-      // so a future fix (early return on `!result?.id`) breaks it loudly.
+    it('marks error (NOT done) when uploadJobResult returns undefined — bug fixed', async () => {
       const order: string[] = [];
       renderService.updateRenderStatus.mockImplementation(async (_i, s) => {
         order.push(`status:${s}`);
@@ -249,8 +245,8 @@ describe('RenderProcessor', () => {
       expect(order.filter((e) => e !== 'status:rendering')).toEqual([
         'status:upload',
         'status:error',
-        'status:done', // ← the bug
       ]);
+      expect(renderService.updateMediaResult).not.toHaveBeenCalled();
     });
 
     it('marks error when render is null (findOne returned nothing)', async () => {

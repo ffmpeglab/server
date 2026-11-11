@@ -80,3 +80,24 @@ services:
     networks:
       - isolated
       - public
+  task-runner:
+    restart: unless-stopped
+    depends_on:
+      - api
+    image: ffmpeglab/server
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PORT=${DB_PORT}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - GIT_HTTPS_TOKEN=${GIT_HTTPS_TOKEN}
+      - GIT_CLONE_TIMEOUT_MS=300000
+      - GIT_MAX_REPO_BYTES=524288000
+      - PLATFORM_HOST=${PLATFORM_HOST}
+      - PLATFORM_ACCESS_TOKEN=${PLATFORM_ACCESS_TOKEN}
+      - OTARI_API_KEY=${OTARI_API_KEY}
+      - IS_TASK_RUNNER=true
+    networks:
+      - isolated
+      - public

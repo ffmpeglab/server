@@ -25,9 +25,11 @@ export const config = {
       password: process.env.QUEUE_DB_PASSWORD,
       database: process.env.QUEUE_DB_NAME,
     },
+    task: process.env.TASK_QUEUE || 'task',
     name: process.env.RENDER_QUEUE || 'render',
     logs: process.env.LOGS_QUEUE || 'logs',
     file: process.env.FILE_QUEUE || 'file',
+    isTaskRunner: process.env.IS_TASK_RUNNER === 'true' ? true : false,
     isRenderRunner: process.env.IS_RENDER_RUNNER === 'true' ? true : false,
     isLogsRunner: process.env.IS_LOGS_RUNNER === 'true' ? true : false,
     isFileRunner: process.env.IS_FILE_RUNNER === 'true' ? true : false,
@@ -62,6 +64,11 @@ export const config = {
   supabaseJWKUrl: process.env.SUPABASE_JWKS_URL as string,
   publicBucket: process.env.S3_PUBLIC_BUCKET_ID || 'public',
   webAppHost: process.env.WEBAPP_HOST as string,
+  otariApiKey: process.env.OTARI_API_KEY as string,
+  otariHost: process.env.OTARI_HOST || 'https://eu.api.otari.ai',
+  otariSystemPrompt:
+    process.env.OTARI_SYSTEM_PROMPT ||
+    'output only a git patch file which can be directly applied to the repo, without anything else',
   git: {
     httpsToken: process.env.GIT_HTTPS_TOKEN as string,
     cloneTimeoutMs: parseInt(process.env.GIT_CLONE_TIMEOUT_MS || '300000', 10),

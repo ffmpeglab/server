@@ -12,7 +12,10 @@ export class RenderProcessor {
     private readonly renderService: RendersService,
     @InjectQueue(config.queue.logs)
     private readonly logsQueue: PgmqQueue,
+    @InjectQueue(config.queue.task)
+    private readonly taskQueue: PgmqQueue,
   ) {}
+
   @Process('render')
   async handleRender(
     job: PgmqJob<{
@@ -21,12 +24,16 @@ export class RenderProcessor {
       bucket?: string;
       outputPath?: string;
       runId?: string;
+      taskId?: string;
     }>,
   ) {
-    const { renderId, userId, bucket, outputPath, runId } = job.message.data;
+    const { renderId, userId, bucket, outputPath, runId, taskId } =
+      job.message.data;
     const render = await this.renderService.findOne(renderId, userId);
+
     try {
       await this.renderService.updateRenderStatus(renderId, 'rendering');
+
       const encoding = await encodeProjectWithGit(
         render!.data.project,
         render!.data.layers,
@@ -48,6 +55,7 @@ export class RenderProcessor {
         renderId,
         userId,
       );
+
       await this.renderService.updateRenderStatus(renderId, 'upload');
       const result = await uploadJobResult({
         renderId,
@@ -58,16 +66,39 @@ export class RenderProcessor {
         runId,
       });
 
-      if (result?.id)
-        await this.renderService.updateMediaResult(job.message.data.renderId, {
+      if (result?.id) {
+        await this.renderService.updateMediaResult(renderId, {
           ...result,
-          userId: job.message.data.userId,
+          userId,
         });
-      else await this.renderService.updateRenderStatus(renderId, 'error');
+        await this.renderService.updateRenderStatus(renderId, 'done');
 
-      await this.renderService.updateRenderStatus(renderId, 'done');
+        if (taskId) {
+          await this.taskQueue.add('task-complete', {
+            taskId,
+            userId,
+            renderId,
+            status: 'done',
+            media: result,
+            date: new Date().toISOString(),
+          });
+        }
+      } else {
+        await this.renderService.updateRenderStatus(renderId, 'error');
+
+        if (taskId) {
+          await this.taskQueue.add('task-complete', {
+            taskId,
+            userId,
+            renderId,
+            status: 'error',
+            error: 'upload_failed',
+            date: new Date().toISOString(),
+          });
+        }
+      }
     } catch (err) {
-      console.error('rnder failed', renderId, err);
+      console.error('render failed', renderId, err);
 
       this.logsQueue.add('logs', {
         renderId,
@@ -77,6 +108,17 @@ export class RenderProcessor {
       });
 
       await this.renderService.updateRenderStatus(renderId, 'error');
+
+      if (taskId) {
+        await this.taskQueue.add('task-complete', {
+          taskId,
+          userId,
+          renderId,
+          status: 'error',
+          error: (err as Error)?.message ?? String(err),
+          date: new Date().toISOString(),
+        });
+      }
     }
   }
 }

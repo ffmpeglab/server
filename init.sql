@@ -112,3 +112,5 @@ CREATE INDEX "IDX_role_user_id"    ON "role" ("user_id");
 CREATE INDEX "IDX_role_permission" ON "role" ("permission");
 CREATE INDEX "IDX_role_created"    ON "role" ("created");
 CREATE INDEX "IDX_role_updated"    ON "role" ("updated");
+
+SELECT pgmq.create('task');
