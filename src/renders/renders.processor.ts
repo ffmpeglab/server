@@ -30,13 +30,15 @@ export class RenderProcessor {
     const { renderId, userId, bucket, outputPath, runId, taskId } =
       job.message.data;
     const render = await this.renderService.findOne(renderId, userId);
-
+    if (render?.status !== 'queue') {
+      throw new Error('render_is_already_running');
+    }
     try {
       await this.renderService.updateRenderStatus(renderId, 'rendering');
 
       const encoding = await encodeProjectWithGit(
-        render!.data.project,
-        render!.data.layers,
+        render.data.project,
+        render.data.layers,
         false,
         (progress) =>
           this.logsQueue.add('progress', {
