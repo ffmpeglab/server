@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { CreateItemDto, UpdateItemDto } from './items.dto';
 import { Item } from '../model/item.entity';
 import { Role } from '../model/roles.entity';
-import { Permission } from '../types';
+import { ItemUnion, Permission } from '../types';
 
 @Injectable()
 export class ItemsService {
@@ -72,6 +72,9 @@ export class ItemsService {
         { id: item.id, user_id: permission.owner },
         {
           title: item.title,
+          item: item.item,
+          order: item.order,
+          public: item.public,
         },
       );
       return await this.findOne(item.id, permission.owner);
@@ -103,6 +106,10 @@ export class ItemsService {
       { id: item.id, user_id: userId },
       {
         title: item.title,
+        item: item.item,
+        public: item.public,
+        folder: item.folder,
+        order: item.order,
       },
     );
     return await this.findOne(item.id, userId);

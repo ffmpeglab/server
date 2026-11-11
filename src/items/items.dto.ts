@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Item } from '../model/item.entity';
+import type { ItemUnion } from '../types';
 
 export class UpdateItemDto implements Omit<
   Item,
@@ -18,7 +19,7 @@ export class UpdateItemDto implements Omit<
   @ApiProperty()
   order: number;
   @ApiProperty()
-  item: any;
+  item: ItemUnion;
 }
 
 export class CreateItemDto implements Omit<
@@ -36,5 +37,5 @@ export class CreateItemDto implements Omit<
   @ApiProperty()
   order: number;
   @ApiProperty()
-  item: any;
+  item: ItemUnion;
 }
