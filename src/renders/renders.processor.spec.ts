@@ -21,6 +21,7 @@ describe('RenderProcessor', () => {
     updateMediaResult: jest.fn(),
   };
   const logsQueue = { add: jest.fn() };
+  const taskQueue = { add: jest.fn() };
 
   let processor: RenderProcessor;
 
@@ -40,15 +41,23 @@ describe('RenderProcessor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    processor = new RenderProcessor(renderService as any, logsQueue as any);
+    processor = new RenderProcessor(
+      renderService as any,
+      logsQueue as any,
+      taskQueue as any,
+    );
 
+    // status:'queue' is required — the processor guards against
+    // render_is_already_running for anything else.
     renderService.findOne.mockResolvedValue({
       id: 'r-1',
+      status: 'queue',
       data: { project: { w: 100 }, layers: ['l1'] },
     });
     renderService.updateRenderStatus.mockResolvedValue(undefined);
     renderService.updateMediaResult.mockResolvedValue(undefined);
     logsQueue.add.mockResolvedValue(undefined);
+    taskQueue.add.mockResolvedValue(undefined);
 
     mockEncodeProjectWithGit.mockResolvedValue({
       id: 'm1',
@@ -61,6 +70,32 @@ describe('RenderProcessor', () => {
       filename: 'out.mp4',
       url: 'https://signed.example/file',
       userId: 'u-1',
+    });
+  });
+
+  describe('status guard', () => {
+    it('rejects render_is_already_running when findOne returns null', async () => {
+      renderService.findOne.mockResolvedValue(null);
+
+      await expect(processor.handleRender(job())).rejects.toThrow(
+        'render_is_already_running',
+      );
+      expect(renderService.updateRenderStatus).not.toHaveBeenCalled();
+      expect(mockEncodeProjectWithGit).not.toHaveBeenCalled();
+    });
+
+    it('rejects render_is_already_running when status is not "queue"', async () => {
+      renderService.findOne.mockResolvedValue({
+        id: 'r-1',
+        status: 'done',
+        data: { project: { w: 100 }, layers: ['l1'] },
+      });
+
+      await expect(processor.handleRender(job())).rejects.toThrow(
+        'render_is_already_running',
+      );
+      expect(renderService.updateRenderStatus).not.toHaveBeenCalled();
+      expect(mockEncodeProjectWithGit).not.toHaveBeenCalled();
     });
   });
 
@@ -81,7 +116,6 @@ describe('RenderProcessor', () => {
 
     await processor.handleRender(job());
 
-    // 'rendering' must precede encoding. Later statuses are covered elsewhere.
     expect(order.slice(0, 2)).toEqual(['status:rendering', 'encode']);
   });
 
@@ -95,7 +129,7 @@ describe('RenderProcessor', () => {
       expect.any(Function),
       expect.any(Function),
       'r-1',
-      'u-1', // userId — new 7th parameter
+      'u-1',
     );
   });
 
@@ -153,7 +187,7 @@ describe('RenderProcessor', () => {
         renderId: 'r-1',
         media: encoding,
         userId: 'u-1',
-        bucket: 'out-bucket', // private render keeps the caller's bucket
+        bucket: 'out-bucket',
         outputPath: 'out/dir',
         runId: 'run-9',
       });
@@ -162,6 +196,7 @@ describe('RenderProcessor', () => {
     it('routes to the public bucket for public renders', async () => {
       renderService.findOne.mockResolvedValue({
         id: 'r-1',
+        status: 'queue',
         public: true,
         data: { project: { w: 100 }, layers: ['l1'] },
       });
@@ -171,9 +206,6 @@ describe('RenderProcessor', () => {
       expect(mockUploadJobResult).toHaveBeenCalledWith(
         expect.objectContaining({ bucket: expect.any(String) }),
       );
-      // The exact public bucket name comes from config.publicBucket — the
-      // assertion above confirms the branch was taken without coupling to
-      // the env-dependent value.
     });
 
     it('marks upload → done and stores the media result on success', async () => {
@@ -233,7 +265,7 @@ describe('RenderProcessor', () => {
       await expect(processor.handleRender(job())).resolves.toBeUndefined();
     });
 
-    it('marks error (NOT done) when uploadJobResult returns undefined — bug fixed', async () => {
+    it('marks error (NOT done) when uploadJobResult returns undefined', async () => {
       const order: string[] = [];
       renderService.updateRenderStatus.mockImplementation(async (_i, s) => {
         order.push(`status:${s}`);
@@ -248,17 +280,55 @@ describe('RenderProcessor', () => {
       ]);
       expect(renderService.updateMediaResult).not.toHaveBeenCalled();
     });
+  });
 
-    it('marks error when render is null (findOne returned nothing)', async () => {
-      renderService.findOne.mockResolvedValue(null);
-
+  describe('task-complete notification', () => {
+    it('does NOT emit when the job has no taskId (success path)', async () => {
       await processor.handleRender(job());
+      expect(taskQueue.add).not.toHaveBeenCalled();
+    });
 
-      expect(renderService.updateRenderStatus).toHaveBeenCalledWith(
-        'r-1',
-        'error',
+    it('does NOT emit when the job has no taskId (failure path)', async () => {
+      mockEncodeProjectWithGit.mockRejectedValue(new Error('boom'));
+      await processor.handleRender(job());
+      expect(taskQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('emits status=done with media on success', async () => {
+      const uploaded = {
+        id: 'm1',
+        url: 'https://signed/file',
+        userId: 'u-1',
+      };
+      mockUploadJobResult.mockResolvedValue(uploaded);
+
+      await processor.handleRender(job({ taskId: 't-1' }));
+
+      expect(taskQueue.add).toHaveBeenCalledWith('task-complete', {
+        taskId: 't-1',
+        userId: 'u-1',
+        renderId: 'r-1',
+        status: 'done',
+        media: expect.objectContaining({ id: 'm1' }),
+        date: expect.any(String),
+      });
+    });
+
+    it('emits status=error on encode failure', async () => {
+      mockEncodeProjectWithGit.mockRejectedValue(
+        new Error('ffmpeg exited 254'),
       );
-      expect(mockEncodeProjectWithGit).not.toHaveBeenCalled();
+
+      await processor.handleRender(job({ taskId: 't-1' }));
+
+      expect(taskQueue.add).toHaveBeenCalledWith('task-complete', {
+        taskId: 't-1',
+        userId: 'u-1',
+        renderId: 'r-1',
+        status: 'error',
+        error: 'ffmpeg exited 254',
+        date: expect.any(String),
+      });
     });
   });
 
