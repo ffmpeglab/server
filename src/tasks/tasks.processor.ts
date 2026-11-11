@@ -42,14 +42,14 @@ export class TaskProcessor {
     const { taskId, userId } = job.message.data;
     console.info('start processing task', taskId);
 
-		const item = await this.itemService.findOne(taskId, userId);
-		if (!item?.id) throw new Error('item_not_found');
-		
-		if((item.item as Task).status !== "queue") throw new Error('task_is_running')
+    const item = await this.itemService.findOne(taskId, userId);
+    if (!item?.id) throw new Error('item_not_found');
+
+    if ((item.item as Task).status !== 'queue')
+      throw new Error('task_is_running');
 
     try {
       await this.taskService.updateTaskStatus(taskId, 'progress');
-
 
       const task = item.item as Task;
       const gitRepo = task.project.editor.gitRepo as GitRepo;
