@@ -75,8 +75,8 @@ describe('ItemsService', () => {
 
       expect(await service.findByFolderPublic('f1')).toBe(children);
       expect(mockItemsRepo.findOneBy).toHaveBeenCalledWith({
-        id: 'f1',
         public: true,
+        folder: 'f1',
         isFolder: true,
       });
       expect(mockItemsRepo.findBy).toHaveBeenCalledWith({ folder: 'f1' });

@@ -12,7 +12,18 @@ import {
   XFade,
 } from './MediaUtils';
 import type { XFADE } from './MediaUtils';
+
 export const defaultVideoDuration = 5;
+
+export enum RenderStatus {
+  done = 'done',
+  rendering = 'rendering',
+  error = 'error',
+  queue = 'queue',
+  upload = 'upload',
+  approved = 'approved',
+  public = 'public',
+}
 
 export class GitRepo {
   @ApiProperty()
