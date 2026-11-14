@@ -5,6 +5,7 @@ import { RendersService } from './renders.service';
 import { encodeProjectWithGit } from '../ffmpeg/rendering';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
 import { uploadJobResult } from './uploadJobResult';
+import { RenderStatus } from '../types';
 
 @Processor(config.queue.name)
 export class RenderProcessor {
@@ -34,7 +35,10 @@ export class RenderProcessor {
       throw new Error('render_is_already_running');
     }
     try {
-      await this.renderService.updateRenderStatus(renderId, 'rendering');
+      await this.renderService.updateRenderStatus(
+        renderId,
+        RenderStatus.rendering,
+      );
 
       const encoding = await encodeProjectWithGit(
         render.data.project,
@@ -58,7 +62,10 @@ export class RenderProcessor {
         userId,
       );
 
-      await this.renderService.updateRenderStatus(renderId, 'upload');
+      await this.renderService.updateRenderStatus(
+        renderId,
+        RenderStatus.upload,
+      );
       const result = await uploadJobResult({
         renderId,
         media: encoding,
@@ -73,7 +80,10 @@ export class RenderProcessor {
           ...result,
           userId,
         });
-        await this.renderService.updateRenderStatus(renderId, 'done');
+        await this.renderService.updateRenderStatus(
+          renderId,
+          RenderStatus.done,
+        );
 
         if (taskId) {
           await this.taskQueue.add('task-complete', {
@@ -86,7 +96,10 @@ export class RenderProcessor {
           });
         }
       } else {
-        await this.renderService.updateRenderStatus(renderId, 'error');
+        await this.renderService.updateRenderStatus(
+          renderId,
+          RenderStatus.error,
+        );
 
         if (taskId) {
           await this.taskQueue.add('task-complete', {
@@ -109,7 +122,7 @@ export class RenderProcessor {
         date: new Date().toISOString(),
       });
 
-      await this.renderService.updateRenderStatus(renderId, 'error');
+      await this.renderService.updateRenderStatus(renderId, RenderStatus.error);
 
       if (taskId) {
         await this.taskQueue.add('task-complete', {

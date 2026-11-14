@@ -29,7 +29,7 @@ export class ItemsService {
 
   async findByFolderPublic(folder: string): Promise<Item[]> {
     const publicFolder = await this.repo.findOneBy({
-      id: folder,
+      folder,
       public: true,
       isFolder: true,
     });

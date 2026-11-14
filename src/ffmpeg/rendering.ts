@@ -8,12 +8,15 @@ import {
   MinimalMedia,
 } from '../types';
 import { documentDir } from './util/util';
+
 export const currentSessionId = 0;
+
 import {
   createFFmpeg,
   CBProgressCallback,
   LogsProgressCallback,
 } from './util/createFFmpeg';
+
 import { genRenderCmd } from './util/genRenderCmd';
 import { getTotalTime } from './util/getTotalTime';
 import { processUserCode } from './util/processUserCode';
@@ -194,11 +197,14 @@ export const encodeProjectWithGit = async (
         (
           await fetch(
             `https://${projectGitConfig.platform}.com/${projectGitConfig.repoFullName}`,
+            { method: 'HEAD' },
           )
         ).status === 200;
         gitSource = projectGitConfig;
       }
-    } catch {}
+    } catch (err) {
+      console.error('error on fetching repo', projectGitConfig, err);
+    }
 
     if (!gitSource) {
       const gitSourceParams = {
