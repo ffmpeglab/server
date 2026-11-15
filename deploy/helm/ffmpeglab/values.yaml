@@ -13,6 +13,7 @@ fullnameOverride: ""
 # Passed through verbatim; no variable name is hardcoded in the templates.
 env: {}
 
+# Secret created outside the chart (by the operator or a secret operator); every key becomes an env var.
 existingSecret: ""
 
 # For clusters where no external controller supplies the Secret.
