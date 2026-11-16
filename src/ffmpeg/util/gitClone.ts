@@ -12,6 +12,7 @@ export interface CloneOptions {
   url: string;
   ref: string;
   dest: string;
+  platform: string;
 }
 
 const run = (
@@ -75,6 +76,7 @@ export const cloneRepo = async ({
   url,
   ref,
   dest,
+  platform,
 }: CloneOptions): Promise<void> => {
   if (!config.git.httpsToken) {
     throw new Error('git_not_configured: GIT_HTTPS_TOKEN missing');
@@ -91,9 +93,14 @@ export const cloneRepo = async ({
   const scratch = mkdtempSync(join(tmpdir(), 'ffgit-'));
 
   try {
-    const tokenB64 = Buffer.from(
-      `x-access-token:${config.git.httpsToken}`,
-    ).toString('base64');
+    const token =
+      platform.search('gitlab') > 1
+        ? platform === 'gitlab'
+          ? config.git.gitlabcomhttpsToken
+          : config.git.gitlabhttpsToken
+        : Buffer.from(`x-access-token:${config.git.httpsToken}`).toString(
+            'base64',
+          );
 
     const env: NodeJS.ProcessEnv = {
       PATH: '/usr/local/bin:/usr/bin:/bin',
@@ -101,7 +108,7 @@ export const cloneRepo = async ({
       GIT_TERMINAL_PROMPT: '0',
       GIT_CONFIG_COUNT: '1',
       GIT_CONFIG_KEY_0: 'http.extraHeader',
-      GIT_CONFIG_VALUE_0: `Authorization: Basic ${tokenB64}`,
+      GIT_CONFIG_VALUE_0: `Authorization: Basic ${token}`,
     };
     const timeoutMs = config.git.cloneTimeoutMs ?? 5 * 60 * 1000;
     const maxBytes = config.git.maxRepoBytes ?? 500 * 1024 * 1024;

@@ -57,7 +57,7 @@ export class TaskProcessor {
       const url = `https://${platform}.com/${repoFullName}`;
       const repoDir = `${documentDir()}/${taskId}`;
 
-      await cloneRepo({ url, ref, dest: repoDir });
+      await cloneRepo({ url, ref, dest: repoDir, platform });
 
       const code = fs.readFileSync(`${repoDir}/${codePath}`, 'utf8');
       const prompt = `
