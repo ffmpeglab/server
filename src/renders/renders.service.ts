@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
 import { DeleteResult, MoreThan, Repository } from 'typeorm';
 import { Render } from '../model/render.entity';
-import { MinimalMedia, RenderData } from '../types';
+import { MinimalMedia, RenderData, RenderStatus } from '../types';
 import { config } from '../config';
 import { LogPiece } from '../model/logpiece.entity';
 
@@ -40,11 +40,30 @@ export class RendersService {
     search?: string;
     userId?: string;
   }): Promise<Render[]> {
+    return this.getRendersByStatus({ ...query, status: RenderStatus.public });
+  }
+
+  async getApprovedRenders(query: {
+    offset?: string;
+    limit?: string;
+    search?: string;
+    userId?: string;
+  }): Promise<Render[]> {
+    return this.getRendersByStatus({ ...query, status: RenderStatus.approved });
+  }
+
+  async getRendersByStatus(query: {
+    offset?: string;
+    limit?: string;
+    search?: string;
+    userId?: string;
+    status?: RenderStatus;
+  }): Promise<Render[]> {
     const whereQuery = this.rendersRepository
       .createQueryBuilder('render')
       .select(['render.id', 'render.title', 'render.result', 'render.user_id'])
       .where('render.public = true AND render.status = :status', {
-        status: 'approved',
+        status: query.status,
       });
 
     if (query.userId && query.userId.length > 5) {
@@ -90,6 +109,7 @@ export class RendersService {
         key: undefined,
       })),
     }));
+    render.project.userId = userId;
     const n = await this.rendersRepository.insert({
       title: render.project.title,
       project: render.project.id,
@@ -110,10 +130,7 @@ export class RendersService {
     return await this.findOne(renderId, media.userId);
   }
 
-  async updateRenderStatus(
-    renderId: string,
-    status: 'done' | 'rendering' | 'error' | 'queue' | 'upload',
-  ) {
+  async updateRenderStatus(renderId: string, status: RenderStatus) {
     await this.rendersRepository.update({ id: renderId }, { status });
     return await this.rendersRepository.findOneBy({ id: renderId });
   }
@@ -137,6 +154,21 @@ export class RendersService {
     });
   }
 
+  async findAllRendersForStatus(
+    status: RenderStatus,
+    userId: string,
+  ): Promise<Render[]> {
+    return (
+      await this.rendersRepository.findBy({
+        user_id: userId,
+        status,
+      })
+    ).map((render) => {
+      render.data = {} as Render['data'];
+      return render;
+    });
+  }
+
   async appendLogs(
     renderId: string,
     logs: string,
@@ -151,17 +183,23 @@ export class RendersService {
     });
   }
 
-  async enqueRender(renderId: string, userId: string, bucket?: string) {
+  async enqueRender(
+    renderId: string,
+    userId: string,
+    bucket?: string,
+    opts?: { taskId?: string },
+  ) {
     const queueItem = await this.queue.add(
       'render',
       {
         renderId,
         userId,
         bucket,
+        taskId: opts?.taskId,
       },
       { headers: { retryCount: 1 } },
     );
-    await this.updateRenderStatus(renderId, 'queue');
+    await this.updateRenderStatus(renderId, RenderStatus.queue);
     return queueItem;
   }
 

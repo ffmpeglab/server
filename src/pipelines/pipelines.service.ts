@@ -79,12 +79,10 @@ export class PipelinesService {
   }
 
   async transpile(pipeline: TranspilerRequest): Promise<TranspilerResponse> {
-    // console.info('transpiler');
     const id = randomUUID();
     const ymlDir = `${config.documentDir}/yml/`;
     const ymlPath = `${ymlDir}${id}.yml`;
     const sqlPath = `${config.documentDir}/sql/${id}`;
-    // console.info('creating yml dir');
     await new Promise((res) => {
       const ex = fs.existsSync(ymlDir);
       if (ex) return res(1);
@@ -93,7 +91,6 @@ export class PipelinesService {
         res(1);
       });
     });
-    // console.info('creating sql dir');
     await new Promise((res) =>
       fs.mkdir(sqlPath, () => {
         res(1);

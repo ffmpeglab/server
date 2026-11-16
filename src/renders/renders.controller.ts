@@ -12,14 +12,18 @@ import {
 } from '@nestjs/common';
 
 import { RendersService } from './renders.service';
+
 import { LogsResponse, RenderDto, RunDto } from './renders.dto';
+
 import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
-import { RenderResponse } from '../types';
+
+import { RenderResponse, RenderStatus } from '../types';
+
 import { AuthGuard } from '../auth/auth.guard';
 
 @UseGuards(AuthGuard)
@@ -82,18 +86,36 @@ export class RendersController {
     );
   }
 
+  @Get('status/:status')
+  @ApiResponse({ type: RenderResponse, isArray: true })
+  @ApiParam({
+    name: 'status',
+    description: 'The status of the render',
+    required: true,
+    enum: RenderStatus,
+  })
+  async findAllRendersForStatus(
+    @Param() params: { status: RenderStatus },
+    @Request() req: Request & { user: string },
+  ) {
+    return await this.renderService.findAllRendersForStatus(
+      params.status,
+      req.user,
+    );
+  }
+
   @Get('marketplace/catalogue')
   @ApiQuery({
     name: 'offset',
     description: 'offset',
     required: false,
-    type: String,
+    type: Number,
   })
   @ApiQuery({
     name: 'limit',
     description: 'limit',
     required: false,
-    type: String,
+    type: Number,
   })
   @ApiQuery({
     name: 'search',
@@ -110,9 +132,8 @@ export class RendersController {
   @ApiResponse({ type: [RenderResponse] })
   async getPublic(
     @Query() query: { offset: string; limit: 'ASC' | 'DESC'; search?: string },
-    @Request() req: Request & { user: string },
   ) {
-    return await this.renderService.getPublicRenders(query);
+    return await this.renderService.getApprovedRenders(query);
   }
 
   @Get('logs/:id')

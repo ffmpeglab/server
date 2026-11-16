@@ -13,4 +13,14 @@ export class Folder {
   folderId?: string;
   @ApiProperty()
   orderId: number;
+  @ApiProperty()
+  mnemonic?: string;
+  @ApiProperty()
+  chatId?: string;
+}
+
+export enum Permission {
+  rw = 'rw',
+  w = 'w',
+  r = 'r',
 }

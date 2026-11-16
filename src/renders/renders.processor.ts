@@ -2,9 +2,10 @@ import { Processor, Process } from 'nestjs-pgmq';
 import { config } from '../config';
 import type { PgmqJob } from 'nestjs-pgmq';
 import { RendersService } from './renders.service';
-import { encodeProject } from '../ffmpeg/rendering';
+import { encodeProjectWithGit } from '../ffmpeg/rendering';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
-import { uploadJobResult } from './result.processor';
+import { uploadJobResult } from './uploadJobResult';
+import { RenderStatus } from '../types';
 
 @Processor(config.queue.name)
 export class RenderProcessor {
@@ -12,7 +13,10 @@ export class RenderProcessor {
     private readonly renderService: RendersService,
     @InjectQueue(config.queue.logs)
     private readonly logsQueue: PgmqQueue,
+    @InjectQueue(config.queue.task)
+    private readonly taskQueue: PgmqQueue,
   ) {}
+
   @Process('render')
   async handleRender(
     job: PgmqJob<{
@@ -21,15 +25,24 @@ export class RenderProcessor {
       bucket?: string;
       outputPath?: string;
       runId?: string;
+      taskId?: string;
     }>,
   ) {
-    const { renderId, userId, bucket, outputPath, runId } = job.message.data;
+    const { renderId, userId, bucket, outputPath, runId, taskId } =
+      job.message.data;
     const render = await this.renderService.findOne(renderId, userId);
+    if (render?.status !== 'queue') {
+      throw new Error('render_is_already_running');
+    }
     try {
-      await this.renderService.updateRenderStatus(renderId, 'rendering');
-      const encoding = await encodeProject(
-        render!.data.project,
-        render!.data.layers,
+      await this.renderService.updateRenderStatus(
+        renderId,
+        RenderStatus.rendering,
+      );
+
+      const encoding = await encodeProjectWithGit(
+        render.data.project,
+        render.data.layers,
         false,
         (progress) =>
           this.logsQueue.add('progress', {
@@ -46,8 +59,13 @@ export class RenderProcessor {
             date: new Date().toISOString(),
           }),
         renderId,
+        userId,
       );
-      await this.renderService.updateRenderStatus(renderId, 'upload');
+
+      await this.renderService.updateRenderStatus(
+        renderId,
+        RenderStatus.upload,
+      );
       const result = await uploadJobResult({
         renderId,
         media: encoding,
@@ -57,16 +75,45 @@ export class RenderProcessor {
         runId,
       });
 
-      if (result?.id)
-        await this.renderService.updateMediaResult(job.message.data.renderId, {
+      if (result?.id) {
+        await this.renderService.updateMediaResult(renderId, {
           ...result,
-          userId: job.message.data.userId,
+          userId,
         });
-      else await this.renderService.updateRenderStatus(renderId, 'error');
+        await this.renderService.updateRenderStatus(
+          renderId,
+          RenderStatus.done,
+        );
 
-      await this.renderService.updateRenderStatus(renderId, 'done');
+        if (taskId) {
+          await this.taskQueue.add('task-complete', {
+            taskId,
+            userId,
+            renderId,
+            status: 'done',
+            media: result,
+            date: new Date().toISOString(),
+          });
+        }
+      } else {
+        await this.renderService.updateRenderStatus(
+          renderId,
+          RenderStatus.error,
+        );
+
+        if (taskId) {
+          await this.taskQueue.add('task-complete', {
+            taskId,
+            userId,
+            renderId,
+            status: 'error',
+            error: 'upload_failed',
+            date: new Date().toISOString(),
+          });
+        }
+      }
     } catch (err) {
-      console.error('rnder failed', renderId, err);
+      console.error('render failed', renderId, err);
 
       this.logsQueue.add('logs', {
         renderId,
@@ -75,7 +122,18 @@ export class RenderProcessor {
         date: new Date().toISOString(),
       });
 
-      await this.renderService.updateRenderStatus(renderId, 'error');
+      await this.renderService.updateRenderStatus(renderId, RenderStatus.error);
+
+      if (taskId) {
+        await this.taskQueue.add('task-complete', {
+          taskId,
+          userId,
+          renderId,
+          status: 'error',
+          error: (err as Error)?.message ?? String(err),
+          date: new Date().toISOString(),
+        });
+      }
     }
   }
 }

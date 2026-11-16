@@ -7,6 +7,9 @@ import { PipelinesModule } from './pipelines/pipelines.module';
 import { FilesModule } from './files/files.module';
 import { ApiKeyModule } from './apikey/apikey.module';
 import { PublicModule } from './public/public.module';
+import { RolesModule } from './roles/roles.module';
+import { ItemsModule } from './items/items.module';
+import { TasksModule } from './tasks/tasks.module';
 
 const optionalModules: (typeof AppModule)[] = [FilesModule];
 if (config.pipelinesEnabled) {
@@ -30,9 +33,15 @@ if (config.pipelinesEnabled) {
     PgmqModule.registerQueue({
       name: config.queue.logs,
     }),
+    PgmqModule.registerQueue({
+      name: config.queue.task,
+    }),
     RendersModule,
     ApiKeyModule,
     PublicModule,
+    ItemsModule,
+    RolesModule,
+    TasksModule,
     ...optionalModules,
   ],
   controllers: [],
