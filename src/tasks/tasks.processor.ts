@@ -106,6 +106,7 @@ preserved.
         filePath: codePath,
         fileContent,
         commitMessage,
+        platform,
         author: { name: 'ffmpeglab', email: 'info@ffmpeglab.com' },
       });
 

@@ -4,7 +4,6 @@ import {
   EditorProject,
   EncoderProject,
   GitRepo,
-  Media,
   MinimalMedia,
 } from '../types';
 import { documentDir } from './util/util';

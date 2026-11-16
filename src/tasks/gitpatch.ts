@@ -11,6 +11,7 @@ export interface CommitFileOptions {
   filePath: string; // relative to dest, e.g. 'ffmpeglab/render.sh'
   fileContent: string;
   commitMessage: string;
+  platform: string;
   author: { name: string; email: string };
 }
 
@@ -21,10 +22,11 @@ export const commitFileAndPush = async ({
   fileContent,
   commitMessage,
   author,
+  platform,
 }: CommitFileOptions): Promise<void> => {
   if (!fileContent.trim()) throw new Error('file_content_empty');
 
-  const env = gitEnv();
+  const env = gitEnv(platform);
   const timeoutMs = 60_000;
 
   // 1. Write the file into the cloned repo.
@@ -57,13 +59,6 @@ export const commitFileAndPush = async ({
     timeoutMs: 120_000,
   });
 };
-export interface ApplyAndPushOptions {
-  dest: string;
-  branch: string;
-  diff: string;
-  commitMessage: string;
-  author: { name: string; email: string };
-}
 
 const run = (
   args: string[],
@@ -113,17 +108,23 @@ const run = (
     });
   });
 
-const gitEnv = (): NodeJS.ProcessEnv => {
-  const tokenB64 = Buffer.from(
-    `x-access-token:${config.git.httpsToken}`,
-  ).toString('base64');
+const gitEnv = (platform: string): NodeJS.ProcessEnv => {
+  const token =
+    platform.search('gitlab') > 1
+      ? platform === 'gitlab'
+        ? config.git.gitlabcomhttpsToken
+        : config.git.gitlabhttpsToken
+      : Buffer.from(`x-access-token:${config.git.httpsToken}`).toString(
+          'base64',
+        );
+
   return {
     PATH: '/usr/local/bin:/usr/bin:/bin',
     HOME: tmpdir(),
     GIT_TERMINAL_PROMPT: '0',
     GIT_CONFIG_COUNT: '1',
     GIT_CONFIG_KEY_0: 'http.extraHeader',
-    GIT_CONFIG_VALUE_0: `Authorization: Basic ${tokenB64}`,
+    GIT_CONFIG_VALUE_0: `Authorization: Basic ${token}`,
   };
 };
 
@@ -141,62 +142,4 @@ export const extractDiff = (
     .replace('```', '')
     .replace('```', '');
   return fenced.trimEnd();
-};
-
-/**
- * Apply a unified diff to the cloned repo on a fresh branch and push it.
- * Assumes `dest` has been cloned at the base ref (HEAD = base).
- * The branch is created from HEAD, so the MR's source is one commit ahead
- * of the target.
- */
-export const applyAndPush = async ({
-  dest,
-  branch,
-  diff,
-  commitMessage,
-  author,
-}: ApplyAndPushOptions): Promise<void> => {
-  if (!diff.trim()) throw new Error('git_diff_empty');
-
-  const env = gitEnv();
-  const timeoutMs = 60_000;
-
-  // 1. create branch from current HEAD (which is the base ref from clone)
-  await run(['checkout', '-b', branch], { env, cwd: dest, timeoutMs });
-
-  // 2. apply the diff via a temp file (avoid stdin buffering issues)
-  const scratch = mkdtempSync(join(tmpdir(), 'ffgit-patch-'));
-  const patchPath = join(scratch, 'patch.diff');
-  try {
-    writeFileSync(patchPath, diff, 'utf-8');
-    await run(['apply', '--recount', '--whitespace=nowarn', patchPath], {
-      env,
-      cwd: dest,
-      timeoutMs,
-    });
-  } finally {
-    rmSync(scratch, { recursive: true, force: true });
-  }
-
-  // 3. stage + commit (identity via -c so .git/config is untouched)
-  await run(['add', '-A'], { env, cwd: dest, timeoutMs });
-  await run(
-    [
-      '-c',
-      `user.name=${author.name}`,
-      '-c',
-      `user.email=${author.email}`,
-      'commit',
-      '-m',
-      commitMessage,
-    ],
-    { env, cwd: dest, timeoutMs },
-  );
-
-  // 4. push the new branch
-  await run(['push', 'origin', `HEAD:refs/heads/${branch}`], {
-    env,
-    cwd: dest,
-    timeoutMs: 120_000,
-  });
 };
