@@ -71,6 +71,8 @@ export const config = {
     'output only a git patch file which can be directly applied to the repo, without anything else',
   git: {
     httpsToken: process.env.GIT_HTTPS_TOKEN as string,
+    gitlabcomhttpsToken: process.env.GITLAB_COM_HTTPS_TOKEN as string,
+    gitlabhttpsToken: process.env.GITLAB_HTTPS_TOKEN as string,
     cloneTimeoutMs: parseInt(process.env.GIT_CLONE_TIMEOUT_MS || '300000', 10),
     maxRepoBytes: parseInt(
       process.env.GIT_MAX_REPO_BYTES || String(500 * 1024 * 1024),

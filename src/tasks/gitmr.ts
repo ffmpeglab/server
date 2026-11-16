@@ -53,7 +53,33 @@ export const openMergeRequest = async (
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${config.git.httpsToken}`,
+          Authorization: `Bearer ${config.git.gitlabcomhttpsToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source_branch: sourceBranch,
+          target_branch: targetBranch,
+          title,
+          description: body,
+        }),
+      },
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`gitlab_mr_failed: ${res.status} ${text}`);
+    }
+    const data = (await res.json()) as { web_url: string };
+    return { url: data.web_url };
+  }
+
+  if (platform.search('gitlab.') > -1) {
+    const encoded = encodeURIComponent(repoFullName);
+    const res = await fetch(
+      `https://${platform}/api/v4/projects/${encoded}/merge_requests`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.git.gitlabhttpsToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
