@@ -87,15 +87,13 @@ export const createFFmpeg = async (
       env: { [key: string]: string } = {},
     ): Promise<number | string> => {
       return await new Promise((resolve, reject) => {
+        const workDir = documentDir() + '/' + env.RENDER_ID;
         const fullEnv = { ...env, FFMPEG_PATH: ffmpegPath };
         console.info({ ffmpegRun: cmd });
-        const child = spawn(
-          bWrapPath,
-          buildBwrapArgs(documentDir() + '/' + env.RENDER_ID, cmd),
-          {
-            env: fullEnv,
-          },
-        );
+        const child = spawn(bWrapPath, buildBwrapArgs(workDir, cmd), {
+          env: fullEnv,
+          cwd: workDir,
+        });
         child.stdout.on('data', (data: Buffer) => {
           // console.error('native ffmpeg logs', data.toString('utf-8'));
           if (logsCB) logsCB(data.toString('utf-8'));

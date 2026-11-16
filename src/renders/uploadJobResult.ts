@@ -1,8 +1,5 @@
-import { Processor, Process } from 'nestjs-pgmq';
 import { config } from '../config';
-import type { PgmqJob } from 'nestjs-pgmq';
 import { Media, MinimalMedia } from '../types';
-import { RendersService } from './renders.service';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'node:fs';
@@ -69,30 +66,6 @@ export const uploadJobResult = async (job: {
     }
   } catch (err) {
     console.error('file upload err', err);
+    throw new Error('file_upload_error');
   }
 };
-
-@Processor(config.queue.file)
-export class ResultProcessor {
-  constructor(private readonly renderService: RendersService) {}
-  @Process('file')
-  async handleFile(
-    job: PgmqJob<{
-      renderId: string;
-      media: MinimalMedia;
-      userId: string;
-      bucket?: string;
-      outputPath?: string;
-      runId?: string;
-    }>,
-  ) {
-    const media: MinimalMedia | undefined = await uploadJobResult(
-      job.message.data,
-    );
-    if (media?.id)
-      await this.renderService.updateMediaResult(job.message.data.renderId, {
-        ...media,
-        userId: job.message.data.userId,
-      });
-  }
-}

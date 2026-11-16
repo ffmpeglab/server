@@ -41,18 +41,6 @@ describe('FilesController', () => {
     jest.clearAllMocks();
   });
 
-  // it('upload passes user, originalname, buffer to the service', async () => {
-  //   filesService.uploadFile.mockResolvedValue({ ok: true });
-  //   const file = { originalname: 'a.mp4', buffer: Buffer.from('x') };
-
-  //   expect(await ctrl.upload(file, req)).toEqual({ ok: true });
-  //   expect(filesService.uploadFile).toHaveBeenCalledWith(
-  //     'user-1',
-  //     'a.mp4',
-  //     file.buffer,
-  //   );
-  // });
-
   it('list delegates to the service with req.user', async () => {
     filesService.listFiles.mockResolvedValue({ list: [] });
     await ctrl.list(req);
@@ -73,8 +61,8 @@ describe('FilesController', () => {
   const createMockSupabaseClient = (overrides: any = {}) => ({
     auth: {
       admin: {
-        listUsers: jest.fn().mockResolvedValue({
-          data: { users: [{ id: 'user-1', email: 'a@b.c' }] },
+        getUserById: jest.fn().mockResolvedValue({
+          data: { user: { id: 'user-1', email: 'a@b.c' } },
           error: null,
         }),
         generateLink: jest.fn().mockResolvedValue({
@@ -107,6 +95,7 @@ describe('FilesController', () => {
       },
       userId: 'user-1',
     });
+    expect(mockClient.auth.admin.getUserById).toHaveBeenCalledWith('user-1');
     expect(mockClient.auth.admin.generateLink).toHaveBeenCalledWith({
       type: 'magiclink',
       email: 'a@b.c',
@@ -114,10 +103,11 @@ describe('FilesController', () => {
     expect(mockClient.auth.admin.generateLink).toHaveBeenCalledTimes(1);
   });
 
-  it('s3config throws Unauthorized when no user matches req.user', async () => {
+  it('s3config throws Unauthorized when getUserById reports an error', async () => {
     const mockClient = createMockSupabaseClient();
-    mockClient.auth.admin.listUsers.mockResolvedValue({
-      data: { users: [{ id: 'someone-else', email: 'x@y.z' }] },
+    mockClient.auth.admin.getUserById.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'User not found' },
     });
     mockCreateClient.mockReturnValue(mockClient);
 
@@ -125,10 +115,11 @@ describe('FilesController', () => {
     expect(mockClient.auth.admin.generateLink).not.toHaveBeenCalled();
   });
 
-  it('s3config throws Unauthorized when matching user has no email', async () => {
+  it('s3config throws Unauthorized when the returned user has no email', async () => {
     const mockClient = createMockSupabaseClient();
-    mockClient.auth.admin.listUsers.mockResolvedValue({
-      data: { users: [{ id: 'user-1', email: undefined }] },
+    mockClient.auth.admin.getUserById.mockResolvedValue({
+      data: { user: { id: 'user-1', email: undefined } },
+      error: null,
     });
     mockCreateClient.mockReturnValue(mockClient);
 

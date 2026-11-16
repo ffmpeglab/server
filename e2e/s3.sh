@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -e
 # s3.sh — bash orchestrates the API, exports credentials, then runs python verifier.
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'

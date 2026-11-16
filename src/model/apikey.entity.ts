@@ -1,7 +1,7 @@
 import type { APIKeyData } from '../types';
 import { Entity, Column, PrimaryGeneratedColumn, Index } from 'typeorm';
 
-@Entity()
+@Entity({ schema: 'public', synchronize: false })
 export class ApiKey {
   @PrimaryGeneratedColumn('uuid')
   @Index()

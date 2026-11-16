@@ -12,7 +12,30 @@ import {
   XFade,
 } from './MediaUtils';
 import type { XFADE } from './MediaUtils';
+
 export const defaultVideoDuration = 5;
+
+export enum RenderStatus {
+  done = 'done',
+  rendering = 'rendering',
+  error = 'error',
+  queue = 'queue',
+  upload = 'upload',
+  approved = 'approved',
+  public = 'public',
+}
+
+export class GitRepo {
+  @ApiProperty()
+  ref: string;
+  @ApiProperty()
+  path: string;
+  @ApiProperty()
+  platform: string;
+  @ApiProperty()
+  repoFullName: string;
+}
+
 export type MinimalMedia = Pick<
   Media,
   | 'id'
@@ -108,6 +131,8 @@ export class EditorProjectConfiguration {
   code?: string;
   @ApiProperty({ enum: CodeSelection })
   selectedCode?: CodeSelection;
+  @ApiProperty()
+  gitRepo?: GitRepo;
 }
 
 export class EditorProject extends Folder {
@@ -173,13 +198,19 @@ export class EncoderProjectEncoding {
   color?: RGB;
   @ApiProperty()
   scale?: number;
+  @ApiProperty()
+  backgroundColor?: string;
 }
+
 export class EncoderProject extends Media {
   @ApiProperty({ type: EncoderProjectEncoding })
   encoding: EncoderProjectEncoding;
+  @ApiProperty()
   key?: string;
+  @ApiProperty()
   bucket?: string;
 }
+
 export class EditorLayer extends Folder {
   @ApiProperty()
   isEditorLayer?: boolean;

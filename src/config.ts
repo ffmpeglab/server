@@ -1,7 +1,10 @@
 import { ApiKey } from './model/apikey.entity';
+import { Item } from './model/item.entity';
 import { LogPiece } from './model/logpiece.entity';
 import { Pipeline } from './model/pipeline.entity';
 import { Render } from './model/render.entity';
+import { Role } from './model/roles.entity';
+import { Users } from './model/user.entity';
 export const config = {
   db: {
     host: process.env.DB_HOST,
@@ -10,8 +13,8 @@ export const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    entities: [Render, ApiKey, LogPiece, Pipeline],
-    synchronize: false, //SHOULD APPLY init.sql(for on prem) or the supabase migration(on e2e env) based on the setup
+    entities: [Render, ApiKey, LogPiece, Pipeline, Item, Role, Users],
+    synchronize: false,
   },
   queue: {
     db: {
@@ -22,9 +25,11 @@ export const config = {
       password: process.env.QUEUE_DB_PASSWORD,
       database: process.env.QUEUE_DB_NAME,
     },
+    task: process.env.TASK_QUEUE || 'task',
     name: process.env.RENDER_QUEUE || 'render',
     logs: process.env.LOGS_QUEUE || 'logs',
     file: process.env.FILE_QUEUE || 'file',
+    isTaskRunner: process.env.IS_TASK_RUNNER === 'true' ? true : false,
     isRenderRunner: process.env.IS_RENDER_RUNNER === 'true' ? true : false,
     isLogsRunner: process.env.IS_LOGS_RUNNER === 'true' ? true : false,
     isFileRunner: process.env.IS_FILE_RUNNER === 'true' ? true : false,
@@ -53,10 +58,27 @@ export const config = {
   supabaseWorkerLogin: process.env.TENANT_WORKER_LOGIN as string,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY as string,
   platformHost: process.env.PLATFORM_HOST as string,
+  platformAccessToken: process.env.PLATFORM_ACCESS_TOKEN as string,
   supabaseProjectId: process.env.SUPABASE_PROJECT_ID as string,
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY as string,
   supabaseJWKUrl: process.env.SUPABASE_JWKS_URL as string,
   publicBucket: process.env.S3_PUBLIC_BUCKET_ID || 'public',
+  webAppHost: process.env.WEBAPP_HOST as string,
+  otariApiKey: process.env.OTARI_API_KEY as string,
+  otariHost: process.env.OTARI_HOST || 'https://eu.api.otari.ai',
+  otariSystemPrompt:
+    process.env.OTARI_SYSTEM_PROMPT ||
+    'output only a git patch file which can be directly applied to the repo, without anything else',
+  git: {
+    httpsToken: process.env.GIT_HTTPS_TOKEN as string,
+    gitlabcomhttpsToken: process.env.GITLAB_COM_HTTPS_TOKEN as string,
+    gitlabhttpsToken: process.env.GITLAB_HTTPS_TOKEN as string,
+    cloneTimeoutMs: parseInt(process.env.GIT_CLONE_TIMEOUT_MS || '300000', 10),
+    maxRepoBytes: parseInt(
+      process.env.GIT_MAX_REPO_BYTES || String(500 * 1024 * 1024),
+      10,
+    ),
+  },
 };
 
 export const supabaseEnv = {
