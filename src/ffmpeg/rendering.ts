@@ -233,7 +233,7 @@ export const encodeProjectWithGit = async (
   const url = `https://${platform}.com/${repoFullName}`;
   const repoDir = `${documentDir()}/${RENDER_ID}`;
 
-  await cloneRepo({ url, ref, dest: repoDir });
+  await cloneRepo({ url, ref, dest: repoDir, platform });
 
   const code = fs.readFileSync(`${repoDir}/${codePath}`, 'utf8');
 
