@@ -109,15 +109,18 @@ const run = (
   });
 
 const gitEnv = (platform: string): NodeJS.ProcessEnv => {
-  const token =
-    platform.search('gitlab') > 1
-      ? platform === 'gitlab'
-        ? config.git.gitlabcomhttpsToken
-        : config.git.gitlabhttpsToken
-      : Buffer.from(`x-access-token:${config.git.httpsToken}`).toString(
-          'base64',
-        );
+  const isGitLab = platform.includes('gitlab');
+  const isGitLabCom = platform === 'gitlab' || platform === 'gitlab.com';
 
+  const token = isGitLab
+    ? Buffer.from(
+        `oauth2:${
+          isGitLabCom
+            ? config.git.gitlabcomhttpsToken
+            : config.git.gitlabhttpsToken
+        }`,
+      ).toString('base64')
+    : Buffer.from(`x-access-token:${config.git.httpsToken}`).toString('base64');
   return {
     PATH: '/usr/local/bin:/usr/bin:/bin',
     HOME: tmpdir(),
