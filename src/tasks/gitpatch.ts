@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { config } from '../config';
 import { mkdir, writeFile } from 'node:fs/promises';
