@@ -15,7 +15,7 @@ export const inviteUser = async (email: string, redirectTo: string) => {
   });
 
   if (error) {
-    throw error;
+    console.error('invite error', error);
   }
   return user;
 };
