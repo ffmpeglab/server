@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateEmailRoleDto, CreateRoleDto, UpdateRoleDto } from './roles.dto';
@@ -83,9 +83,9 @@ export class RolesService {
     userId: string,
   ): Promise<Role | null> {
     const permissionedRow = await this.validateCreate(createItem, userId);
-
-    if (permissionedRow?.user_id !== userId) {
-      throw new Error('cannot_create_permission_for_this_row');
+    console.info({ permissionedRow });
+    if (!permissionedRow?.id) {
+      throw new ForbiddenException();
     }
     return await this.createRole(createItem, userId);
   }
@@ -95,9 +95,9 @@ export class RolesService {
     userId: string,
   ): Promise<Role | null> {
     const permissionedRow = await this.validateCreate(createItem, userId);
-
-    if (permissionedRow?.user_id !== userId) {
-      throw new Error('cannot_create_permission_for_this_row');
+    console.info({ permissionedRow });
+    if (!permissionedRow?.id) {
+      throw new ForbiddenException();
     }
 
     const redirectTo = createItem.render

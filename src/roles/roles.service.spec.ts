@@ -214,7 +214,7 @@ describe('RolesService', () => {
         mockItemsRepo.findOneBy.mockResolvedValue(null);
         await expect(
           service.create(dto({ item: 'i1' }), grantor),
-        ).rejects.toThrow('cannot_create_permission_for_this_row');
+        ).rejects.toThrow('Forbidden');
         expect(mockRolesRepo.insert).not.toHaveBeenCalled();
       });
 
@@ -241,7 +241,7 @@ describe('RolesService', () => {
 
         await expect(
           service.create(dto({ render: 'r-bob' }), grantor),
-        ).rejects.toThrow('cannot_create_permission_for_this_row');
+        ).rejects.toThrow('Forbidden');
 
         expect(mockRendersRepo.findOneBy).toHaveBeenCalledWith({
           id: 'r-bob',
