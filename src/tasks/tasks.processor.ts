@@ -90,8 +90,11 @@ preserved.
       );
 
       const fileContent = extractFileContent(
-        response.choices?.[0]?.message?.content,
+        response.choices?.[0]?.message?.content?.length
+          ? response.choices?.[0]?.message?.content
+          : response.choices?.[0]?.message?.reasoning,
       );
+
       if (!fileContent?.trim()) throw new Error('llm_no_file_content');
 
       const short = taskId.replace(/-/g, '').slice(0, 8);
