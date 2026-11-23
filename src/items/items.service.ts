@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateItemDto, UpdateItemDto } from './items.dto';
@@ -38,7 +42,7 @@ export class ItemsService {
         folder,
       });
     }
-    throw new Error('no_public_folder_found');
+    throw new NotFoundException();
   }
 
   async findOneByPermission(id: string, userId: string): Promise<Item | null> {
@@ -53,7 +57,7 @@ export class ItemsService {
       const item = await this.repo.findOne({ where: { id } });
       return item;
     }
-    throw new Error('no_permission_found');
+    throw new ForbiddenException();
   }
 
   async updateByRole(
@@ -79,14 +83,25 @@ export class ItemsService {
       );
       return await this.findOne(item.id, permission.owner);
     }
-    throw new Error('no_permission_found');
+    throw new ForbiddenException();
   }
 
   async findByFolder(folder: string, userId: string): Promise<Item[]> {
-    return await this.repo.findBy({
-      user_id: userId,
-      folder,
+    const userFolder = await this.repo.findOneBy({
+      id: folder,
     });
+    if (!userFolder) {
+      throw new NotFoundException();
+    }
+    if (userFolder && userFolder.user_id === userId) {
+      return this.repo.findBy({ folder });
+    }
+    const role = await this.roles.findOneBy({ item: folder, user_id: userId });
+    const permission = role?.permission;
+    if (permission && [Permission.r, Permission.rw].includes(role.permission)) {
+      return this.repo.findBy({ folder });
+    }
+    throw new ForbiddenException();
   }
 
   async create(

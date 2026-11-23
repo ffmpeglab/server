@@ -102,7 +102,7 @@ export class RolesService {
 
     const redirectTo = createItem.render
       ? config.webAppHost + 'editor/render/' + permissionedRow?.id
-      : config.webAppHost + 'shared/item/' + permissionedRow?.id;
+      : config.webAppHost + 'editor/project/' + permissionedRow?.id;
 
     const email = createItem.email;
 

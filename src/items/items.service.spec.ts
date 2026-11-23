@@ -82,10 +82,10 @@ describe('ItemsService', () => {
       expect(mockItemsRepo.findBy).toHaveBeenCalledWith({ folder: 'f1' });
     });
 
-    it("throws 'no_public_folder_found' when the parent is missing/private/non-folder", async () => {
+    it('throws when the parent is missing/private/non-folder', async () => {
       mockItemsRepo.findOneBy.mockResolvedValue(null);
       await expect(service.findByFolderPublic('f1')).rejects.toThrow(
-        'no_public_folder_found',
+        'Not Found',
       );
       expect(mockItemsRepo.findBy).not.toHaveBeenCalled();
     });
@@ -117,25 +117,25 @@ describe('ItemsService', () => {
       });
     });
 
-    it("throws 'no_permission_found' when permission is w-only", async () => {
+    it('throws Forbidden when permission is w-only', async () => {
       mockRolesRepo.findOneBy.mockResolvedValue({ permission: Permission.w });
       await expect(service.findOneByPermission('i1', 'u1')).rejects.toThrow(
-        'no_permission_found',
+        'Forbidden',
       );
       expect(mockItemsRepo.findOne).not.toHaveBeenCalled();
     });
 
-    it("throws 'no_permission_found' when no role row exists", async () => {
+    it('throws Forbidden when no role row exists', async () => {
       mockRolesRepo.findOneBy.mockResolvedValue(null);
       await expect(service.findOneByPermission('i1', 'u1')).rejects.toThrow(
-        'no_permission_found',
+        'Forbidden',
       );
     });
 
     it('scopes the role lookup to (item, user_id)', async () => {
       mockRolesRepo.findOneBy.mockResolvedValue(null);
       await expect(service.findOneByPermission('i1', 'u1')).rejects.toThrow(
-        'no_permission_found',
+        'Forbidden',
       );
       expect(mockRolesRepo.findOneBy).toHaveBeenCalledWith({
         item: 'i1',
@@ -156,7 +156,7 @@ describe('ItemsService', () => {
     it('scopes the role lookup to (item, caller)', async () => {
       mockRolesRepo.findOneBy.mockResolvedValue(null);
       await expect(service.updateByRole(dto, caller)).rejects.toThrow(
-        'no_permission_found',
+        'Forbidden',
       );
       expect(mockRolesRepo.findOneBy).toHaveBeenCalledWith({
         item: 'i1',
@@ -204,21 +204,21 @@ describe('ItemsService', () => {
       );
     });
 
-    it("throws 'no_permission_found' for r-only permission", async () => {
+    it('throws Forbidden for r-only permission', async () => {
       mockRolesRepo.findOneBy.mockResolvedValue({
         permission: Permission.r,
         owner,
       });
       await expect(service.updateByRole(dto, caller)).rejects.toThrow(
-        'no_permission_found',
+        'Forbidden',
       );
       expect(mockItemsRepo.update).not.toHaveBeenCalled();
     });
 
-    it("throws 'no_permission_found' when no role row exists", async () => {
+    it('throws Forbidden when no role row exists', async () => {
       mockRolesRepo.findOneBy.mockResolvedValue(null);
       await expect(service.updateByRole(dto, caller)).rejects.toThrow(
-        'no_permission_found',
+        'Forbidden',
       );
     });
 
@@ -250,13 +250,48 @@ describe('ItemsService', () => {
   });
 
   describe('findByFolder', () => {
-    it('filters by (user_id, folder)', async () => {
+    it('returns children when the caller owns the folder', async () => {
+      // The current implementation looks the folder up by `id` only,
+      // then filters children by `folder` (no user_id in the children query).
+      mockItemsRepo.findOneBy.mockResolvedValue({ id: 'f1', user_id: 'u1' });
       mockItemsRepo.findBy.mockResolvedValue([]);
+
       await service.findByFolder('f1', 'u1');
-      expect(mockItemsRepo.findBy).toHaveBeenCalledWith({
-        user_id: 'u1',
-        folder: 'f1',
+
+      expect(mockItemsRepo.findOneBy).toHaveBeenCalledWith({ id: 'f1' });
+      expect(mockItemsRepo.findBy).toHaveBeenCalledWith({ folder: 'f1' });
+    });
+
+    it('returns children when the caller has r/rw via a role', async () => {
+      mockItemsRepo.findOneBy.mockResolvedValue({ id: 'f1', user_id: 'alice' });
+      mockRolesRepo.findOneBy.mockResolvedValue({
+        permission: Permission.rw,
       });
+      mockItemsRepo.findBy.mockResolvedValue([{ id: 'c1' }]);
+
+      const result = await service.findByFolder('f1', 'u1');
+
+      expect(result).toEqual([{ id: 'c1' }]);
+      expect(mockItemsRepo.findBy).toHaveBeenCalledWith({ folder: 'f1' });
+    });
+
+    it('throws Forbidden when the caller has no access', async () => {
+      mockItemsRepo.findOneBy.mockResolvedValue({ id: 'f1', user_id: 'alice' });
+      mockRolesRepo.findOneBy.mockResolvedValue({
+        permission: Permission.w,
+      });
+
+      await expect(service.findByFolder('f1', 'u1')).rejects.toThrow(
+        'Forbidden',
+      );
+      expect(mockItemsRepo.findBy).not.toHaveBeenCalled();
+    });
+
+    it('throws Not Found when the folder does not exist', async () => {
+      mockItemsRepo.findOneBy.mockResolvedValue(null);
+      await expect(service.findByFolder('f1', 'u1')).rejects.toThrow(
+        'Not Found',
+      );
     });
   });
 
