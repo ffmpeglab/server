@@ -140,6 +140,9 @@ preserved.
       if (!render?.id) throw new Error('render_write_failed');
 
       task.result = { ...(task.result || {}) };
+      
+      task.renderId = render.id
+
       await this.itemService.update({ ...item, item: task }, item.user_id);
 
       // taskId passthrough so the render can notify us when it finishes.
