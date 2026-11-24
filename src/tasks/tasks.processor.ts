@@ -122,7 +122,6 @@ preserved.
         {
           project: {
             ...task.project,
-            id: task.projectId,
             editor: {
               ...task.project.editor,
               gitRepo: { ...gitRepo, ref: branch },
