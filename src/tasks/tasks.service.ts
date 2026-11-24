@@ -7,6 +7,7 @@ import { Role } from '../model/roles.entity';
 import { InjectQueue, PgmqQueue } from 'nestjs-pgmq';
 import { config } from '../config';
 import { Task } from '../types/Task';
+import { otariClient } from '../otari';
 
 @Injectable()
 export class TasksService {
@@ -79,5 +80,9 @@ export class TasksService {
       return this.createTask(item);
     }
     throw new Error('no_permission_found');
+  }
+
+  async getModels() {
+    return await otariClient.listModels();
   }
 }

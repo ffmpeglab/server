@@ -28,6 +28,7 @@ services:
       - SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
       - PIPELINES_API_ENABLED=${PIPELINES_API_ENABLED}
       - S3_PUBLIC_BUCKET_ID=${S3_PUBLIC_BUCKET_ID}
+      - OTARI_API_KEY=${OTARI_API_KEY}
     networks:
       - isolated
       - public

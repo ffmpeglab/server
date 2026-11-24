@@ -3,21 +3,15 @@ import { config } from '../config';
 import type { PgmqJob } from 'nestjs-pgmq';
 import { ItemsService } from '../items/items.service';
 import { Task } from '../types/Task';
-import { OtariClient } from '@mozilla-ai/otari';
 import { TasksService } from './tasks.service';
 import { RendersService } from '../renders/renders.service';
-import { Item } from '../model/item.entity';
 import { documentDir } from '../ffmpeg/util/util';
 import { GitRepo } from '../types';
 import { cloneRepo } from '../ffmpeg/util/gitClone';
 import fs from 'fs';
 import { commitFileAndPush } from './gitpatch';
 import { openMergeRequest } from './gitmr';
-
-const client = new OtariClient({
-  platformToken: config.otariApiKey,
-  apiBase: config.otariHost,
-});
+import { otariClient } from '../otari';
 
 const extractFileContent = (
   content: string | null | undefined,
@@ -78,7 +72,7 @@ should be a valid render.sh with all $MEDIA_N and $OUTPUT_PATH placeholders
 preserved.
 `;
 
-      const response = await client.completion({
+      const response = await otariClient.completion({
         model: task.model,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -128,6 +122,7 @@ preserved.
         {
           project: {
             ...task.project,
+            id: task.projectId,
             editor: {
               ...task.project.editor,
               gitRepo: { ...gitRepo, ref: branch },
