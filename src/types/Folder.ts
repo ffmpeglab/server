@@ -4,15 +4,15 @@ export class Folder {
   @ApiProperty()
   id: string;
   @ApiProperty()
-  userId: string;
+  userId?: string;
   @ApiProperty()
   title: string;
   @ApiProperty()
-  date: number;
+  date?: number;
   @ApiProperty()
   folderId?: string;
   @ApiProperty()
-  orderId: number;
+  orderId?: number;
   @ApiProperty()
   mnemonic?: string;
   @ApiProperty()

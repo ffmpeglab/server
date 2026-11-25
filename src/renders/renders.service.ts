@@ -127,7 +127,7 @@ export class RendersService {
 
   async updateMediaResult(renderId: string, media: MinimalMedia) {
     await this.rendersRepository.update({ id: renderId }, { result: media });
-    return await this.findOne(renderId, media.userId);
+    return await this.findOne(renderId, media.userId as string);
   }
 
   async updateRenderStatus(renderId: string, status: RenderStatus) {

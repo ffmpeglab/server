@@ -23,9 +23,10 @@ import { parseCommand } from './util/parseCommand';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { syncMedia } from './util/syncMedia';
-import { cloneRepo } from './util/gitClone';
+// import { cloneRepo } from './util/gitClone';
 import * as opentenant from 'opentenant-platform';
 import { config } from '../config';
+import { cloneRepo } from 'git-adapter';
 const processCustomCode = (Code: string) => {
   const hasFilterComplex = Code?.search('filter_complex') > -1;
   if (hasFilterComplex) return processUserCode(Code);
@@ -233,7 +234,16 @@ export const encodeProjectWithGit = async (
   const url = `https://${platform}.com/${repoFullName}`;
   const repoDir = `${documentDir()}/${RENDER_ID}`;
 
-  await cloneRepo({ url, ref, dest: repoDir, platform });
+  await cloneRepo({
+    url,
+    ref,
+    dest: repoDir,
+    platform,
+    tokens: {
+      gitlabComToken: config.git.gitlabcomhttpsToken,
+      githubToken: config.git.httpsToken,
+    },
+  });
 
   const code = fs.readFileSync(`${repoDir}/${codePath}`, 'utf8');
 

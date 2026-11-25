@@ -22,6 +22,9 @@
     "app\\.module\\.ts",
     "src/apikey/apikey.controller.ts"
   ],
+  "transformIgnorePatterns": [
+    "/node_modules/(?!@nestjs/mcp)"
+  ],
   "coverageThreshold": {
     "global": {
       "lines": 73,
