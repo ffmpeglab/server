@@ -7,11 +7,10 @@ import { TasksService } from './tasks.service';
 import { RendersService } from '../renders/renders.service';
 import { documentDir } from '../ffmpeg/util/util';
 import { GitRepo } from '../types';
-import { cloneRepo } from '../ffmpeg/util/gitClone';
 import fs from 'fs';
-import { commitFileAndPush } from './gitpatch';
-import { openMergeRequest } from './gitmr';
 import { otariClient } from '../otari';
+import { cloneRepo, commitFileAndPush } from 'git-adapter';
+import { openMergeRequest } from './gitmr';
 
 const extractFileContent = (
   content: string | null | undefined,
@@ -51,7 +50,16 @@ export class TaskProcessor {
       const url = `https://${platform}.com/${repoFullName}`;
       const repoDir = `${documentDir()}/${taskId}`;
 
-      await cloneRepo({ url, ref, dest: repoDir, platform });
+      await cloneRepo({
+        url,
+        ref,
+        dest: repoDir,
+        platform,
+        tokens: {
+          gitlabComToken: config.git.gitlabcomhttpsToken,
+          githubToken: config.git.gitlabhttpsToken,
+        },
+      });
 
       const code = fs.readFileSync(`${repoDir}/${codePath}`, 'utf8');
       const prompt = `
@@ -105,6 +113,10 @@ preserved.
         commitMessage,
         platform,
         author: { name: 'ffmpeglab', email: 'info@ffmpeglab.com' },
+        tokens: {
+          gitlabComToken: config.git.gitlabcomhttpsToken,
+          githubToken: config.git.httpsToken,
+        },
       });
 
       await openMergeRequest({

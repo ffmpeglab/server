@@ -70,7 +70,7 @@ export class Media {
   @ApiProperty()
   fileType: string;
   @ApiProperty()
-  userId: string;
+  userId?: string;
   @ApiProperty()
   size?: number;
   @ApiProperty()

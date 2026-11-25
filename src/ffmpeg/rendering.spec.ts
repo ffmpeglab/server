@@ -6,7 +6,7 @@ import { createFFmpeg } from './util/createFFmpeg';
 import { syncMedia } from './util/syncMedia';
 import { processUserCode } from './util/processUserCode';
 import { parseCommand } from './util/parseCommand';
-import { cloneRepo } from './util/gitClone';
+import { cloneRepo } from 'git-adapter';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
@@ -17,7 +17,7 @@ jest.mock('./util/createFFmpeg');
 jest.mock('./util/syncMedia');
 jest.mock('./util/processUserCode');
 jest.mock('./util/parseCommand');
-jest.mock('./util/gitClone', () => ({ cloneRepo: jest.fn() }));
+jest.mock('git-adapter', () => ({ cloneRepo: jest.fn() }));
 jest.mock('fs');
 jest.mock('crypto', () => ({ randomUUID: jest.fn() }));
 jest.mock('./util/util', () => ({
