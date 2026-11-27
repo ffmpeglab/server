@@ -40,6 +40,9 @@ function buildBwrapArgs(scratchDir: string, cmd: string[]): string[] {
     '--ro-bind-try',
     '/bin',
     '/bin',
+    '--ro-bind-try',
+    '/models',
+    '/models',
 
     // dynamic linker — this is what fixes libdrm
     '--ro-bind-try',
